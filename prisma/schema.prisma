@@ -1,0 +1,193 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  password    String
+  role        Role     @default(FARMER)
+  phone       String?
+  location    String?
+  address     String?
+  verified    Boolean  @default(false)
+  avatar      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  products    Product[]
+  orders      Order[]    @relation("BuyerOrders")
+  sales       Order[]    @relation("FarmerSales")
+  reviews     Review[]
+  messages    Message[]
+  analytics   UserAnalytics[]
+
+  @@map("users")
+}
+
+model Product {
+  id              String      @id @default(cuid())
+  name            String
+  description     String?     @db.Text
+  category        Category
+  price           Float
+  quantity        Int
+  unit            String      @default("kg")
+  harvestDate     DateTime?
+  expiryDate      DateTime?
+  location        String
+  images          String?     @db.Text // JSON array of image URLs
+  organic         Boolean     @default(false)
+  available       Boolean     @default(true)
+  farmerId        String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  farmer          User        @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  orders          Order[]
+  reviews         Review[]
+  priceHistory    PriceHistory[]
+  transactions    Transaction[]
+
+  @@map("products")
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  quantity    Int
+  totalPrice  Float
+  status      OrderStatus @default(PENDING)
+  deliveryDate DateTime?
+  notes       String?     @db.Text
+  buyerId     String
+  farmerId    String
+  productId   String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  buyer       User        @relation("BuyerOrders", fields: [buyerId], references: [id])
+  farmer      User        @relation("FarmerSales", fields: [farmerId], references: [id])
+  product     Product     @relation(fields: [productId], references: [id])
+  transaction Transaction?
+  review      Review?
+
+  @@map("orders")
+}
+
+model Transaction {
+  id            String      @id @default(cuid())
+  orderId       String      @unique
+  amount        Float
+  status        TransactionStatus @default(PENDING)
+  blockHash     String?     // Simulated blockchain hash
+  blockNumber   Int?        // Simulated block number
+  gasUsed       Float?      // Simulated gas cost
+  timestamp     DateTime    @default(now())
+  
+  // Relations
+  order         Order       @relation(fields: [orderId], references: [id])
+  product       Product     @relation(fields: [productId], references: [id])
+  productId     String
+
+  @@map("transactions")
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int      // 1-5 stars
+  comment   String?  @db.Text
+  userId    String
+  productId String
+  orderId   String   @unique
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  order     Order    @relation(fields: [orderId], references: [id])
+
+  @@map("reviews")
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  content    String   @db.Text
+  senderId   String
+  receiverId String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  // Relations
+  sender     User     @relation(fields: [senderId], references: [id])
+
+  @@map("messages")
+}
+
+model PriceHistory {
+  id        String   @id @default(cuid())
+  productId String
+  price     Float
+  date      DateTime @default(now())
+
+  // Relations
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@map("price_history")
+}
+
+model UserAnalytics {
+  id           String   @id @default(cuid())
+  userId       String
+  event        String   // login, product_view, purchase, etc.
+  metadata     String?  @db.Text // JSON data
+  timestamp    DateTime @default(now())
+
+  // Relations
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@map("user_analytics")
+}
+
+enum Role {
+  FARMER
+  BUYER
+  ADMIN
+}
+
+enum Category {
+  VEGETABLES
+  FRUITS
+  GRAINS
+  PULSES
+  SPICES
+  DAIRY
+  POULTRY
+  ORGANIC
+  PROCESSED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}

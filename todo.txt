@@ -1,0 +1,34 @@
+//update order status, confirm and cancel not functioning as intended
+update nodejs
+performance metrics(priority)
+"error": "Failed to fetch buyer analytics" endpoint
+work on brock chain and ai service, controller and routes
+install other dep especially for tensorflow
+cors failure thus front-back interaction failure
+consider sanitising endpoints
+use of procedures
+mobile money integration
+ci/cd pipeline
+redis server
+enhancing the user interface
+chat agent: n8n.io using open AI(where do u recommend it to be used based on my projct)
+voice assistants
+multi lang model
+ai and blockchain
+performance metrics
+analytics
+security and x-site scripting
+demo
+technical documentation
+expanding model and configurations plus rules
+approval for buyers and farmers
+front: form builder
+wireframes: figma
+
+......................................................................
+if l buy what is deadline
+how do l know its not a third party
+more communication btn buyer and farmer for negotiations
+countries that donot support mobile money use stripe and integrate with banks
+if a if buyer logins in, automation should bring farmers items in his locality and near
+.......................................................................
