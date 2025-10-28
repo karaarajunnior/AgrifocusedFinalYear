@@ -38,26 +38,26 @@ class LocationService {
 		try {
 			// For demo purposes, we'll use predefined coordinates for common Indian cities
 			const cityCoordinates = {
-				mumbai: { lat: 19.076, lon: 72.8777 },
-				delhi: { lat: 28.7041, lon: 77.1025 },
-				bangalore: { lat: 12.9716, lon: 77.5946 },
-				chennai: { lat: 13.0827, lon: 80.2707 },
-				kolkata: { lat: 22.5726, lon: 88.3639 },
-				hyderabad: { lat: 17.385, lon: 78.4867 },
-				pune: { lat: 18.5204, lon: 73.8567 },
-				ahmedabad: { lat: 23.0225, lon: 72.5714 },
-				jaipur: { lat: 26.9124, lon: 75.7873 },
-				lucknow: { lat: 26.8467, lon: 80.9462 },
-				kanpur: { lat: 26.4499, lon: 80.3319 },
-				nagpur: { lat: 21.1458, lon: 79.0882 },
-				indore: { lat: 22.7196, lon: 75.8577 },
-				thane: { lat: 19.2183, lon: 72.9781 },
-				bhopal: { lat: 23.2599, lon: 77.4126 },
-				visakhapatnam: { lat: 17.6868, lon: 83.2185 },
-				pimpri: { lat: 18.6298, lon: 73.7997 },
-				patna: { lat: 25.5941, lon: 85.1376 },
-				vadodara: { lat: 22.3072, lon: 73.1812 },
-				ghaziabad: { lat: 28.6692, lon: 77.4538 },
+				jinja: { lat: 19.076, lon: 72.8777 },
+				mbale: { lat: 28.7041, lon: 77.1025 },
+				soroti: { lat: 12.9716, lon: 77.5946 },
+				fortportal: { lat: 13.0827, lon: 80.2707 },
+				kampala: { lat: 22.5726, lon: 88.3639 },
+				masaka: { lat: 17.385, lon: 78.4867 },
+				ntungamo: { lat: 18.5204, lon: 73.8567 },
+				kasese: { lat: 23.0225, lon: 72.5714 },
+				kimaka: { lat: 26.9124, lon: 75.7873 },
+				mbarara: { lat: 26.8467, lon: 80.9462 },
+				kanungu: { lat: 26.4499, lon: 80.3319 },
+				bushenyi: { lat: 21.1458, lon: 79.0882 },
+				amuria: { lat: 22.7196, lon: 75.8577 },
+				kapchwora: { lat: 19.2183, lon: 72.9781 },
+				serere: { lat: 23.2599, lon: 77.4126 },
+				kisonga: { lat: 17.6868, lon: 83.2185 },
+				sebei: { lat: 18.6298, lon: 73.7997 },
+				ibanda: { lat: 25.5941, lon: 85.1376 },
+				nakapiriprit: { lat: 22.3072, lon: 73.1812 },
+				hamjoshcity: { lat: 28.6692, lon: 77.4538 },
 			};
 
 			const normalizedLocation = location.toLowerCase().split(",")[0].trim();
@@ -115,13 +115,13 @@ class LocationService {
 	// Get nearby locations for suggestions
 	getNearbyLocations(location) {
 		const locationGroups = {
-			mumbai: ["Mumbai", "Thane", "Navi Mumbai", "Pune"],
-			delhi: ["Delhi", "Gurgaon", "Noida", "Ghaziabad", "Faridabad"],
-			bangalore: ["Bangalore", "Mysore", "Mangalore"],
-			chennai: ["Chennai", "Coimbatore", "Madurai"],
-			kolkata: ["Kolkata", "Howrah", "Durgapur"],
+			jinja: ["jinja", "mpumude", "bugembe", "magamaga"],
+			kampala: ["kampala", "masaka", "mpigi", "mukono", "entebbe"],
+			soroti: ["amuria", "soroti", "tororo"],
+			mbarara: ["kizungu", "nkokojeru", "mbarara"],
+			mbale: ["mbale", "Howrah", "Durgapur"],
 			hyderabad: ["Hyderabad", "Secunderabad", "Warangal"],
-			pune: ["Pune", "Mumbai", "Nashik", "Aurangabad"],
+			fortportal: ["fortportal", "rwenzori", "kasese", "congo"],
 		};
 
 		const normalizedLocation = location.toLowerCase().split(",")[0].trim();
@@ -133,7 +133,7 @@ class LocationService {
 		// In a real app, this would use browser geolocation API
 
 		return {
-			location: "Mumbai, Maharashtra",
+			location: "jinja, lubus",
 			coordinates: { lat: 19.076, lon: 72.8777 },
 		};
 	}

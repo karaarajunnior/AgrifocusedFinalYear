@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
@@ -116,7 +117,7 @@ function BuyerDashboard() {
 	const detectUserLocation = () => {
 		setLocationLoading(true);
 		// Use user's profile location or default to Mumbai
-		const location = user?.location || "Mumbai, Maharashtra";
+		const location = user?.location || "default, home";
 		setUserLocation(location);
 		setLocationLoading(false);
 	};

@@ -11,75 +11,75 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  name        String
-  email       String   @unique
-  password    String
-  role        Role     @default(FARMER)
-  phone       String?
-  location    String?
-  address     String?
-  verified    Boolean  @default(false)
-  avatar      String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(FARMER)
+  phone     String?
+  location  String?
+  address   String?
+  verified  Boolean  @default(false)
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  products    Product[]
-  orders      Order[]    @relation("BuyerOrders")
-  sales       Order[]    @relation("FarmerSales")
-  reviews     Review[]
-  messages    Message[]
-  analytics   UserAnalytics[]
+  products  Product[]
+  orders    Order[]         @relation("BuyerOrders")
+  sales     Order[]         @relation("FarmerSales")
+  reviews   Review[]
+  messages  Message[]
+  analytics UserAnalytics[]
 
   @@map("users")
 }
 
 model Product {
-  id              String      @id @default(cuid())
-  name            String
-  description     String?     @db.Text
-  category        Category
-  price           Float
-  quantity        Int
-  unit            String      @default("kg")
-  harvestDate     DateTime?
-  expiryDate      DateTime?
-  location        String
-  images          String?     @db.Text // JSON array of image URLs
-  organic         Boolean     @default(false)
-  available       Boolean     @default(true)
-  farmerId        String
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id          String    @id @default(cuid())
+  name        String
+  description String?   @db.Text
+  category    Category
+  price       Float
+  quantity    Int
+  unit        String    @default("kg")
+  harvestDate DateTime?
+  expiryDate  DateTime?
+  location    String
+  images      String?   @db.Text // JSON array of image URLs
+  organic     Boolean   @default(false)
+  available   Boolean   @default(true)
+  farmerId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Relations
-  farmer          User        @relation(fields: [farmerId], references: [id], onDelete: Cascade)
-  orders          Order[]
-  reviews         Review[]
-  priceHistory    PriceHistory[]
-  transactions    Transaction[]
+  farmer       User           @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  orders       Order[]
+  reviews      Review[]
+  priceHistory PriceHistory[]
+  transactions Transaction[]
 
   @@map("products")
 }
 
 model Order {
-  id          String      @id @default(cuid())
-  quantity    Int
-  totalPrice  Float
-  status      OrderStatus @default(PENDING)
+  id           String      @id @default(cuid())
+  quantity     Int
+  totalPrice   Float
+  status       OrderStatus @default(PENDING)
   deliveryDate DateTime?
-  notes       String?     @db.Text
-  buyerId     String
-  farmerId    String
-  productId   String
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  notes        String?     @db.Text
+  buyerId      String
+  farmerId     String
+  productId    String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   // Relations
-  buyer       User        @relation("BuyerOrders", fields: [buyerId], references: [id])
-  farmer      User        @relation("FarmerSales", fields: [farmerId], references: [id])
-  product     Product     @relation(fields: [productId], references: [id])
+  buyer       User         @relation("BuyerOrders", fields: [buyerId], references: [id])
+  farmer      User         @relation("FarmerSales", fields: [farmerId], references: [id])
+  product     Product      @relation(fields: [productId], references: [id])
   transaction Transaction?
   review      Review?
 
@@ -87,26 +87,26 @@ model Order {
 }
 
 model Transaction {
-  id            String      @id @default(cuid())
-  orderId       String      @unique
-  amount        Float
-  status        TransactionStatus @default(PENDING)
-  blockHash     String?     // Simulated blockchain hash
-  blockNumber   Int?        // Simulated block number
-  gasUsed       Float?      // Simulated gas cost
-  timestamp     DateTime    @default(now())
-  
+  id          String            @id @default(cuid())
+  orderId     String            @unique
+  amount      Float
+  status      TransactionStatus @default(PENDING)
+  blockHash   String? // Simulated blockchain hash
+  blockNumber Int? // Simulated block number
+  gasUsed     Float? // Simulated gas cost
+  timestamp   DateTime          @default(now())
+
   // Relations
-  order         Order       @relation(fields: [orderId], references: [id])
-  product       Product     @relation(fields: [productId], references: [id])
-  productId     String
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
 
   @@map("transactions")
 }
 
 model Review {
   id        String   @id @default(cuid())
-  rating    Int      // 1-5 stars
+  rating    Int // 1-5 stars
   comment   String?  @db.Text
   userId    String
   productId String
@@ -114,9 +114,9 @@ model Review {
   createdAt DateTime @default(now())
 
   // Relations
-  user      User     @relation(fields: [userId], references: [id])
-  product   Product  @relation(fields: [productId], references: [id])
-  order     Order    @relation(fields: [orderId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id])
 
   @@map("reviews")
 }
@@ -130,7 +130,7 @@ model Message {
   createdAt  DateTime @default(now())
 
   // Relations
-  sender     User     @relation(fields: [senderId], references: [id])
+  sender User @relation(fields: [senderId], references: [id])
 
   @@map("messages")
 }
@@ -142,20 +142,20 @@ model PriceHistory {
   date      DateTime @default(now())
 
   // Relations
-  product   Product  @relation(fields: [productId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
 
   @@map("price_history")
 }
 
 model UserAnalytics {
-  id           String   @id @default(cuid())
-  userId       String
-  event        String   // login, product_view, purchase, etc.
-  metadata     String?  @db.Text // JSON data
-  timestamp    DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  event     String // login, product_view, purchase, etc.
+  metadata  String?  @db.Text // JSON data
+  timestamp DateTime @default(now())
 
   // Relations
-  user         User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@map("user_analytics")
 }

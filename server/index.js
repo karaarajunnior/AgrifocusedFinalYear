@@ -19,7 +19,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(helmet());
-const allowedOrigins = ["http://localhost:5176"];
+const allowedOrigins = ["http://localhost:5173"];
 
 app.use(
 	cors({
@@ -32,7 +32,7 @@ app.use(
 			}
 		},
 		credentials: true,
-		methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+		methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
 		allowedHeaders: ["Content-Type", "Authorization"],
 	}),
 );
