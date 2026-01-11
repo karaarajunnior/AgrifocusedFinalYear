@@ -19,6 +19,7 @@ model User {
   phone     String?
   location  String?
   address   String?
+  walletAddress String? @db.VarChar(64)
   verified  Boolean  @default(false)
   mfaEnabled     Boolean @default(false)
   mfaSecret      String? @db.Text
@@ -62,6 +63,11 @@ model Product {
   images      String?   @db.Text // JSON array of image URLs
   organic     Boolean   @default(false)
   available   Boolean   @default(true)
+  listedOnChain Boolean @default(false)
+  chainProductId Int?
+  chainTxHash    String? @db.VarChar(128)
+  chainBlockNumber Int?
+  chainListedAt  DateTime?
   farmerId    String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

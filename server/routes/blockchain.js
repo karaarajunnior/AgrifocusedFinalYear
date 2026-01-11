@@ -7,8 +7,54 @@ import { requireVerified } from "../middleware/verified.js";
 const prisma = new PrismaClient();
 const router = express.Router();
 
+// Admin: verify farmer on-chain (required by the Solidity contract before listing)
+router.post(
+	"/verify-farmer",
+	authenticateToken,
+	requireRole(["ADMIN"]),
+	async (req, res) => {
+		try {
+			const { userId } = req.body;
+			if (!userId) return res.status(400).json({ error: "userId required" });
+
+			const user = await prisma.user.findUnique({ where: { id: userId } });
+			if (!user) return res.status(404).json({ error: "User not found" });
+			if (user.role !== "FARMER") {
+				return res.status(400).json({ error: "User is not a farmer" });
+			}
+			if (!user.walletAddress) {
+				return res.status(400).json({ error: "Farmer walletAddress not set" });
+			}
+
+			const result = await blockchainService.verifyFarmerOnChain(user.walletAddress);
+
+			await prisma.userAnalytics.create({
+				data: {
+					userId: req.user.id,
+					event: "blockchain_farmer_verified",
+					metadata: JSON.stringify({
+						farmerUserId: user.id,
+						farmerWallet: user.walletAddress,
+						...result,
+					}),
+				},
+			});
+
+			res.json({ message: "Farmer verified on-chain", blockchain: result });
+		} catch (error) {
+			console.error("Verify farmer error:", error);
+			res.status(500).json({ error: "Failed to verify farmer on-chain" });
+		}
+	},
+);
+
 // Record product listing on blockchain
-router.post("/list-product", authenticateToken, requireVerified, async (req, res) => {
+router.post(
+	"/list-product",
+	authenticateToken,
+	requireRole(["FARMER"]),
+	requireVerified,
+	async (req, res) => {
 	try {
 		const { productId } = req.body;
 
@@ -25,12 +71,27 @@ router.post("/list-product", authenticateToken, requireVerified, async (req, res
 			return res.status(403).json({ error: "Not authorized" });
 		}
 
+		if (!product.farmer?.walletAddress && process.env.CONTRACT_ADDRESS) {
+			return res.status(400).json({ error: "Set your wallet address before listing" });
+		}
+
 		const blockchainResult = await blockchainService.listProduct(
 			product,
-			req.user.id,
+			product.farmer?.walletAddress || req.user.id,
 		);
 
-		// Log blockchain listing event (Product model doesn't persist chain fields yet)
+		// Persist on product (auditability)
+		await prisma.product.update({
+			where: { id: productId },
+			data: {
+				listedOnChain: true,
+				chainTxHash: blockchainResult.transactionHash,
+				chainBlockNumber: blockchainResult.blockNumber,
+				chainListedAt: new Date(),
+			},
+		});
+
+		// Log blockchain listing event
 		await prisma.userAnalytics.create({
 			data: {
 				userId: req.user.id,
@@ -53,7 +114,8 @@ router.post("/list-product", authenticateToken, requireVerified, async (req, res
 		console.error("Blockchain listing error:", error);
 		res.status(500).json({ error: "Failed to list product on blockchain" });
 	}
-});
+	},
+);
 
 // Record transaction on blockchain
 router.post(
@@ -77,11 +139,27 @@ router.post(
 			return res.status(404).json({ error: "Order not found" });
 		}
 
+		// Access control: only buyer/farmer/admin can record
+		const hasAccess =
+			order.buyerId === req.user.id ||
+			order.farmerId === req.user.id ||
+			req.user.role === "ADMIN";
+		if (!hasAccess) return res.status(403).json({ error: "Access denied" });
+
+		// Real chain needs wallet addresses; simulation can proceed without
+		if (process.env.CONTRACT_ADDRESS) {
+			if (!order.buyer.walletAddress || !order.farmer.walletAddress) {
+				return res.status(400).json({
+					error: "Buyer and farmer walletAddress must be set for on-chain recording",
+				});
+			}
+		}
+
 		const transactionData = {
 			orderId: order.id,
 			productId: order.productId,
-			buyerAddress: order.buyer.id,
-			farmerAddress: order.farmer.id,
+			buyerAddress: order.buyer.walletAddress || order.buyer.id,
+			farmerAddress: order.farmer.walletAddress || order.farmer.id,
 			quantity: order.quantity,
 			totalPrice: order.totalPrice,
 		};

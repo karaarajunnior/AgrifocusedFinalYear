@@ -74,6 +74,9 @@ class BlockchainService {
 			if (!this.useSimulation && this.contract) {
 				// Real blockchain implementation
 				const accounts = await this.web3.eth.getAccounts();
+				const from = this.web3.utils.isAddress(farmerAddress)
+					? farmerAddress
+					: accounts[0];
 				const result = await this.contract.methods
 					.listProduct(
 						productData.name,
@@ -81,7 +84,7 @@ class BlockchainService {
 						this.web3.utils.toWei(productData.price.toString(), "ether"),
 						productData.quantity,
 					)
-					.send({ from: farmerAddress, gas: 300000 });
+					.send({ from, gas: 300000 });
 
 				return {
 					success: true,
@@ -121,10 +124,14 @@ class BlockchainService {
 		try {
 			if (!this.useSimulation && this.contract) {
 				// Real blockchain implementation
+				const accounts = await this.web3.eth.getAccounts();
+				const from = this.web3.utils.isAddress(transactionData.buyerAddress)
+					? transactionData.buyerAddress
+					: accounts[0];
 				const result = await this.contract.methods
 					.purchaseProduct(transactionData.productId, transactionData.quantity)
 					.send({
-						from: transactionData.buyerAddress,
+						from,
 						value: this.web3.utils.toWei(
 							transactionData.totalPrice.toString(),
 							"ether",
@@ -201,6 +208,26 @@ class BlockchainService {
 			console.error("Verification error:", error);
 			return { verified: false, error: error.message };
 		}
+	}
+
+	async verifyFarmerOnChain(farmerAddress) {
+		if (this.useSimulation || !this.contract) {
+			return { success: true, simulated: true };
+		}
+		if (!this.web3.utils.isAddress(farmerAddress)) {
+			throw new Error("Invalid farmer wallet address");
+		}
+		const accounts = await this.web3.eth.getAccounts();
+		const from = accounts[0];
+		const result = await this.contract.methods
+			.verifyFarmer(farmerAddress)
+			.send({ from, gas: 200000 });
+		return {
+			success: true,
+			transactionHash: result.transactionHash,
+			blockNumber: result.blockNumber,
+			gasUsed: result.gasUsed,
+		};
 	}
 
 	// Get blockchain statistics

@@ -271,6 +271,7 @@ router.get("/me", authenticateToken, async (req, res) => {
 				phone: true,
 				location: true,
 				address: true,
+				walletAddress: true,
 				avatar: true,
 				verified: true,
 				mfaEnabled: true,

@@ -1,4 +1,7 @@
 import tf from "@tensorflow/tfjs";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 class AIService {
 	constructor() {
@@ -21,12 +24,18 @@ class AIService {
 	async predictPrice(productData) {
 		try {
 			console.log(" Predicting price for:", productData);
-
-			// Simulate AI processing delay
-			await new Promise((resolve) => setTimeout(resolve, 1000));
+			// Keep response time snappy in production
+			const t0 = Date.now();
 
 			// Feature engineering
 			const features = this.extractPriceFeatures(productData);
+
+			// Pull recent price history from DB (best-effort)
+			const recentPrices = await this.getRecentPricesForSignal(productData);
+			const dbAvg =
+				recentPrices.length > 0
+					? recentPrices.reduce((s, p) => s + p, 0) / recentPrices.length
+					: null;
 
 			// Base price calculation with AI factors
 			const basePrice = this.getBasePriceForCategory(productData.category);
@@ -34,16 +43,21 @@ class AIService {
 			const locationFactor = this.getLocationFactor(productData.location);
 			const organicFactor = productData.organic ? 1.3 : 1.0;
 			const supplyFactor = this.getSupplyFactor(productData.quantity);
-			const demandFactor = this.getDemandFactor(productData.category);
+			const demandFactor = await this.getDemandFactorFromDb(productData.category);
 
 			// AI-predicted price
-			const predictedPrice =
+			let predictedPrice =
 				basePrice *
 				seasonalFactor *
 				locationFactor *
 				organicFactor *
 				supplyFactor *
 				demandFactor;
+
+			// Blend with DB signal if present (more realistic than pure heuristics)
+			if (dbAvg !== null) {
+				predictedPrice = predictedPrice * 0.6 + dbAvg * 0.4;
+			}
 
 			// Calculate confidence based on data quality
 			const confidence = this.calculatePriceConfidence(
@@ -52,12 +66,15 @@ class AIService {
 			);
 
 			// Market analysis
-			const marketAnalysis = this.analyzeMarketConditions(productData);
+			const marketAnalysis = await this.analyzeMarket(
+				productData.category,
+				productData.location,
+			);
 
 			return {
 				predictedPrice: Math.max(5, Math.round(predictedPrice * 100) / 100),
 				confidence: confidence,
-				marketAnalysis: marketAnalysis,
+				marketAnalysis: marketAnalysis.summary,
 				factors: {
 					seasonal: seasonalFactor,
 					supply: supplyFactor,
@@ -69,6 +86,11 @@ class AIService {
 					productData,
 					predictedPrice,
 				),
+				telemetry: {
+					usedDbSignal: dbAvg !== null,
+					priceSamples: recentPrices.length,
+					processingMs: Date.now() - t0,
+				},
 				timestamp: new Date().toISOString(),
 			};
 		} catch (error) {
@@ -81,11 +103,12 @@ class AIService {
 	async forecastDemand(productData, timeframe = 30) {
 		try {
 			console.log("Forecasting demand for:", productData);
+			const t0 = Date.now();
 
-			// Simulate AI processing
-			await new Promise((resolve) => setTimeout(resolve, 800));
-
-			const demandScore = this.calculateDemandScore(productData, timeframe);
+			const demandScore = await this.calculateDemandScoreFromDb(
+				productData,
+				timeframe,
+			);
 			const demandLevel = this.scoreToDemandLevel(demandScore);
 			const forecastedQuantity = this.calculateForecastedQuantity(
 				productData,
@@ -98,12 +121,15 @@ class AIService {
 				demandScore: demandScore,
 				forecastedQuantity: forecastedQuantity,
 				timeframe: timeframe,
-				trends: this.analyzeDemandTrends(productData),
+				trends: await this.analyzeDemandTrendsFromDb(productData),
 				seasonality: this.getSeasonalDemandPattern(productData.category),
 				recommendations: this.generateDemandRecommendations(
 					productData,
 					demandLevel,
 				),
+				telemetry: {
+					processingMs: Date.now() - t0,
+				},
 				timestamp: new Date().toISOString(),
 			};
 		} catch (error) {
@@ -116,9 +142,7 @@ class AIService {
 	async recommendCrops(farmerData) {
 		try {
 			console.log(" Generating crop recommendations for:", farmerData);
-
-			// Simulate AI processing
-			await new Promise((resolve) => setTimeout(resolve, 1200));
+			const t0 = Date.now();
 
 			const cropDatabase = this.getCropDatabase();
 			const recommendations = [];
@@ -173,13 +197,168 @@ class AIService {
 				recommendations: recommendations.slice(0, 6),
 				season: this.getCurrentSeason(),
 				weatherForecast: this.getWeatherInsights(farmerData.location),
-				marketTrends: this.getMarketTrends(),
+				marketTrends: await this.getMarketTrendsFromDb(),
 				tips: this.getFarmingTips(farmerData),
+				telemetry: { processingMs: Date.now() - t0 },
 				timestamp: new Date().toISOString(),
 			};
 		} catch (error) {
 			console.error("Crop recommendation error:", error);
 			return this.getFallbackCropRecommendations();
+		}
+	}
+
+	// Market analysis (DB-driven)
+	async analyzeMarket(category, location) {
+		try {
+			const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+			const [deliveredOrders, recentProducts, avgPriceHistory] = await Promise.all([
+				prisma.order.count({
+					where: {
+						status: "DELIVERED",
+						createdAt: { gte: since30d },
+						product: category ? { category } : undefined,
+					},
+				}),
+				prisma.product.count({
+					where: {
+						available: true,
+						quantity: { gt: 0 },
+						category: category || undefined,
+						location: location ? { contains: location } : undefined,
+					},
+				}),
+				prisma.priceHistory.aggregate({
+					where: {
+						date: { gte: since30d },
+						product: category ? { category } : undefined,
+					},
+					_avg: { price: true },
+				}),
+			]);
+
+			const avgPrice = avgPriceHistory._avg.price || 0;
+
+			return {
+				summary: `Last 30 days: ${deliveredOrders} delivered orders. ${recentProducts} active listings. Avg price signal: ${avgPrice.toFixed(
+					2,
+				)}.`,
+				signals: {
+					deliveredOrders30d: deliveredOrders,
+					activeListings: recentProducts,
+					avgPrice30d: avgPrice,
+				},
+				timestamp: new Date().toISOString(),
+			};
+		} catch (e) {
+			return {
+				summary: "Market analysis unavailable (insufficient data).",
+				signals: {},
+				timestamp: new Date().toISOString(),
+			};
+		}
+	}
+
+	async getRecentPricesForSignal(productData) {
+		try {
+			const since90d = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+			const rows = await prisma.priceHistory.findMany({
+				where: {
+					date: { gte: since90d },
+					product: {
+						category: productData.category || undefined,
+						location: productData.location
+							? { contains: productData.location }
+							: undefined,
+					},
+				},
+				orderBy: { date: "desc" },
+				take: 30,
+				select: { price: true },
+			});
+			return rows.map((r) => r.price).filter((p) => typeof p === "number");
+		} catch {
+			return [];
+		}
+	}
+
+	async getDemandFactorFromDb(category) {
+		// Convert recent delivered order volume into a mild multiplier (0.9..1.3)
+		try {
+			const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+			const count = await prisma.order.count({
+				where: {
+					status: "DELIVERED",
+					createdAt: { gte: since30d },
+					product: category ? { category } : undefined,
+				},
+			});
+			// basic scaling
+			const factor = 0.9 + Math.min(0.4, count / 200);
+			return Math.max(0.9, Math.min(1.3, factor));
+		} catch {
+			return this.getDemandFactor(category);
+		}
+	}
+
+	async calculateDemandScoreFromDb(productData, timeframe) {
+		try {
+			const since = new Date(Date.now() - Math.max(7, timeframe) * 24 * 60 * 60 * 1000);
+			const delivered = await prisma.order.count({
+				where: {
+					status: "DELIVERED",
+					createdAt: { gte: since },
+					product: productData.category ? { category: productData.category } : undefined,
+				},
+			});
+			// Normalize into 0.1..0.95
+			const base = Math.min(0.95, Math.max(0.1, delivered / 100));
+			const seasonalFactor = this.getSeasonalFactor(productData.category);
+			return Math.min(0.95, Math.max(0.1, base * seasonalFactor));
+		} catch {
+			return this.calculateDemandScore(productData, timeframe);
+		}
+	}
+
+	async analyzeDemandTrendsFromDb(productData) {
+		try {
+			const since14d = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+			const rows = await prisma.order.findMany({
+				where: {
+					status: "DELIVERED",
+					createdAt: { gte: since14d },
+					product: productData.category ? { category: productData.category } : undefined,
+				},
+				select: { createdAt: true },
+			});
+			const last7 = rows.filter((r) => r.createdAt >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length;
+			const prev7 = rows.length - last7;
+			const trend = last7 > prev7 ? "increasing" : last7 < prev7 ? "decreasing" : "stable";
+			return { trend, last7, prev7 };
+		} catch {
+			return this.analyzeDemandTrends(productData);
+		}
+	}
+
+	async getMarketTrendsFromDb() {
+		try {
+			const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+			const [orders, views] = await Promise.all([
+				prisma.userAnalytics.count({
+					where: { event: "order_placed", timestamp: { gte: since30d } },
+				}),
+				prisma.userAnalytics.count({
+					where: { event: "product_view", timestamp: { gte: since30d } },
+				}),
+			]);
+			return {
+				orders30d: orders,
+				views30d: views,
+				conversionApprox: views > 0 ? Math.round((orders / views) * 1000) / 10 : 0,
+			};
+		} catch {
+			return this.getMarketTrends();
 		}
 	}
 
