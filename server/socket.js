@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { synthesizeToFile } from "./services/ttsService.js";
 import { setRealtimeIo } from "./realtime.js";
 import { sendPushToUser } from "./services/pushService.js";
+import { notifyUser } from "./services/smsWhatsappService.js";
 
 const prisma = new PrismaClient();
 
@@ -109,6 +110,13 @@ export function initSocket(httpServer) {
 						fromUserId: user.id,
 						messageId: msg.id,
 					},
+				});
+
+				// SMS/WhatsApp: keep it short (avoid leaking full chat content)
+				await notifyUser({
+					userId: receiverId,
+					smsBody: `AgriConnect: New message from ${user.name}. Open the app to reply.`,
+					whatsappBody: `AgriConnect: New message from *${user.name}*. Open the app to reply.`,
 				});
 
 				return ack?.({ ok: true, message: full });

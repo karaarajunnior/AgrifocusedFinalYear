@@ -52,6 +52,7 @@
 		"socket.io-client": "^4.8.3",
 		"speakeasy": "^2.0.0",
 		"stripe": "^20.1.2",
+		"twilio": "^5.11.2",
 		"web3": "^4.3.0"
 	},
 	"devDependencies": {

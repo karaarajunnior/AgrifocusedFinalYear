@@ -11,6 +11,7 @@ import {
 import blockchainService from "../services/blockchainService.js";
 import { emitToUser } from "../realtime.js";
 import { sendPushToUser } from "../services/pushService.js";
+import { notifyUser } from "../services/smsWhatsappService.js";
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -201,6 +202,18 @@ router.post("/airtel/webhook", async (req, res) => {
 					},
 				});
 
+				// SMS + WhatsApp fallback/primary
+				await notifyUser({
+					userId: tx.order.buyerId,
+					smsBody: `AgriConnect: Payment ${mapped} for order ${tx.orderId.slice(-8)} (Airtel Money).`,
+					whatsappBody: `AgriConnect: Payment *${mapped}* for order *${tx.orderId.slice(-8)}* (Airtel Money).`,
+				});
+				await notifyUser({
+					userId: tx.order.farmerId,
+					smsBody: `AgriConnect: Buyer payment ${mapped} for order ${tx.orderId.slice(-8)}.`,
+					whatsappBody: `AgriConnect: Buyer payment *${mapped}* for order *${tx.orderId.slice(-8)}*.`,
+				});
+
 				// Log analytics (buyer + farmer)
 				await prisma.userAnalytics.createMany({
 					data: [
@@ -308,6 +321,17 @@ router.post("/airtel/webhook", async (req, res) => {
 										status: updatedOrder.status,
 										reason: "auto_fulfill_on_payment",
 									},
+								});
+
+								await notifyUser({
+									userId: order.buyerId,
+									smsBody: `AgriConnect: Your order ${order.id.slice(-8)} is now IN TRANSIT.`,
+									whatsappBody: `AgriConnect: Your order *${order.id.slice(-8)}* is now *IN TRANSIT*.`,
+								});
+								await notifyUser({
+									userId: order.farmerId,
+									smsBody: `AgriConnect: Order ${order.id.slice(-8)} set to IN TRANSIT (auto).`,
+									whatsappBody: `AgriConnect: Order *${order.id.slice(-8)}* set to *IN TRANSIT* (auto).`,
 								});
 
 								await prisma.userAnalytics.createMany({
