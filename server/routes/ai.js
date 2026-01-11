@@ -2,12 +2,13 @@ import express from "express";
 import { PrismaClient } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.js";
 import aiService from "../services/aiService.js";
+import { requireVerified } from "../middleware/verified.js";
 
 const prisma = new PrismaClient();
 const router = express.Router();
 
 // Advanced price prediction using AI
-router.post("/predict-price", authenticateToken, async (req, res) => {
+router.post("/predict-price", authenticateToken, requireVerified, async (req, res) => {
 	try {
 		const productData = req.body;
 		const prediction = await aiService.predictPrice(productData);
@@ -28,7 +29,7 @@ router.post("/predict-price", authenticateToken, async (req, res) => {
 });
 
 // Advanced demand forecasting
-router.post("/forecast-demand", authenticateToken, async (req, res) => {
+router.post("/forecast-demand", authenticateToken, requireVerified, async (req, res) => {
 	try {
 		const { productData, timeframe } = req.body;
 		const forecast = await aiService.forecastDemand(productData, timeframe);
@@ -49,7 +50,7 @@ router.post("/forecast-demand", authenticateToken, async (req, res) => {
 });
 
 // Crop recommendations for farmers
-router.post("/recommend-crops", authenticateToken, async (req, res) => {
+router.post("/recommend-crops", authenticateToken, requireVerified, async (req, res) => {
 	try {
 		const farmerData = req.body;
 		const recommendations = await aiService.recommendCrops(farmerData);
@@ -70,7 +71,7 @@ router.post("/recommend-crops", authenticateToken, async (req, res) => {
 });
 
 // Market analysis
-router.post("/analyze-market", authenticateToken, async (req, res) => {
+router.post("/analyze-market", authenticateToken, requireVerified, async (req, res) => {
 	try {
 		const { category, location } = req.body;
 		const analysis = await aiService.analyzeMarket(category, location);
@@ -91,7 +92,7 @@ router.post("/analyze-market", authenticateToken, async (req, res) => {
 });
 
 // Get AI model performance metrics
-router.get("/model-performance", authenticateToken, async (req, res) => {
+router.get("/model-performance", authenticateToken, requireVerified, async (req, res) => {
 	try {
 		const performance = {
 			priceModel: {

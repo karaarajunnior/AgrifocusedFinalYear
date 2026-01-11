@@ -13,6 +13,7 @@ import {
 import LoadingSpinner from '../components/LoadingSpinner';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
+import axios from 'axios';
 
 interface DashboardData {
   overview: {
@@ -76,10 +77,13 @@ function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [apiLatencyMs, setApiLatencyMs] = useState<number | null>(null);
   const [apiUptimeSec, setApiUptimeSec] = useState<number | null>(null);
+  const [pendingUsers, setPendingUsers] = useState<Array<{ id: string; name: string; email: string; role: string; createdAt: string }>>([]);
+  const [approvalsLoading, setApprovalsLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
     fetchApiHealth();
+    fetchPendingUsers();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -91,6 +95,38 @@ function AdminDashboard() {
       toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPendingUsers = async () => {
+    setApprovalsLoading(true);
+    try {
+      const res = await api.get('/users', { params: { verified: 'false', limit: 10, page: 1 } });
+      setPendingUsers(res.data.users || []);
+    } catch (error) {
+      console.error('Failed to fetch pending users:', error);
+      setPendingUsers([]);
+    } finally {
+      setApprovalsLoading(false);
+    }
+  };
+
+  const approveUser = async (id: string) => {
+    try {
+      await api.patch(`/users/${id}/verify`, { verified: true });
+      toast.success('User approved');
+      fetchDashboardData();
+      fetchPendingUsers();
+    } catch (error: unknown) {
+      let message = 'Failed to approve user';
+      if (axios.isAxiosError(error)) {
+        const data = error.response?.data;
+        if (data && typeof data === 'object') {
+          const maybe = data as Record<string, unknown>;
+          if (typeof maybe.error === 'string') message = maybe.error;
+        }
+      }
+      toast.error(message);
     }
   };
 
@@ -216,6 +252,7 @@ function AdminDashboard() {
               {[
                 { id: 'overview', name: 'Overview', icon: BarChart3 },
                 { id: 'users', name: 'Users', icon: Users },
+                { id: 'approvals', name: 'Approvals', icon: Shield },
                 { id: 'products', name: 'Products', icon: Package },
                 { id: 'activity', name: 'Activity', icon: Activity },
                 { id: 'blockchain', name: 'Blockchain', icon: Link2 }
@@ -318,6 +355,70 @@ function AdminDashboard() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'approvals' && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Pending approvals</h3>
+                  <button
+                    onClick={fetchPendingUsers}
+                    className="px-3 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200"
+                    disabled={approvalsLoading}
+                  >
+                    {approvalsLoading ? 'Refreshing…' : 'Refresh'}
+                  </button>
+                </div>
+
+                {pendingUsers.length === 0 ? (
+                  <p className="text-sm text-gray-600">No pending users right now.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            User
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Role
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Registered
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {pendingUsers.map((u) => (
+                          <tr key={u.id}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{u.name}</div>
+                              <div className="text-xs text-gray-500">{u.email}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="text-sm text-gray-900">{u.role}</span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="text-sm text-gray-900">{new Date(u.createdAt).toLocaleDateString()}</span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                              <button
+                                onClick={() => approveUser(u.id)}
+                                className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
+                              >
+                                Approve
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
 

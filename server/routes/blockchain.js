@@ -2,12 +2,13 @@ import blockchainService from "../services/blockchainService.js";
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
+import { requireVerified } from "../middleware/verified.js";
 
 const prisma = new PrismaClient();
 const router = express.Router();
 
 // Record product listing on blockchain
-router.post("/list-product", authenticateToken, async (req, res) => {
+router.post("/list-product", authenticateToken, requireVerified, async (req, res) => {
 	try {
 		const { productId } = req.body;
 
@@ -55,7 +56,11 @@ router.post("/list-product", authenticateToken, async (req, res) => {
 });
 
 // Record transaction on blockchain
-router.post("/record-transaction", authenticateToken, async (req, res) => {
+router.post(
+	"/record-transaction",
+	authenticateToken,
+	requireVerified,
+	async (req, res) => {
 	try {
 		const { orderId } = req.body;
 
@@ -115,7 +120,8 @@ router.post("/record-transaction", authenticateToken, async (req, res) => {
 			.status(500)
 			.json({ error: "Failed to record transaction on blockchain" });
 	}
-});
+	},
+);
 
 // Get blockchain statistics
 router.get("/stats", authenticateToken, async (req, res) => {

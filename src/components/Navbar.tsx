@@ -9,6 +9,7 @@ import {
 	Leaf,
 	BarChart3,
 	Package,
+	MessageSquare,
 } from "lucide-react";
 
 function Navbar() {
@@ -71,6 +72,17 @@ function Navbar() {
 									}`}>
 									<Package className="h-4 w-4" />
 									<span>Orders</span>
+								</Link>
+
+								<Link
+									to="/chat"
+									className={`flex items-center space-x-1 text-sm font-medium transition-colors ${
+										isActive("/chat")
+											? "text-green-600"
+											: "text-gray-600 hover:text-gray-900"
+									}`}>
+									<MessageSquare className="h-4 w-4" />
+									<span>Chat</span>
 								</Link>
 
 								<div className="flex items-center space-x-4">
@@ -144,6 +156,13 @@ function Navbar() {
 										className="block text-gray-600 hover:text-gray-900 font-medium"
 										onClick={() => setIsMenuOpen(false)}>
 										Orders
+									</Link>
+
+									<Link
+										to="/chat"
+										className="block text-gray-600 hover:text-gray-900 font-medium"
+										onClick={() => setIsMenuOpen(false)}>
+										Chat
 									</Link>
 
 									<Link

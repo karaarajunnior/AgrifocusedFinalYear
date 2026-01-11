@@ -15,11 +15,18 @@ import aiRoutes from "./routes/ai.js";
 import blockchainRoutes from "./routes/blockchain.js";
 import performanceRoutes from "./routes/performance.js";
 import { metricsHandler, metricsMiddleware } from "./metrics.js";
+import chatRoutes from "./routes/chat.js";
+import documentsRoutes from "./routes/documents.js";
+import { initSocket } from "./socket.js";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 app.use(helmet());
 const defaultAllowedOrigins = [
@@ -90,6 +97,11 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/blockchain", blockchainRoutes);
 app.use("/api/performance", performanceRoutes);
+app.use("/api/chat", chatRoutes);
+app.use("/api/documents", documentsRoutes);
+
+// Serve uploaded files (voice notes, docs, etc.)
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Prometheus scrape endpoint (protect in production behind auth/proxy)
 app.get("/api/metrics", metricsHandler);
@@ -120,6 +132,7 @@ app.use("*", (req, res) => {
 });
 
 const server = http.createServer(app);
+initSocket(server);
 
 server.listen(PORT, () => {
 	console.log(`Server running on port ${PORT}`);

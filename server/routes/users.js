@@ -191,10 +191,11 @@ router.put(
 // Get all users (admin only)
 router.get("/", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
 	try {
-		const { role, page = 1, limit = 20, search } = req.query;
+		const { role, verified, page = 1, limit = 20, search } = req.query;
 
 		const where = {};
 		if (role) where.role = role.toUpperCase();
+		if (verified !== undefined) where.verified = verified === "true";
 		if (search) {
 			where.OR = [
 				{ name: { contains: search } },

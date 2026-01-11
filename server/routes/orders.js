@@ -3,6 +3,7 @@ import { body, validationResult } from "express-validator";
 import { PrismaClient } from "@prisma/client";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import blockchainService from "../services/blockchainService.js";
+import { requireVerified } from "../middleware/verified.js";
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -12,6 +13,7 @@ router.post(
 	"/",
 	authenticateToken,
 	requireRole(["BUYER"]),
+	requireVerified,
 	[
 		body("productId").isString(),
 		body("quantity").isInt({ min: 1 }),
@@ -178,6 +180,7 @@ router.patch(
 	"/:id/status",
 	authenticateToken,
 	requireRole(["FARMER"]),
+	requireVerified,
 	[
 		body("status").isIn([
 			"PENDING",
@@ -337,6 +340,7 @@ router.post(
 	"/:id/review",
 	authenticateToken,
 	requireRole(["BUYER"]),
+	requireVerified,
 	[
 		body("rating").isInt({ min: 1, max: 5 }),
 		body("comment").optional().trim().isLength({ max: 500 }).escape(),

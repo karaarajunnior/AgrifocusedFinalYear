@@ -24,6 +24,7 @@ import ProfilePage from "./pages/ProfilePage";
 import MarketplacePage from "./pages/MarketplacePage";
 import OrdersPage from "./pages/OrdersPage";
 import AIModelPage from "./pages/AiModelpage";
+import ChatPage from "./pages/ChatPage";
 
 function AppContent() {
 	const { user, loading } = useAuth();
@@ -99,6 +100,14 @@ function AppContent() {
 						element={
 							<ProtectedRoute>
 								<OrdersPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/chat"
+						element={
+							<ProtectedRoute>
+								<ChatPage />
 							</ProtectedRoute>
 						}
 					/>

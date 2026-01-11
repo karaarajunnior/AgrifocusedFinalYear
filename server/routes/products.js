@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import locationService from "../utils/locationService.js";
+import { requireVerified } from "../middleware/verified.js";
 
 const router = express.Router();
 
@@ -304,6 +305,7 @@ router.post(
 	"/",
 	authenticateToken,
 	requireRole(["FARMER"]),
+	requireVerified,
 	[
 		body("name").trim().isLength({ min: 2, max: 100 }),
 		body("category").isIn([
@@ -392,6 +394,7 @@ router.put(
 	"/:id",
 	authenticateToken,
 	requireRole(["FARMER"]),
+	requireVerified,
 	async (req, res) => {
 		try {
 			const { id } = req.params;
@@ -456,6 +459,7 @@ router.delete(
 	"/:id",
 	authenticateToken,
 	requireRole(["FARMER"]),
+	requireVerified,
 	async (req, res) => {
 		try {
 			const { id } = req.params;
