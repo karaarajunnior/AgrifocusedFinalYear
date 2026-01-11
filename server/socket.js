@@ -2,6 +2,7 @@ import { Server as SocketIOServer } from "socket.io";
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
 import { synthesizeToFile } from "./services/ttsService.js";
+import { setRealtimeIo } from "./realtime.js";
 
 const prisma = new PrismaClient();
 
@@ -16,6 +17,8 @@ export function initSocket(httpServer) {
 			credentials: true,
 		},
 	});
+
+	setRealtimeIo(io);
 
 	io.use(async (socket, next) => {
 		try {

@@ -8,6 +8,8 @@ import {
 	normalizeUgMsisdn,
 	verifyAirtelWebhook,
 } from "../services/payments/airtelUgService.js";
+import blockchainService from "../services/blockchainService.js";
+import { emitToUser } from "../realtime.js";
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -144,13 +146,106 @@ router.post("/airtel/webhook", async (req, res) => {
 					: "PENDING";
 
 		if (providerReference) {
-			await prisma.transaction.updateMany({
-				where: { provider: "airtel_ug", providerReference: String(providerReference) },
-				data: {
-					status: mapped,
-					providerRaw: JSON.stringify(req.body),
+			const tx = await prisma.transaction.findFirst({
+				where: {
+					provider: "airtel_ug",
+					providerReference: String(providerReference),
 				},
+				include: { order: true },
 			});
+
+			if (tx) {
+				const updated = await prisma.transaction.update({
+					where: { id: tx.id },
+					data: {
+						status: mapped,
+						providerRaw: JSON.stringify(req.body),
+					},
+				});
+
+				// Automation: emit realtime notification to both parties
+				emitToUser(tx.order.buyerId, "notify", {
+					type: "payment",
+					orderId: tx.orderId,
+					status: mapped,
+					provider: "airtel_ug",
+					timestamp: new Date().toISOString(),
+				});
+				emitToUser(tx.order.farmerId, "notify", {
+					type: "payment",
+					orderId: tx.orderId,
+					status: mapped,
+					provider: "airtel_ug",
+					timestamp: new Date().toISOString(),
+				});
+
+				// Log analytics (buyer + farmer)
+				await prisma.userAnalytics.createMany({
+					data: [
+						{
+							userId: tx.order.buyerId,
+							event:
+								mapped === "COMPLETED"
+									? "payment_completed"
+									: mapped === "FAILED"
+										? "payment_failed"
+										: "payment_pending",
+							metadata: JSON.stringify({
+								orderId: tx.orderId,
+								provider: "airtel_ug",
+								providerReference,
+								status: mapped,
+							}),
+						},
+						{
+							userId: tx.order.farmerId,
+							event:
+								mapped === "COMPLETED"
+									? "payment_completed"
+									: mapped === "FAILED"
+										? "payment_failed"
+										: "payment_pending",
+							metadata: JSON.stringify({
+								orderId: tx.orderId,
+								provider: "airtel_ug",
+								providerReference,
+								status: mapped,
+							}),
+						},
+					],
+				});
+
+				// Automation: if payment completed, ensure blockchain tx exists (if not already recorded)
+				if (mapped === "COMPLETED" && !updated.blockHash) {
+					try {
+						const order = await prisma.order.findUnique({
+							where: { id: tx.orderId },
+							include: { buyer: true, farmer: true },
+						});
+						if (order) {
+							const chain = await blockchainService.recordTransaction({
+								orderId: order.id,
+								productId: order.productId,
+								buyerAddress: order.buyerId,
+								farmerAddress: order.farmerId,
+								quantity: order.quantity,
+								totalPrice: order.totalPrice,
+							});
+
+							await prisma.transaction.update({
+								where: { id: updated.id },
+								data: {
+									blockHash: chain.transactionHash,
+									blockNumber: chain.blockNumber,
+									gasUsed: chain.gasUsed,
+								},
+							});
+						}
+					} catch (e) {
+						console.error("Webhook blockchain finalize failed:", e);
+					}
+				}
+			}
 		}
 
 		res.json({ ok: true });

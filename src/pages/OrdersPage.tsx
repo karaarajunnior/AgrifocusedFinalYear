@@ -375,10 +375,17 @@ function OrdersPage() {
                     )}
                     
                     {order.transaction && (
-                      <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center">
-                        <Eye className="h-4 w-4 mr-1" />
-                        View Transaction
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center">
+                          <Eye className="h-4 w-4 mr-1" />
+                          View Transaction
+                        </button>
+                        {order.transaction.provider === 'airtel_ug' && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                            Payment: {order.transaction.status}
+                          </span>
+                        )}
+                      </div>
                     )}
 
                     {user?.role === 'BUYER' && order.status === 'CONFIRMED' && (
