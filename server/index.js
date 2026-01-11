@@ -21,6 +21,8 @@ import paymentsRoutes from "./routes/payments.js";
 import notificationsRoutes from "./routes/notifications.js";
 import ledgerRoutes from "./routes/ledger.js";
 import marketAIRoutes from "./routes/marketAI.js";
+import marketDataRoutes from "./routes/marketData.js";
+import cron from "node-cron";
 import { initSocket } from "./socket.js";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -107,6 +109,22 @@ app.use("/api/payments", paymentsRoutes);
 app.use("/api/notifications", notificationsRoutes);
 app.use("/api/ledger", ledgerRoutes);
 app.use("/api/market-ai", marketAIRoutes);
+app.use("/api/market-data", marketDataRoutes);
+
+// Optional scheduled refresh of web market data
+if (String(process.env.MARKET_DATA_CRON_ENABLED || "false").toLowerCase() === "true") {
+	// Default: every 6 hours
+	const schedule = process.env.MARKET_DATA_CRON_SCHEDULE || "0 */6 * * *";
+	cron.schedule(schedule, async () => {
+		try {
+			// Lazy import to avoid unnecessary overhead if unused
+			const { refreshMarketWebPrices } = await import("./services/webMarketDataService.js");
+			await refreshMarketWebPrices();
+		} catch (e) {
+			console.error("Market data cron refresh failed:", e);
+		}
+	});
+}
 
 // Serve uploaded files (voice notes, docs, etc.)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

@@ -259,6 +259,25 @@ model NotificationLog {
   @@map("notification_logs")
 }
 
+model MarketWebPrice {
+  id          String    @id @default(cuid())
+  category    Category?
+  commodity   String?   @db.VarChar(100)
+  market      String?   @db.VarChar(32) // local, urban, international
+  country     String?   @db.VarChar(64)
+  location    String?   @db.VarChar(120)
+  price       Float
+  currency    String    @default("UGX")
+  unit        String?   @db.VarChar(32)
+  source      String    @db.VarChar(64)
+  sourceUrl   String?   @db.Text
+  collectedAt DateTime  @default(now())
+  raw         String?   @db.LongText
+
+  @@index([category, country, market, collectedAt])
+  @@map("market_web_prices")
+}
+
 model PriceHistory {
   id        String   @id @default(cuid())
   productId String

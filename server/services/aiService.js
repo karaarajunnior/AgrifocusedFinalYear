@@ -213,7 +213,7 @@ class AIService {
 		try {
 			const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-			const [deliveredOrders, recentProducts, avgPriceHistory] = await Promise.all([
+			const [deliveredOrders, recentProducts, avgPriceHistory, webPrice] = await Promise.all([
 				prisma.order.count({
 					where: {
 						status: "DELIVERED",
@@ -236,18 +236,39 @@ class AIService {
 					},
 					_avg: { price: true },
 				}),
+				prisma.marketWebPrice.findFirst({
+					where: {
+						category: category || undefined,
+						location: location ? { contains: location } : undefined,
+					},
+					orderBy: { collectedAt: "desc" },
+				}),
 			]);
 
 			const avgPrice = avgPriceHistory._avg.price || 0;
+			const webPriceSignal = webPrice
+				? {
+						source: webPrice.source,
+						price: webPrice.price,
+						currency: webPrice.currency,
+						unit: webPrice.unit,
+						collectedAt: webPrice.collectedAt,
+				  }
+				: null;
 
 			return {
-				summary: `Last 30 days: ${deliveredOrders} delivered orders. ${recentProducts} active listings. Avg price signal: ${avgPrice.toFixed(
+				summary: `Last 30 days: ${deliveredOrders} delivered orders. ${recentProducts} active listings. Avg internal price signal: ${avgPrice.toFixed(
 					2,
-				)}.`,
+				)}. ${
+					webPriceSignal
+						? `Web price signal: ${webPriceSignal.price} ${webPriceSignal.currency}${webPriceSignal.unit ? `/${webPriceSignal.unit}` : ""} (source: ${webPriceSignal.source}).`
+						: "Web price signal: none."
+				}`,
 				signals: {
 					deliveredOrders30d: deliveredOrders,
 					activeListings: recentProducts,
 					avgPrice30d: avgPrice,
+					webPriceSignal,
 				},
 				timestamp: new Date().toISOString(),
 			};
