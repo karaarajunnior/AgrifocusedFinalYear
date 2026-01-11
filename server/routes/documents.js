@@ -36,6 +36,17 @@ const storage = multer.diskStorage({
 const upload = multer({
 	storage,
 	limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+	fileFilter: (req, file, cb) => {
+		const allowed = new Set([
+			"application/pdf",
+			"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+			"text/plain",
+		]);
+		if (!allowed.has(file.mimetype)) {
+			return cb(new Error("Only PDF, DOCX, or TXT files are allowed"));
+		}
+		cb(null, true);
+	},
 });
 
 async function extractText(filePath, mimeType) {

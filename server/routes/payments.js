@@ -13,6 +13,7 @@ import { emitToUser } from "../realtime.js";
 import { sendPushToUser } from "../services/pushService.js";
 import { notifyUser } from "../services/smsWhatsappService.js";
 import { postAirtelPaymentCompleted } from "../services/ledgerService.js";
+import { writeAuditLog } from "../services/auditLogService.js";
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -158,6 +159,7 @@ router.post("/airtel/webhook", async (req, res) => {
 			});
 
 			if (tx) {
+				const statusUnchanged = tx.status === mapped;
 				const updated = await prisma.transaction.update({
 					where: { id: tx.id },
 					data: {
@@ -165,6 +167,26 @@ router.post("/airtel/webhook", async (req, res) => {
 						providerRaw: JSON.stringify(req.body),
 					},
 				});
+
+				await writeAuditLog({
+					actorUserId: null,
+					action: "payment_webhook_update",
+					targetType: "transaction",
+					targetId: updated.id,
+					ip: req.ip,
+					userAgent: req.get("User-Agent"),
+					metadata: {
+						provider: "airtel_ug",
+						providerReference: String(providerReference),
+						orderId: tx.orderId,
+						status: mapped,
+					},
+				});
+
+				// Idempotency: if provider keeps retrying with same status, do not double-notify or double-run automations
+				if (statusUnchanged) {
+					return res.json({ ok: true, idempotent: true });
+				}
 
 				// Automation: emit realtime notification to both parties
 				const paymentNotify = {

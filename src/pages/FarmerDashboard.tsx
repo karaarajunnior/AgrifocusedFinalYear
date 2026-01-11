@@ -181,7 +181,7 @@ function FarmerDashboard() {
 		return addStep >= (simpleMode ? 2 : 3);
 	};
 
-	const useGpsLocation = async () => {
+	const fillGpsLocationFromGps = async () => {
 		if (!navigator.geolocation) {
 			toast.error("GPS not available on this device");
 			return;
@@ -827,7 +827,7 @@ function FarmerDashboard() {
 												</button>
 												<button
 													type="button"
-													onClick={() => void useGpsLocation()}
+													onClick={() => void fillGpsLocationFromGps()}
 													className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm">
 													<MapPin className="h-4 w-4" />
 													Use GPS

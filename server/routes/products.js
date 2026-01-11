@@ -9,6 +9,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
+import { writeAuditLog } from "../services/auditLogService.js";
 
 const router = express.Router();
 
@@ -34,6 +35,13 @@ const productImageStorage = multer.diskStorage({
 const uploadProductImages = multer({
 	storage: productImageStorage,
 	limits: { fileSize: 5 * 1024 * 1024 }, // 5MB each
+	fileFilter: (req, file, cb) => {
+		const allowed = new Set(["image/jpeg", "image/png", "image/webp"]);
+		if (!allowed.has(file.mimetype)) {
+			return cb(new Error("Only JPG, PNG, WEBP images are allowed"));
+		}
+		cb(null, true);
+	},
 });
 
 // Upload product images (farmers only, own product)
@@ -464,6 +472,16 @@ router.post(
 				message: "Product created successfully",
 				product,
 			});
+
+			await writeAuditLog({
+				actorUserId: req.user.id,
+				action: "product_create",
+				targetType: "product",
+				targetId: product.id,
+				ip: req.ip,
+				userAgent: req.get("User-Agent"),
+				metadata: { category, price: parseFloat(price), quantity: parseInt(quantity) },
+			});
 		} catch (error) {
 			console.error("Create product error:", error);
 			res.status(500).json({ error: "Failed to create product" });
@@ -477,10 +495,68 @@ router.put(
 	authenticateToken,
 	requireRole(["FARMER"]),
 	requireVerified,
+	[
+		body("name").optional().trim().isLength({ min: 2, max: 100 }),
+		body("description").optional().isString().trim().isLength({ max: 5000 }),
+		body("category")
+			.optional()
+			.isIn([
+				"VEGETABLES",
+				"FRUITS",
+				"GRAINS",
+				"PULSES",
+				"SPICES",
+				"DAIRY",
+				"POULTRY",
+				"ORGANIC",
+				"PROCESSED",
+			]),
+		body("price").optional().isFloat({ min: 0.01 }),
+		body("quantity").optional().isInt({ min: 0 }),
+		body("unit").optional().isString().trim().isLength({ min: 1, max: 32 }),
+		body("harvestDate").optional().isISO8601(),
+		body("expiryDate").optional().isISO8601(),
+		body("location").optional().isString().trim().isLength({ min: 2, max: 120 }),
+		body("organic").optional().isBoolean(),
+		body("available").optional().isBoolean(),
+	],
 	async (req, res) => {
 		try {
+			const errors = validationResult(req);
+			if (!errors.isEmpty()) {
+				return res.status(400).json({ errors: errors.array() });
+			}
+
 			const { id } = req.params;
-			const updates = req.body;
+			const updates = {};
+			const allowedFields = [
+				"name",
+				"description",
+				"category",
+				"price",
+				"quantity",
+				"unit",
+				"harvestDate",
+				"expiryDate",
+				"location",
+				"organic",
+				"available",
+			];
+
+			Object.keys(req.body || {}).forEach((key) => {
+				if (!allowedFields.includes(key)) return;
+				if (req.body[key] === undefined) return;
+				updates[key] = req.body[key];
+			});
+
+			if (typeof updates.price !== "undefined") updates.price = parseFloat(updates.price);
+			if (typeof updates.quantity !== "undefined") updates.quantity = parseInt(updates.quantity);
+			if (typeof updates.harvestDate !== "undefined") {
+				updates.harvestDate = updates.harvestDate ? new Date(updates.harvestDate) : null;
+			}
+			if (typeof updates.expiryDate !== "undefined") {
+				updates.expiryDate = updates.expiryDate ? new Date(updates.expiryDate) : null;
+			}
 
 			// Check if product belongs to farmer
 			const existingProduct = await prisma.product.findUnique({
@@ -529,6 +605,16 @@ router.put(
 				message: "Product updated successfully",
 				product,
 			});
+
+			await writeAuditLog({
+				actorUserId: req.user.id,
+				action: "product_update",
+				targetType: "product",
+				targetId: id,
+				ip: req.ip,
+				userAgent: req.get("User-Agent"),
+				metadata: { fields: Object.keys(updates) },
+			});
 		} catch (error) {
 			console.error("Update product error:", error);
 			res.status(500).json({ error: "Failed to update product" });
@@ -567,6 +653,15 @@ router.delete(
 			});
 
 			res.json({ message: "Product deleted successfully" });
+
+			await writeAuditLog({
+				actorUserId: req.user.id,
+				action: "product_delete",
+				targetType: "product",
+				targetId: id,
+				ip: req.ip,
+				userAgent: req.get("User-Agent"),
+			});
 		} catch (error) {
 			console.error("Delete product error:", error);
 			res.status(500).json({ error: "Failed to delete product" });

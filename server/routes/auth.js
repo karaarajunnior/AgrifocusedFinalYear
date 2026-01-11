@@ -1,17 +1,34 @@
 import express from "express";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { body, validationResult } from "express-validator";
 import { PrismaClient } from "@prisma/client";
+import rateLimit from "express-rate-limit";
 const prisma = new PrismaClient();
 import { authenticateToken } from "../middleware/auth.js";
 import { generateMfaSetup, verifyTotp } from "../services/mfaService.js";
+import { issueAccessToken, issueRefreshToken, rotateRefreshToken, revokeRefreshToken } from "../services/tokenService.js";
+import { writeAuditLog } from "../services/auditLogService.js";
 
 const router = express.Router();
+
+const registerLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000,
+	max: 10,
+	standardHeaders: true,
+	legacyHeaders: false,
+});
+
+const loginLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000,
+	max: 15,
+	standardHeaders: true,
+	legacyHeaders: false,
+});
 
 // Register
 router.post(
 	"/register",
+	registerLimiter,
 	[
 		body("email").isEmail().normalizeEmail(),
 		body("password").isLength({ min: 6 }),
@@ -49,6 +66,7 @@ router.post(
 					location,
 					address,
 					verified: role === "ADMIN" ? true : false,
+					passwordChangedAt: new Date(),
 				},
 				select: {
 					id: true,
@@ -60,14 +78,25 @@ router.post(
 				},
 			});
 
-			const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
-				expiresIn: process.env.JWT_EXPIRES_IN,
+			const token = issueAccessToken({ userId: user.id });
+			const refresh = await issueRefreshToken({ userId: user.id });
+
+			await writeAuditLog({
+				actorUserId: user.id,
+				action: "auth_register",
+				targetType: "user",
+				targetId: user.id,
+				ip: req.ip,
+				userAgent: req.get("User-Agent"),
+				metadata: { role: user.role },
 			});
 
 			res.status(201).json({
 				message: "User registered successfully",
 				user,
 				token,
+				refreshToken: refresh.token,
+				refreshTokenExpiresAt: refresh.expiresAt,
 			});
 		} catch (error) {
 			console.error("Registration error:", error);
@@ -79,6 +108,7 @@ router.post(
 // Login
 router.post(
 	"/login",
+	loginLimiter,
 	[
 		body("email").isEmail().normalizeEmail(),
 		body("password").exists(),
@@ -130,8 +160,16 @@ router.post(
 				},
 			});
 
-			const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
-				expiresIn: process.env.JWT_EXPIRES_IN,
+			const token = issueAccessToken({ userId: user.id });
+			const refresh = await issueRefreshToken({ userId: user.id });
+
+			await writeAuditLog({
+				actorUserId: user.id,
+				action: "auth_login",
+				targetType: "user",
+				targetId: user.id,
+				ip: req.ip,
+				userAgent: req.get("User-Agent"),
 			});
 
 			const { password: _, ...userWithoutPassword } = user;
@@ -140,10 +178,61 @@ router.post(
 				message: "Login successful",
 				user: userWithoutPassword,
 				token,
+				refreshToken: refresh.token,
+				refreshTokenExpiresAt: refresh.expiresAt,
 			});
 		} catch (error) {
 			console.error("Login error:", error);
 			res.status(500).json({ error: "Login failed" });
+		}
+	},
+);
+
+// Refresh access token (optional; keeps user experience smooth)
+router.post(
+	"/refresh",
+	[body("refreshToken").exists({ checkFalsy: true }).isString().trim().isLength({ min: 20 })],
+	async (req, res) => {
+		try {
+			const errors = validationResult(req);
+			if (!errors.isEmpty()) {
+				return res.status(400).json({ errors: errors.array() });
+			}
+
+			const rotated = await rotateRefreshToken({ refreshToken: req.body.refreshToken });
+			if (!rotated.ok) return res.status(401).json({ error: "Invalid refresh token" });
+
+			const token = issueAccessToken({ userId: rotated.userId });
+
+			res.json({
+				token,
+				refreshToken: rotated.newRefreshToken.token,
+				refreshTokenExpiresAt: rotated.newRefreshToken.expiresAt,
+			});
+		} catch (error) {
+			console.error("Refresh token error:", error);
+			res.status(500).json({ error: "Failed to refresh token" });
+		}
+	},
+);
+
+// Logout (optional; revokes refresh token)
+router.post(
+	"/logout",
+	[body("refreshToken").optional().isString().trim().isLength({ min: 20 })],
+	async (req, res) => {
+		try {
+			const errors = validationResult(req);
+			if (!errors.isEmpty()) {
+				return res.status(400).json({ errors: errors.array() });
+			}
+			if (req.body.refreshToken) {
+				await revokeRefreshToken({ refreshToken: req.body.refreshToken });
+			}
+			res.json({ ok: true });
+		} catch (error) {
+			console.error("Logout error:", error);
+			res.status(500).json({ error: "Failed to logout" });
 		}
 	},
 );

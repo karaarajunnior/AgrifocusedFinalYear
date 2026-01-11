@@ -32,9 +32,23 @@ export function initSocket(httpServer) {
 			const decoded = jwt.verify(token, process.env.JWT_SECRET);
 			const user = await prisma.user.findUnique({
 				where: { id: decoded.userId },
-				select: { id: true, name: true, role: true, verified: true },
+				select: {
+					id: true,
+					name: true,
+					role: true,
+					verified: true,
+					passwordChangedAt: true,
+				},
 			});
 			if (!user) return next(new Error("Invalid token"));
+
+			if (decoded?.iat && user.passwordChangedAt) {
+				const changedAtSec = Math.floor(new Date(user.passwordChangedAt).getTime() / 1000);
+				if (changedAtSec > decoded.iat) {
+					return next(new Error("Token revoked"));
+				}
+			}
+
 			socket.data.user = user;
 			return next();
 		} catch (e) {

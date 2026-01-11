@@ -15,6 +15,7 @@ model User {
   name      String
   email     String   @unique
   password  String
+  passwordChangedAt DateTime @default(now())
   role      Role     @default(FARMER)
   phone     String?
   location  String?
@@ -46,6 +47,8 @@ model User {
   documents Document[]
   deviceTokens DeviceToken[]
   notificationLogs NotificationLog[]
+  refreshTokens RefreshToken[]
+  auditLogs AuditLog[] @relation("AuditLogActor")
 
   @@map("users")
 }
@@ -134,6 +137,42 @@ model Transaction {
   productId String
 
   @@map("transactions")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique @db.VarChar(128)
+  expiresAt DateTime
+  revokedAt DateTime?
+  replacedById String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy RefreshToken? @relation("RefreshTokenRotation", fields: [replacedById], references: [id])
+  replaces RefreshToken[] @relation("RefreshTokenRotation")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  action      String   @db.VarChar(64)
+  targetType  String?  @db.VarChar(64)
+  targetId    String?  @db.VarChar(64)
+  ip          String?  @db.VarChar(64)
+  userAgent   String?  @db.Text
+  metadata    String?  @db.LongText
+  createdAt   DateTime @default(now())
+
+  actor User? @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
 }
 
 model LedgerAccount {

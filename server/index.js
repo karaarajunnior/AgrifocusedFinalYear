@@ -4,6 +4,7 @@ import helmet from "helmet";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 import http from "http";
+import hpp from "hpp";
 
 // Import routes
 import authRoutes from "./routes/auth.js";
@@ -22,6 +23,7 @@ import notificationsRoutes from "./routes/notifications.js";
 import ledgerRoutes from "./routes/ledger.js";
 import marketAIRoutes from "./routes/marketAI.js";
 import marketDataRoutes from "./routes/marketData.js";
+import auditRoutes from "./routes/audit.js";
 import cron from "node-cron";
 import { initSocket } from "./socket.js";
 import path from "path";
@@ -34,7 +36,23 @@ const PORT = process.env.PORT || 3001;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-app.use(helmet());
+// Behind proxies (Render/NGINX/etc) this makes req.ip correct for rate-limits/logs
+app.set("trust proxy", 1);
+
+app.use(
+	helmet({
+		contentSecurityPolicy: {
+			useDefaults: true,
+			directives: {
+				"default-src": ["'none'"],
+				"frame-ancestors": ["'none'"],
+				"base-uri": ["'none'"],
+				"form-action": ["'none'"],
+			},
+		},
+		referrerPolicy: { policy: "no-referrer" },
+	}),
+);
 const defaultAllowedOrigins = [
 	"http://localhost:5173",
 	"http://127.0.0.1:5173",
@@ -84,12 +102,17 @@ app.use(
 const limiter = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	max: 100, // limit each IP to 100 requests per windowMs
+	standardHeaders: true,
+	legacyHeaders: false,
 });
 app.use(limiter);
 
+// HTTP Parameter Pollution protection (?a=1&a=2)
+app.use(hpp());
+
 // Body parsing middleware
 app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 // Metrics (before routes)
 app.use(metricsMiddleware);
@@ -110,6 +133,7 @@ app.use("/api/notifications", notificationsRoutes);
 app.use("/api/ledger", ledgerRoutes);
 app.use("/api/market-ai", marketAIRoutes);
 app.use("/api/market-data", marketDataRoutes);
+app.use("/api/audit", auditRoutes);
 
 // Optional scheduled refresh of web market data
 if (String(process.env.MARKET_DATA_CRON_ENABLED || "false").toLowerCase() === "true") {
@@ -127,7 +151,16 @@ if (String(process.env.MARKET_DATA_CRON_ENABLED || "false").toLowerCase() === "t
 }
 
 // Serve uploaded files (voice notes, docs, etc.)
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use(
+	"/uploads",
+	express.static(path.join(__dirname, "uploads"), {
+		index: false,
+		dotfiles: "deny",
+		setHeaders: (res) => {
+			res.setHeader("X-Content-Type-Options", "nosniff");
+		},
+	}),
+);
 
 // Prometheus scrape endpoint (protect in production behind auth/proxy)
 app.get("/api/metrics", metricsHandler);

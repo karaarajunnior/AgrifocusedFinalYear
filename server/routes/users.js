@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { body, validationResult } from "express-validator";
 import { PrismaClient } from "@prisma/client";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
+import { writeAuditLog } from "../services/auditLogService.js";
 
 const prisma = new PrismaClient();
 
@@ -157,6 +158,16 @@ router.put(
 				message: "Profile updated successfully",
 				user,
 			});
+
+			await writeAuditLog({
+				actorUserId: req.user.id,
+				action: "user_profile_update",
+				targetType: "user",
+				targetId: req.user.id,
+				ip: req.ip,
+				userAgent: req.get("User-Agent"),
+				metadata: { fields: Object.keys(updates) },
+			});
 		} catch (error) {
 			console.error("Update profile error:", error);
 			res.status(500).json({ error: "Failed to update profile" });
@@ -204,10 +215,19 @@ router.put(
 			// Update password
 			await prisma.user.update({
 				where: { id: req.user.id },
-				data: { password: hashedPassword },
+				data: { password: hashedPassword, passwordChangedAt: new Date() },
 			});
 
 			res.json({ message: "Password changed successfully" });
+
+			await writeAuditLog({
+				actorUserId: req.user.id,
+				action: "user_password_change",
+				targetType: "user",
+				targetId: req.user.id,
+				ip: req.ip,
+				userAgent: req.get("User-Agent"),
+			});
 		} catch (error) {
 			console.error("Change password error:", error);
 			res.status(500).json({ error: "Failed to change password" });
