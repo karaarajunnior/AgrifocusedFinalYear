@@ -20,6 +20,7 @@ import documentsRoutes from "./routes/documents.js";
 import paymentsRoutes from "./routes/payments.js";
 import notificationsRoutes from "./routes/notifications.js";
 import ledgerRoutes from "./routes/ledger.js";
+import marketAIRoutes from "./routes/marketAI.js";
 import { initSocket } from "./socket.js";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -105,6 +106,7 @@ app.use("/api/documents", documentsRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/notifications", notificationsRoutes);
 app.use("/api/ledger", ledgerRoutes);
+app.use("/api/market-ai", marketAIRoutes);
 
 // Serve uploaded files (voice notes, docs, etc.)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

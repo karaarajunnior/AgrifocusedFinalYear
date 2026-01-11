@@ -15,6 +15,7 @@ const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadsDir = path.join(__dirname, "..", "uploads", "docs");
+const serverUploadsRoot = path.join(__dirname, "..", "uploads");
 
 const storage = multer.diskStorage({
 	destination: async (req, file, cb) => {
@@ -118,6 +119,31 @@ router.get("/:id", authenticateToken, async (req, res) => {
 	} catch (error) {
 		console.error("Get document error:", error);
 		res.status(500).json({ error: "Failed to fetch document" });
+	}
+});
+
+// Download original document file
+router.get("/:id/download", authenticateToken, async (req, res) => {
+	try {
+		const doc = await prisma.document.findUnique({ where: { id: req.params.id } });
+		if (!doc) return res.status(404).json({ error: "Document not found" });
+
+		const hasAccess = doc.userId === req.user.id || req.user.role === "ADMIN";
+		if (!hasAccess) return res.status(403).json({ error: "Access denied" });
+
+		// storagePath is like /uploads/docs/<filename>
+		const rel = doc.storagePath.replace(/^\/uploads\//, "");
+		const absPath = path.join(serverUploadsRoot, rel);
+
+		res.setHeader(
+			"Content-Disposition",
+			`attachment; filename="${doc.originalName.replace(/"/g, "")}"`,
+		);
+		res.setHeader("Content-Type", doc.mimeType);
+		return res.sendFile(absPath);
+	} catch (error) {
+		console.error("Download document error:", error);
+		res.status(500).json({ error: "Failed to download document" });
 	}
 });
 

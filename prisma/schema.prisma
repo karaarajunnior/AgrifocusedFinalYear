@@ -19,6 +19,7 @@ model User {
   phone     String?
   location  String?
   address   String?
+  country   String?  @db.VarChar(64)
   walletAddress String? @db.VarChar(64)
   verified  Boolean  @default(false)
   mfaEnabled     Boolean @default(false)
@@ -60,6 +61,7 @@ model Product {
   harvestDate DateTime?
   expiryDate  DateTime?
   location    String
+  country     String?   @db.VarChar(64)
   images      String?   @db.Text // JSON array of image URLs
   organic     Boolean   @default(false)
   available   Boolean   @default(true)

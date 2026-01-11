@@ -5,8 +5,90 @@ const prisma = new PrismaClient();
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import locationService from "../utils/locationService.js";
 import { requireVerified } from "../middleware/verified.js";
+import multer from "multer";
+import path from "path";
+import fs from "fs/promises";
+import { fileURLToPath } from "url";
 
 const router = express.Router();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const productUploadsDir = path.join(__dirname, "..", "uploads", "products");
+
+const productImageStorage = multer.diskStorage({
+	destination: async (req, file, cb) => {
+		try {
+			await fs.mkdir(productUploadsDir, { recursive: true });
+			cb(null, productUploadsDir);
+		} catch (e) {
+			cb(e);
+		}
+	},
+	filename: (req, file, cb) => {
+		const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+		cb(null, `${Date.now()}_${safe}`);
+	},
+});
+
+const uploadProductImages = multer({
+	storage: productImageStorage,
+	limits: { fileSize: 5 * 1024 * 1024 }, // 5MB each
+});
+
+// Upload product images (farmers only, own product)
+router.post(
+	"/:id/images",
+	authenticateToken,
+	requireRole(["FARMER"]),
+	requireVerified,
+	uploadProductImages.array("images", 6),
+	async (req, res) => {
+		try {
+			const { id } = req.params;
+			const product = await prisma.product.findUnique({
+				where: { id },
+				select: { farmerId: true, images: true },
+			});
+			if (!product) return res.status(404).json({ error: "Product not found" });
+			if (product.farmerId !== req.user.id) {
+				return res.status(403).json({ error: "Not authorized" });
+			}
+
+			const files = req.files || [];
+			if (!Array.isArray(files) || files.length === 0) {
+				return res.status(400).json({ error: "No images uploaded" });
+			}
+
+			let existing = [];
+			try {
+				existing = product.images ? JSON.parse(product.images) : [];
+			} catch {
+				existing = [];
+			}
+
+			const urls = files.map((f) => `/uploads/products/${path.basename(f.path)}`);
+			const merged = [...existing, ...urls].slice(0, 10);
+
+			const updated = await prisma.product.update({
+				where: { id },
+				data: { images: JSON.stringify(merged) },
+				select: { id: true, images: true },
+			});
+
+			res.json({
+				message: "Images uploaded",
+				product: {
+					id: updated.id,
+					images: updated.images ? JSON.parse(updated.images) : [],
+				},
+			});
+		} catch (error) {
+			console.error("Upload product images error:", error);
+			res.status(500).json({ error: "Failed to upload images" });
+		}
+	},
+);
 
 // Get nearby products within radius (location-based discovery)
 router.get(
