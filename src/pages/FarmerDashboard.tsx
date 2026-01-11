@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -17,6 +16,9 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import AIInsights from "../components/AIInsights";
 import api from "../services/api";
 import { toast } from "react-hot-toast";
+import axios from "axios";
+import SpeakButton from "../components/SpeakButton";
+import { useLocalStorageState } from "../hooks/useLocalStorageState";
 
 interface Product {
 	id: string;
@@ -66,6 +68,10 @@ function FarmerDashboard() {
 	const [showAIInsights, setShowAIInsights] = useState(false);
 	const [selectedProductForAI, setSelectedProductForAI] =
 		useState<Product | null>(null);
+	const [simpleMode, setSimpleMode] = useLocalStorageState<boolean>(
+		"agri.simpleMode.farmer",
+		true,
+	);
 	const [newProduct, setNewProduct] = useState({
 		name: "",
 		description: "",
@@ -73,7 +79,7 @@ function FarmerDashboard() {
 		price: "",
 		quantity: "",
 		unit: "kg",
-		location: "",
+		location: user?.location || "",
 		organic: false,
 	});
 
@@ -106,6 +112,7 @@ function FarmerDashboard() {
 				...newProduct,
 				price: parseFloat(newProduct.price),
 				quantity: parseInt(newProduct.quantity),
+				location: (newProduct.location || user?.location || "").trim(),
 			});
 
 			toast.success("Product added successfully!");
@@ -117,12 +124,15 @@ function FarmerDashboard() {
 				price: "",
 				quantity: "",
 				unit: "kg",
-				location: "",
+				location: user?.location || "",
 				organic: false,
 			});
 			fetchData();
-		} catch (error: any) {
-			toast.error(error.response?.data?.error || "Failed to add product");
+		} catch (error: unknown) {
+			const msg = axios.isAxiosError(error)
+				? (error.response?.data as { error?: string } | undefined)?.error
+				: undefined;
+			toast.error(msg || "Failed to add product");
 		}
 	};
 
@@ -133,8 +143,11 @@ function FarmerDashboard() {
 			await api.delete(`/products/${productId}`);
 			toast.success("Product deleted successfully!");
 			fetchData();
-		} catch (error: any) {
-			toast.error(error.response?.data?.error || "Failed to delete product");
+		} catch (error: unknown) {
+			const msg = axios.isAxiosError(error)
+				? (error.response?.data as { error?: string } | undefined)?.error
+				: undefined;
+			toast.error(msg || "Failed to delete product");
 		}
 	};
 
@@ -156,16 +169,43 @@ function FarmerDashboard() {
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 				{/* Header */}
 				<div className="mb-8">
-					<h1 className="text-3xl font-bold text-gray-900">
-						Welcome back, {user?.name}! 🌾
-					</h1>
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<h1 className="text-3xl font-bold text-gray-900">
+							Welcome back, {user?.name}!
+						</h1>
+						<div className="flex items-center gap-3">
+							<div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
+								<span className="text-sm text-gray-700 font-medium">
+									Simple mode
+								</span>
+								<button
+									type="button"
+									onClick={() => setSimpleMode(!simpleMode)}
+									className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+										simpleMode ? "bg-green-600" : "bg-gray-300"
+									}`}>
+									<span
+										className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+											simpleMode ? "translate-x-5" : "translate-x-1"
+										}`}
+									/>
+								</button>
+							</div>
+							<SpeakButton
+								text="Welcome. This is your farmer dashboard. Use Add Product to sell. Use Orders to see buyers. If you need help, tap Listen."
+								label="Listen"
+							/>
+						</div>
+					</div>
 					<p className="text-gray-600 mt-2">
-						Manage your products and track your farming business
+						{simpleMode
+							? "Big buttons, fewer steps. Tap Listen if you prefer voice."
+							: "Manage your products and track your farming business"}
 					</p>
 				</div>
 
 				{/* Analytics Cards */}
-				{analytics && (
+				{!simpleMode && analytics && (
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
 						<div className="bg-white rounded-lg shadow p-6">
 							<div className="flex items-center">
@@ -209,7 +249,7 @@ function FarmerDashboard() {
 										Total Revenue
 									</p>
 									<p className="text-2xl font-bold text-gray-900">
-										₹{analytics.overview.totalRevenue.toLocaleString()}
+										UGX {analytics.overview.totalRevenue.toLocaleString()}
 									</p>
 								</div>
 							</div>
@@ -239,7 +279,9 @@ function FarmerDashboard() {
 						<h2 className="text-xl font-semibold text-gray-900">My Products</h2>
 						<button
 							onClick={() => setShowAddProduct(true)}
-							className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+							className={`inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors ${
+								simpleMode ? "text-base py-3" : ""
+							}`}>
 							<Plus className="h-4 w-4 mr-2" />
 							Add Product
 						</button>
@@ -299,7 +341,7 @@ function FarmerDashboard() {
 												{product.category}
 											</p>
 											<p>
-												<span className="font-medium">Price:</span> ₹
+												<span className="font-medium">Price:</span> UGX{" "}
 												{product.price}/{product.unit}
 											</p>
 											<p>
@@ -383,6 +425,7 @@ function FarmerDashboard() {
 				)}
 
 				{/* AI Insights Section */}
+				{!simpleMode && (
 				<div className="bg-white rounded-lg shadow">
 					<div className="px-6 py-4 border-b border-gray-200">
 						<h2 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -447,6 +490,7 @@ function FarmerDashboard() {
 						</div>
 					</div>
 				</div>
+				)}
 			</div>
 
 			{/* Add Product Modal */}
@@ -454,9 +498,22 @@ function FarmerDashboard() {
 				<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
 					<div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
 						<div className="p-6">
-							<h2 className="text-xl font-semibold text-gray-900 mb-4">
-								Add New Product
-							</h2>
+							<div className="flex items-start justify-between gap-3 mb-4">
+								<div>
+									<h2 className="text-xl font-semibold text-gray-900">
+										Add New Product
+									</h2>
+									<p className="text-sm text-gray-600 mt-1">
+										{simpleMode
+											? "Keep it simple: Name, Price, Quantity."
+											: "Fill in the details to list your product."}
+									</p>
+								</div>
+								<SpeakButton
+									text="Add new product. Step one: enter product name. Step two: choose category and price. Step three: enter quantity. Then tap Add Product."
+									label="Listen"
+								/>
+							</div>
 
 							<form onSubmit={handleAddProduct} className="space-y-4">
 								<div>
@@ -475,6 +532,7 @@ function FarmerDashboard() {
 									/>
 								</div>
 
+								{!simpleMode && (
 								<div>
 									<label className="block text-sm font-medium text-gray-700 mb-1">
 										Category *
@@ -494,11 +552,12 @@ function FarmerDashboard() {
 										<option value="ORGANIC">Organic</option>
 									</select>
 								</div>
+								)}
 
 								<div className="grid grid-cols-2 gap-4">
 									<div>
 										<label className="block text-sm font-medium text-gray-700 mb-1">
-											Price (₹) *
+											Price (UGX) *
 										</label>
 										<input
 											type="number"
@@ -559,10 +618,16 @@ function FarmerDashboard() {
 											setNewProduct({ ...newProduct, location: e.target.value })
 										}
 										className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-										placeholder="City, State"
+										placeholder="District / Town"
 									/>
+									{simpleMode && (
+										<p className="text-xs text-gray-500 mt-1">
+											Tip: we can use your profile location if you leave it the same.
+										</p>
+									)}
 								</div>
 
+								{!simpleMode && (
 								<div>
 									<label className="block text-sm font-medium text-gray-700 mb-1">
 										Description
@@ -580,7 +645,9 @@ function FarmerDashboard() {
 										placeholder="Describe your product..."
 									/>
 								</div>
+								)}
 
+								{!simpleMode && (
 								<div className="flex items-center">
 									<input
 										type="checkbox"
@@ -600,6 +667,7 @@ function FarmerDashboard() {
 										Organic Product
 									</label>
 								</div>
+								)}
 
 								<div className="flex justify-end space-x-3 pt-4">
 									<button
