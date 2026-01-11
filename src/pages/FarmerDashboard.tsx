@@ -28,6 +28,7 @@ import {
 	getOfflineProductQueue,
 	removeOfflineProductDraft,
 } from "../utils/offlineProductQueue";
+import ClimateAlertsCard from "../components/ClimateAlertsCard";
 
 interface Product {
 	id: string;
@@ -430,6 +431,11 @@ function FarmerDashboard() {
 						</div>
 					</div>
 				)}
+
+				{/* Climate alerts */}
+				<div className="mb-8">
+					<ClimateAlertsCard location={user?.location || "kampala"} />
+				</div>
 
 				{/* Products Section */}
 				<div className="bg-white rounded-lg shadow mb-8">

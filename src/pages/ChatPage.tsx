@@ -4,6 +4,7 @@ import api from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { toast } from "react-hot-toast";
+import { Mic } from "lucide-react";
 
 type UserSummary = {
 	id: string;
@@ -32,6 +33,7 @@ function ChatPage() {
 	const [activeUserId, setActiveUserId] = useState<string | null>(null);
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [text, setText] = useState("");
+	const [listening, setListening] = useState(false);
 
 	const socketUrl = useMemo(() => {
 		// Use same host as API; works for local + mobile webview (proxy as needed)
@@ -149,6 +151,39 @@ function ChatPage() {
 		}
 	};
 
+	const startVoiceInput = () => {
+		// Web Speech API (best-effort; works in Chrome/Android)
+		const AnyWindow = window as unknown as {
+			SpeechRecognition?: new () => SpeechRecognition;
+			webkitSpeechRecognition?: new () => SpeechRecognition;
+		};
+		const SpeechRecognition = AnyWindow.SpeechRecognition || AnyWindow.webkitSpeechRecognition;
+		if (!SpeechRecognition) {
+			toast.error("Voice input not supported on this device");
+			return;
+		}
+
+		const rec = new SpeechRecognition();
+		rec.lang = "en-US";
+		rec.interimResults = false;
+		rec.maxAlternatives = 1;
+
+		rec.onstart = () => setListening(true);
+		rec.onend = () => setListening(false);
+		rec.onerror = () => setListening(false);
+		rec.onresult = (e: Event) => {
+			const maybe = e as unknown as {
+				results?: ArrayLike<ArrayLike<{ transcript?: unknown }>>;
+			};
+			const transcript = maybe?.results?.[0]?.[0]?.transcript;
+			if (typeof transcript === "string" && transcript.trim()) {
+				setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+			}
+		};
+
+		rec.start();
+	};
+
 	if (loading) {
 		return (
 			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -241,6 +276,18 @@ function ChatPage() {
 										className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
 										placeholder="Type a message…"
 									/>
+									<button
+										type="button"
+										onClick={startVoiceInput}
+										className={`px-3 py-2 rounded-lg border ${
+											listening
+												? "border-green-600 bg-green-50 text-green-700"
+												: "border-gray-300 hover:bg-gray-50 text-gray-700"
+										}`}
+										title="Voice input"
+									>
+										<Mic className="h-4 w-4" />
+									</button>
 									<button
 										onClick={send}
 										className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"

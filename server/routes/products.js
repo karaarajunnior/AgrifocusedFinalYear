@@ -17,6 +17,7 @@ import {
 	updateProduct,
 	uploadProductImages as uploadProductImagesHandler,
 } from "../controllers/productsController.js";
+import { computeTrustScore } from "../services/trustScoreService.js";
 
 const router = express.Router();
 
@@ -197,7 +198,12 @@ router.get(
 			});
 
 			res.json({
-				products: productsWithRatings,
+				products: await Promise.all(
+					productsWithRatings.map(async (p) => ({
+						...p,
+						farmerTrust: await computeTrustScore({ userId: p.farmerId }),
+					})),
+				),
 				pagination: {
 					page: parseInt(page),
 					limit: parseInt(limit),

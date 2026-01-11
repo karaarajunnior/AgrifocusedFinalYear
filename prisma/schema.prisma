@@ -49,6 +49,10 @@ model User {
   notificationLogs NotificationLog[]
   refreshTokens RefreshToken[]
   auditLogs AuditLog[] @relation("AuditLogActor")
+  generatedDeliveryProofs DeliveryProof[] @relation("DeliveryProofGeneratedBy")
+  confirmedDeliveryProofs DeliveryProof[] @relation("DeliveryProofConfirmedBy")
+  createdCoops CooperativeGroup[] @relation("CoopCreatedBy")
+  coopMemberships CooperativeMember[]
 
   @@map("users")
 }
@@ -83,6 +87,7 @@ model Product {
   reviews      Review[]
   priceHistory PriceHistory[]
   transactions Transaction[]
+  batches      ProductBatch[]
 
   @@map("products")
 }
@@ -94,6 +99,8 @@ model Order {
   status       OrderStatus @default(PENDING)
   deliveryDate DateTime?
   notes        String?     @db.Text
+  // Proof of delivery (one-time code / QR) support
+  deliveryProof DeliveryProof?
   buyerId      String
   farmerId     String
   productId    String
@@ -108,6 +115,27 @@ model Order {
   review      Review?
 
   @@map("orders")
+}
+
+model DeliveryProof {
+  id               String   @id @default(cuid())
+  orderId           String   @unique
+  codeHash          String   @db.VarChar(64) // sha256 hex of short code
+  qrTokenHash       String?  @db.VarChar(64) // sha256 hex of QR token (optional)
+  generatedByUserId String
+  confirmedByUserId String?
+  generatedAt       DateTime @default(now())
+  confirmedAt       DateTime?
+  gpsLocation       String?  @db.VarChar(128)
+  chainTxHash       String?  @db.VarChar(128)
+  chainBlockNumber  Int?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  generatedBy User @relation("DeliveryProofGeneratedBy", fields: [generatedByUserId], references: [id])
+  confirmedBy User? @relation("DeliveryProofConfirmedBy", fields: [confirmedByUserId], references: [id])
+
+  @@index([generatedByUserId, generatedAt])
+  @@map("delivery_proofs")
 }
 
 model Transaction {
@@ -137,6 +165,79 @@ model Transaction {
   productId String
 
   @@map("transactions")
+}
+
+model CooperativeGroup {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(80)
+  location    String?  @db.VarChar(120)
+  description String?  @db.Text
+  createdById String
+  createdAt   DateTime @default(now())
+
+  createdBy User @relation("CoopCreatedBy", fields: [createdById], references: [id])
+  members   CooperativeMember[]
+
+  @@index([createdById, createdAt])
+  @@map("cooperative_groups")
+}
+
+model CooperativeMember {
+  id        String   @id @default(cuid())
+  groupId   String
+  userId    String
+  role      String   @default("MEMBER") @db.VarChar(16) // MEMBER | ADMIN
+  joinedAt  DateTime @default(now())
+
+  group CooperativeGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("cooperative_members")
+}
+
+model ProductBatch {
+  id          String   @id @default(cuid())
+  productId   String
+  batchCode   String   @db.VarChar(64)
+  harvestedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  events  TraceEvent[]
+
+  @@index([productId, createdAt])
+  @@map("product_batches")
+}
+
+model TraceEvent {
+  id        String   @id @default(cuid())
+  batchId   String
+  type      String   @db.VarChar(32) // harvest, storage, transport, delivery, etc.
+  note      String?  @db.Text
+  location  String?  @db.VarChar(120)
+  createdAt DateTime @default(now())
+
+  batch ProductBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId, createdAt])
+  @@map("trace_events")
+}
+
+model ClimateAlert {
+  id        String   @id @default(cuid())
+  location  String   @db.VarChar(120)
+  severity  String   @db.VarChar(16) // info, warning, critical
+  title     String   @db.VarChar(120)
+  body      String   @db.Text
+  source    String   @db.VarChar(64) // open-meteo, etc.
+  validFrom DateTime @default(now())
+  validTo   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([location, validTo])
+  @@map("climate_alerts")
 }
 
 model RefreshToken {

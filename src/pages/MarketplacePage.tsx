@@ -15,6 +15,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import api from "../services/api";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../contexts/AuthContext";
+import TrustBadge, { TrustScore } from "../components/TrustBadge";
 
 interface Product {
 	id: string;
@@ -33,6 +34,7 @@ interface Product {
 		location: string;
 		verified: boolean;
 	};
+	farmerTrust?: TrustScore;
 }
 
 function MarketplacePage() {
@@ -340,7 +342,7 @@ function MarketplacePage() {
 									{/* Price */}
 									<div className="mb-3">
 										<span className="text-2xl font-bold text-green-600">
-											₹{product.price}
+											UGX {product.price}
 										</span>
 										<span className="text-gray-600">/{product.unit}</span>
 									</div>
@@ -363,6 +365,11 @@ function MarketplacePage() {
 														✓
 													</span>
 												)}
+												{product.farmerTrust ? (
+													<span className="ml-2">
+														<TrustBadge trust={product.farmerTrust} compact />
+													</span>
+												) : null}
 											</div>
 
 											{product.totalReviews > 0 && (

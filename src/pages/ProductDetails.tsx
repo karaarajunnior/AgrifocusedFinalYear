@@ -18,6 +18,8 @@ import {
 import LoadingSpinner from '../components/LoadingSpinner';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
+import TrustBadge from "../components/TrustBadge";
+import { useTrustScore } from "../hooks/useTrustScore";
 
 interface ProductDetails {
   id: string;
@@ -66,6 +68,8 @@ function ProductDetails() {
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [orderNotes, setOrderNotes] = useState('');
+  const { trust: farmerTrust } = useTrustScore(product?.farmer?.id);
+  const [trace, setTrace] = useState<{ batches: Array<{ id: string; batchCode: string; harvestedAt?: string | null; events: Array<{ id: string; type: string; note?: string | null; location?: string | null; createdAt: string }> }> } | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -77,6 +81,13 @@ function ProductDetails() {
     try {
       const response = await api.get(`/products/${id}`);
       setProduct(response.data);
+      // Traceability is public
+      try {
+        const t = await api.get(`/trace/product/${id}`);
+        setTrace(t.data || null);
+      } catch {
+        setTrace(null);
+      }
     } catch (error: unknown) {
       console.error('Failed to fetch product:', error);
       if (axios.isAxiosError(error) && error.response?.status === 404) {
@@ -195,9 +206,10 @@ function ProductDetails() {
               <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.name}</h1>
               <div className="flex items-center space-x-4">
                 <span className="text-3xl font-bold text-green-600">
-                  ₹{product.price}
+                  UGX {product.price}
                 </span>
                 <span className="text-gray-600">per {product.unit}</span>
+                {farmerTrust ? <TrustBadge trust={farmerTrust} /> : null}
                 {product.avgRating > 0 && (
                   <div className="flex items-center">
                     <Star className="h-5 w-5 text-yellow-400 fill-current" />
@@ -253,6 +265,35 @@ function ProductDetails() {
                 )}
               </div>
             </div>
+
+            {/* Traceability */}
+            {trace?.batches?.length ? (
+              <div className="bg-white rounded-lg shadow p-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Traceability timeline</h3>
+                <div className="space-y-4">
+                  {trace.batches.slice(0, 2).map((b) => (
+                    <div key={b.id} className="border border-gray-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="font-medium text-gray-900">Batch: {b.batchCode}</div>
+                        <div className="text-xs text-gray-500">
+                          {b.harvestedAt ? new Date(b.harvestedAt).toLocaleDateString() : "—"}
+                        </div>
+                      </div>
+                      <div className="mt-2 space-y-2">
+                        {b.events.slice(0, 6).map((e) => (
+                          <div key={e.id} className="text-sm text-gray-700">
+                            <span className="font-medium">{e.type}</span>
+                            {e.location ? <span className="text-gray-500"> • {e.location}</span> : null}
+                            <span className="text-gray-500"> • {new Date(e.createdAt).toLocaleString()}</span>
+                            {e.note ? <div className="text-xs text-gray-600 mt-0.5">{e.note}</div> : null}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             {/* Farmer Info */}
             <div className="bg-white rounded-lg shadow p-4">

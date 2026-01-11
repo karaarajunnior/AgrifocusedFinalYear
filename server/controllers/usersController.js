@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { validationResult } from "express-validator";
 import prisma from "../db/prisma.js";
 import { writeAuditLog } from "../services/auditLogService.js";
+import { computeTrustScore } from "../services/trustScoreService.js";
 
 export async function getUserProfile(req, res) {
 	try {
@@ -53,7 +54,8 @@ export async function getUserProfile(req, res) {
 			};
 		}
 
-		res.json({ user: { ...user, ...farmerStats } });
+		const trust = await computeTrustScore({ userId: id });
+		res.json({ user: { ...user, ...farmerStats, trust } });
 	} catch (error) {
 		console.error("Get user profile error:", error);
 		res.status(500).json({ error: "Failed to fetch user profile" });

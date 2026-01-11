@@ -24,6 +24,11 @@ import ledgerRoutes from "./routes/ledger.js";
 import marketAIRoutes from "./routes/marketAI.js";
 import marketDataRoutes from "./routes/marketData.js";
 import auditRoutes from "./routes/audit.js";
+import trustRoutes from "./routes/trust.js";
+import deliveryProofRoutes from "./routes/deliveryProof.js";
+import climateRoutes from "./routes/climate.js";
+import coopRoutes from "./routes/coop.js";
+import traceRoutes from "./routes/trace.js";
 import cron from "node-cron";
 import { initSocket } from "./socket.js";
 import path from "path";
@@ -134,6 +139,11 @@ app.use("/api/ledger", ledgerRoutes);
 app.use("/api/market-ai", marketAIRoutes);
 app.use("/api/market-data", marketDataRoutes);
 app.use("/api/audit", auditRoutes);
+app.use("/api/trust", trustRoutes);
+app.use("/api/delivery-proof", deliveryProofRoutes);
+app.use("/api/climate", climateRoutes);
+app.use("/api/coop", coopRoutes);
+app.use("/api/trace", traceRoutes);
 
 // Optional scheduled refresh of web market data
 if (String(process.env.MARKET_DATA_CRON_ENABLED || "false").toLowerCase() === "true") {

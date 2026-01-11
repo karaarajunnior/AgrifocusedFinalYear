@@ -4,6 +4,7 @@ import { authenticateToken, requireRole } from "../middleware/auth.js";
 import twilio from "twilio";
 import { updateNotificationStatus } from "../services/smsWhatsappService.js";
 import prisma from "../db/prisma.js";
+import { handleInboundSms } from "../services/smsCommandService.js";
 
 const router = express.Router();
 
@@ -160,6 +161,26 @@ router.post("/twilio/status", async (req, res) => {
 	} catch (error) {
 		console.error("Twilio status webhook error:", error);
 		res.status(500).json({ error: "Failed to process status" });
+	}
+});
+
+// Twilio inbound SMS webhook (SMS fallback for rural users)
+// Configure in Twilio: Messaging webhook -> POST to /api/notifications/twilio/inbound
+router.post("/twilio/inbound", async (req, res) => {
+	try {
+		const from = req.body?.From || req.body?.from || null;
+		const bodyText = req.body?.Body || req.body?.body || "";
+		const { twiml } = await handleInboundSms({ from, body: bodyText });
+		res.set("Content-Type", "text/xml");
+		return res.status(200).send(twiml);
+	} catch (error) {
+		console.error("Twilio inbound error:", error);
+		res.set("Content-Type", "text/xml");
+		return res
+			.status(200)
+			.send(
+				`<?xml version="1.0" encoding="UTF-8"?><Response><Message>Server error. Try again later.</Message></Response>`,
+			);
 	}
 });
 
