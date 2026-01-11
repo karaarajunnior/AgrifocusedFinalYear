@@ -1,7 +1,7 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
 import { PrismaClient } from "@prisma/client";
-import { authenticateToken } from "../middleware/auth.js";
+import { authenticateToken, requireRole } from "../middleware/auth.js";
 import twilio from "twilio";
 import { updateNotificationStatus } from "../services/smsWhatsappService.js";
 
@@ -163,6 +163,79 @@ router.post("/twilio/status", async (req, res) => {
 		res.status(500).json({ error: "Failed to process status" });
 	}
 });
+
+// Admin: notifications delivery analytics
+router.get(
+	"/admin/stats",
+	authenticateToken,
+	requireRole(["ADMIN"]),
+	async (req, res) => {
+		try {
+			const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+			const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+			const [last24hTotal, last24hFailed, byChannel, byType, recentFailures] =
+				await Promise.all([
+					prisma.notificationLog.count({
+						where: { createdAt: { gte: since24h } },
+					}),
+					prisma.notificationLog.count({
+						where: { createdAt: { gte: since24h }, status: "failed" },
+					}),
+					prisma.notificationLog.groupBy({
+						by: ["channel", "status"],
+						where: { createdAt: { gte: since7d } },
+						_count: true,
+					}),
+					prisma.notificationLog.groupBy({
+						by: ["type", "status"],
+						where: { createdAt: { gte: since7d } },
+						_count: true,
+					}),
+					prisma.notificationLog.findMany({
+						where: { status: "failed" },
+						select: {
+							id: true,
+							type: true,
+							channel: true,
+							to: true,
+							status: true,
+							error: true,
+							providerSid: true,
+							createdAt: true,
+							user: { select: { id: true, name: true, role: true } },
+						},
+						orderBy: { createdAt: "desc" },
+						take: 25,
+					}),
+				]);
+
+			const last24hSuccess = Math.max(0, last24hTotal - last24hFailed);
+			const last24hSuccessRate =
+				last24hTotal > 0 ? last24hSuccess / last24hTotal : 0;
+
+			res.json({
+				overview: {
+					last24hTotal,
+					last24hFailed,
+					last24hSuccess,
+					last24hSuccessRate,
+				},
+				last7d: {
+					byChannel,
+					byType,
+				},
+				recentFailures: recentFailures.map((f) => ({
+					...f,
+					toMasked: f.to ? `${f.to.slice(0, 5)}***${f.to.slice(-3)}` : null,
+				})),
+			});
+		} catch (error) {
+			console.error("Admin notifications stats error:", error);
+			res.status(500).json({ error: "Failed to fetch notifications stats" });
+		}
+	},
+);
 
 export default router;
 

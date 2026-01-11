@@ -8,7 +8,8 @@ import {
   Activity,
   Shield,
   AlertTriangle,
-  Link2
+  Link2,
+  Bell
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import api from '../services/api';
@@ -71,6 +72,30 @@ interface DashboardData {
   }>;
 }
 
+interface NotificationStats {
+  overview: {
+    last24hTotal: number;
+    last24hFailed: number;
+    last24hSuccess: number;
+    last24hSuccessRate: number;
+  };
+  last7d: {
+    byChannel: Array<{ channel: string; status: string; _count: number }>;
+    byType: Array<{ type: string; status: string; _count: number }>;
+  };
+  recentFailures: Array<{
+    id: string;
+    type: string;
+    channel: string;
+    toMasked: string | null;
+    status: string;
+    error: string | null;
+    providerSid: string | null;
+    createdAt: string;
+    user: { id: string; name: string; role: string };
+  }>;
+}
+
 function AdminDashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,11 +104,14 @@ function AdminDashboard() {
   const [apiUptimeSec, setApiUptimeSec] = useState<number | null>(null);
   const [pendingUsers, setPendingUsers] = useState<Array<{ id: string; name: string; email: string; role: string; createdAt: string }>>([]);
   const [approvalsLoading, setApprovalsLoading] = useState(false);
+  const [notificationStats, setNotificationStats] = useState<NotificationStats | null>(null);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
     fetchApiHealth();
     fetchPendingUsers();
+    fetchNotificationStats();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -127,6 +155,19 @@ function AdminDashboard() {
         }
       }
       toast.error(message);
+    }
+  };
+
+  const fetchNotificationStats = async () => {
+    setNotificationsLoading(true);
+    try {
+      const res = await api.get('/notifications/admin/stats');
+      setNotificationStats(res.data);
+    } catch (error) {
+      console.error('Failed to fetch notification stats:', error);
+      setNotificationStats(null);
+    } finally {
+      setNotificationsLoading(false);
     }
   };
 
@@ -253,6 +294,7 @@ function AdminDashboard() {
                 { id: 'overview', name: 'Overview', icon: BarChart3 },
                 { id: 'users', name: 'Users', icon: Users },
                 { id: 'approvals', name: 'Approvals', icon: Shield },
+                { id: 'notifications', name: 'Notifications', icon: Bell },
                 { id: 'products', name: 'Products', icon: Package },
                 { id: 'activity', name: 'Activity', icon: Activity },
                 { id: 'blockchain', name: 'Blockchain', icon: Link2 }
@@ -417,6 +459,85 @@ function AdminDashboard() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'notifications' && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
+                  <button
+                    onClick={fetchNotificationStats}
+                    className="px-3 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200"
+                    disabled={notificationsLoading}
+                  >
+                    {notificationsLoading ? 'Refreshing…' : 'Refresh'}
+                  </button>
+                </div>
+
+                {!notificationStats ? (
+                  <p className="text-sm text-gray-600">No notification stats available yet.</p>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-sm text-gray-600">Last 24h total</p>
+                        <p className="text-2xl font-bold text-gray-900">{notificationStats.overview.last24hTotal}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-sm text-gray-600">Last 24h success</p>
+                        <p className="text-2xl font-bold text-green-700">{notificationStats.overview.last24hSuccess}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-sm text-gray-600">Last 24h failed</p>
+                        <p className="text-2xl font-bold text-red-700">{notificationStats.overview.last24hFailed}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-sm text-gray-600">Success rate</p>
+                        <p className="text-2xl font-bold text-blue-700">
+                          {Math.round(notificationStats.overview.last24hSuccessRate * 100)}%
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Recent failures</h4>
+                      {notificationStats.recentFailures.length === 0 ? (
+                        <p className="text-sm text-gray-600">No failures recorded.</p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Channel</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Error</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {notificationStats.recentFailures.map((f) => (
+                                <tr key={f.id}>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-sm font-medium text-gray-900">{f.user.name}</div>
+                                    <div className="text-xs text-gray-500">{f.user.role}</div>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{f.type}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{f.channel}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{f.toMasked || '—'}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-600">{f.error || '—'}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(f.createdAt).toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
