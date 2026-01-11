@@ -12,6 +12,7 @@ import blockchainService from "../services/blockchainService.js";
 import { emitToUser } from "../realtime.js";
 import { sendPushToUser } from "../services/pushService.js";
 import { notifyUser } from "../services/smsWhatsappService.js";
+import { postAirtelPaymentCompleted } from "../services/ledgerService.js";
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -251,6 +252,15 @@ router.post("/airtel/webhook", async (req, res) => {
 						},
 					],
 				});
+
+				// Ledger posting (double-entry) for Airtel payment completion
+				if (mapped === "COMPLETED") {
+					try {
+						await postAirtelPaymentCompleted({ transactionId: tx.id });
+					} catch (e) {
+						console.error("Ledger posting failed:", e);
+					}
+				}
 
 				// Automation: if payment completed, ensure blockchain tx exists (if not already recorded)
 				if (mapped === "COMPLETED" && !updated.blockHash) {

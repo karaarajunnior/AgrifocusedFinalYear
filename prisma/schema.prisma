@@ -115,6 +115,7 @@ model Transaction {
   currency         String?  @default("UGX")
   payerMsisdn      String?  @db.Text
   providerRaw      String?  @db.LongText
+  ledgerEntryId    String?  @db.VarChar(64)
   blockHash   String? // Simulated blockchain hash
   blockNumber Int? // Simulated block number
   gasUsed     Float? // Simulated gas cost
@@ -126,6 +127,53 @@ model Transaction {
   productId String
 
   @@map("transactions")
+}
+
+model LedgerAccount {
+  id        String   @id @default(cuid())
+  code      String   @unique @db.VarChar(32)
+  name      String
+  type      LedgerAccountType
+  parentId  String?
+  userId    String? // optional: ties subledger to a specific user (e.g., farmer payable subaccount)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent LedgerAccount? @relation("LedgerAccountParent", fields: [parentId], references: [id])
+  children LedgerAccount[] @relation("LedgerAccountParent")
+
+  lines JournalLine[]
+
+  @@map("ledger_accounts")
+}
+
+model JournalEntry {
+  id            String   @id @default(cuid())
+  referenceType String   // payment, payout, adjustment, etc.
+  referenceId   String   // e.g. transactionId
+  orderId       String?  // optional helper for filtering
+  memo          String?  @db.Text
+  currency      String   @default("UGX")
+  createdAt     DateTime @default(now())
+
+  lines JournalLine[]
+
+  @@unique([referenceType, referenceId])
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id        String @id @default(cuid())
+  entryId   String
+  accountId String
+  debit     Float  @default(0)
+  credit    Float  @default(0)
+  memo      String? @db.Text
+
+  entry   JournalEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account LedgerAccount @relation(fields: [accountId], references: [id])
+
+  @@map("journal_lines")
 }
 
 model Review {
@@ -264,4 +312,12 @@ enum TransactionStatus {
   PENDING
   COMPLETED
   FAILED
+}
+
+enum LedgerAccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
 }
