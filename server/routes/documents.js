@@ -3,13 +3,12 @@ import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
-import pdfParse from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
-import { PrismaClient } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.js";
 import { requireVerified } from "../middleware/verified.js";
+import prisma from "../db/prisma.js";
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -53,7 +52,7 @@ async function extractText(filePath, mimeType) {
 	const buf = await fs.readFile(filePath);
 
 	if (mimeType === "application/pdf") {
-		const data = await pdfParse(buf);
+		const data = await PDFParse(buf);
 		return data.text || "";
 	}
 

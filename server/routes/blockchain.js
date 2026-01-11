@@ -1,10 +1,9 @@
 import blockchainService from "../services/blockchainService.js";
 import express from "express";
-import { PrismaClient } from "@prisma/client";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import { requireVerified } from "../middleware/verified.js";
+import prisma from "../db/prisma.js";
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
 // Admin: verify farmer on-chain (required by the Solidity contract before listing)

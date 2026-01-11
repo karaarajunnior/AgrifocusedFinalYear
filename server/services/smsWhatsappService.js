@@ -1,7 +1,5 @@
 import twilio from "twilio";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "../db/prisma.js";
 
 function isConfigured() {
 	return Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);

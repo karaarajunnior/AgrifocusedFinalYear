@@ -1,10 +1,9 @@
 import express from "express";
 import { body, query, validationResult } from "express-validator";
-import { PrismaClient } from "@prisma/client";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import { refreshMarketWebPrices } from "../services/webMarketDataService.js";
+import prisma from "../db/prisma.js";
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
 // Admin/manual ingestion (best for n8n workflows)

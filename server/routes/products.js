@@ -1,7 +1,6 @@
 import express from "express";
 import { body, validationResult, query } from "express-validator";
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from "../db/prisma.js";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import locationService from "../utils/locationService.js";
 import { requireVerified } from "../middleware/verified.js";
@@ -10,6 +9,14 @@ import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
 import { writeAuditLog } from "../services/auditLogService.js";
+import {
+	createProduct,
+	deleteProduct,
+	getMyProducts,
+	getNearbyProducts,
+	updateProduct,
+	uploadProductImages as uploadProductImagesHandler,
+} from "../controllers/productsController.js";
 
 const router = express.Router();
 
@@ -51,51 +58,7 @@ router.post(
 	requireRole(["FARMER"]),
 	requireVerified,
 	uploadProductImages.array("images", 6),
-	async (req, res) => {
-		try {
-			const { id } = req.params;
-			const product = await prisma.product.findUnique({
-				where: { id },
-				select: { farmerId: true, images: true },
-			});
-			if (!product) return res.status(404).json({ error: "Product not found" });
-			if (product.farmerId !== req.user.id) {
-				return res.status(403).json({ error: "Not authorized" });
-			}
-
-			const files = req.files || [];
-			if (!Array.isArray(files) || files.length === 0) {
-				return res.status(400).json({ error: "No images uploaded" });
-			}
-
-			let existing = [];
-			try {
-				existing = product.images ? JSON.parse(product.images) : [];
-			} catch {
-				existing = [];
-			}
-
-			const urls = files.map((f) => `/uploads/products/${path.basename(f.path)}`);
-			const merged = [...existing, ...urls].slice(0, 10);
-
-			const updated = await prisma.product.update({
-				where: { id },
-				data: { images: JSON.stringify(merged) },
-				select: { id: true, images: true },
-			});
-
-			res.json({
-				message: "Images uploaded",
-				product: {
-					id: updated.id,
-					images: updated.images ? JSON.parse(updated.images) : [],
-				},
-			});
-		} catch (error) {
-			console.error("Upload product images error:", error);
-			res.status(500).json({ error: "Failed to upload images" });
-		}
-	},
+	uploadProductImagesHandler,
 );
 
 // Get nearby products within radius (location-based discovery)
@@ -119,77 +82,7 @@ router.get(
 			]),
 		query("search").optional().isString().trim().isLength({ min: 1, max: 100 }),
 	],
-	async (req, res) => {
-		try {
-			const errors = validationResult(req);
-			if (!errors.isEmpty()) {
-				return res.status(400).json({ errors: errors.array() });
-			}
-
-			const { location, radius = 50, category, search } = req.query;
-
-			const where = {
-				available: true,
-				quantity: { gt: 0 },
-			};
-
-			if (category) where.category = category;
-			if (search) {
-				where.OR = [
-					{ name: { contains: search } },
-					{ description: { contains: search } },
-				];
-			}
-
-			const products = await prisma.product.findMany({
-				where,
-				include: {
-					farmer: {
-						select: {
-							id: true,
-							name: true,
-							location: true,
-							verified: true,
-						},
-					},
-					reviews: {
-						select: { rating: true },
-					},
-					_count: {
-						select: { orders: true, reviews: true },
-					},
-				},
-				orderBy: { createdAt: "desc" },
-				take: 200,
-			});
-
-			const productsWithRatings = products.map((product) => {
-				const avgRating =
-					product.reviews.length > 0
-						? product.reviews.reduce((sum, review) => sum + review.rating, 0) /
-						  product.reviews.length
-						: 0;
-
-				return {
-					...product,
-					avgRating: Math.round(avgRating * 10) / 10,
-					totalOrders: product._count.orders,
-					totalReviews: product._count.reviews,
-				};
-			});
-
-			const nearby = await locationService.getProductsWithinRadius(
-				location,
-				productsWithRatings,
-				parseInt(radius),
-			);
-
-			res.json({ products: nearby });
-		} catch (error) {
-			console.error("Get nearby products error:", error);
-			res.status(500).json({ error: "Failed to fetch nearby products" });
-		}
-	},
+	getNearbyProducts,
 );
 
 // Get all products with filters
@@ -413,80 +306,7 @@ router.post(
 		body("quantity").isInt({ min: 1 }),
 		body("location").trim().isLength({ min: 2 }),
 	],
-	async (req, res) => {
-		try {
-			const errors = validationResult(req);
-			if (!errors.isEmpty()) {
-				return res.status(400).json({ errors: errors.array() });
-			}
-
-			const {
-				name,
-				description,
-				category,
-				price,
-				quantity,
-				unit,
-				harvestDate,
-				expiryDate,
-				location,
-				images,
-				organic,
-			} = req.body;
-
-			const product = await prisma.product.create({
-				data: {
-					name,
-					description,
-					category,
-					price: parseFloat(price),
-					quantity: parseInt(quantity),
-					unit: unit || "kg",
-					harvestDate: harvestDate ? new Date(harvestDate) : null,
-					expiryDate: expiryDate ? new Date(expiryDate) : null,
-					location,
-					images: images ? JSON.stringify(images) : null,
-					organic: Boolean(organic),
-					farmerId: req.user.id,
-				},
-				include: {
-					farmer: {
-						select: {
-							id: true,
-							name: true,
-							location: true,
-						},
-					},
-				},
-			});
-
-			// Create initial price history entry
-			await prisma.priceHistory.create({
-				data: {
-					productId: product.id,
-					price: parseFloat(price),
-				},
-			});
-
-			res.status(201).json({
-				message: "Product created successfully",
-				product,
-			});
-
-			await writeAuditLog({
-				actorUserId: req.user.id,
-				action: "product_create",
-				targetType: "product",
-				targetId: product.id,
-				ip: req.ip,
-				userAgent: req.get("User-Agent"),
-				metadata: { category, price: parseFloat(price), quantity: parseInt(quantity) },
-			});
-		} catch (error) {
-			console.error("Create product error:", error);
-			res.status(500).json({ error: "Failed to create product" });
-		}
-	},
+	createProduct,
 );
 
 // Update product (farmer only - own products)
@@ -520,106 +340,7 @@ router.put(
 		body("organic").optional().isBoolean(),
 		body("available").optional().isBoolean(),
 	],
-	async (req, res) => {
-		try {
-			const errors = validationResult(req);
-			if (!errors.isEmpty()) {
-				return res.status(400).json({ errors: errors.array() });
-			}
-
-			const { id } = req.params;
-			const updates = {};
-			const allowedFields = [
-				"name",
-				"description",
-				"category",
-				"price",
-				"quantity",
-				"unit",
-				"harvestDate",
-				"expiryDate",
-				"location",
-				"organic",
-				"available",
-			];
-
-			Object.keys(req.body || {}).forEach((key) => {
-				if (!allowedFields.includes(key)) return;
-				if (req.body[key] === undefined) return;
-				updates[key] = req.body[key];
-			});
-
-			if (typeof updates.price !== "undefined") updates.price = parseFloat(updates.price);
-			if (typeof updates.quantity !== "undefined") updates.quantity = parseInt(updates.quantity);
-			if (typeof updates.harvestDate !== "undefined") {
-				updates.harvestDate = updates.harvestDate ? new Date(updates.harvestDate) : null;
-			}
-			if (typeof updates.expiryDate !== "undefined") {
-				updates.expiryDate = updates.expiryDate ? new Date(updates.expiryDate) : null;
-			}
-
-			// Check if product belongs to farmer
-			const existingProduct = await prisma.product.findUnique({
-				where: { id },
-				select: { farmerId: true, price: true },
-			});
-
-			if (!existingProduct) {
-				return res.status(404).json({ error: "Product not found" });
-			}
-
-			if (existingProduct.farmerId !== req.user.id) {
-				return res
-					.status(403)
-					.json({ error: "Not authorized to update this product" });
-			}
-
-			const product = await prisma.product.update({
-				where: { id },
-				data: {
-					...updates,
-					updatedAt: new Date(),
-				},
-				include: {
-					farmer: {
-						select: {
-							id: true,
-							name: true,
-							location: true,
-						},
-					},
-				},
-			});
-
-			// If price changed, add to price history
-			if (updates.price && updates.price !== existingProduct.price) {
-				await prisma.priceHistory.create({
-					data: {
-						productId: id,
-						price: parseFloat(updates.price),
-					},
-				});
-			}
-
-			res.json({
-				message: "Product updated successfully",
-				product,
-			});
-
-			await writeAuditLog({
-				actorUserId: req.user.id,
-				action: "product_update",
-				targetType: "product",
-				targetId: id,
-				ip: req.ip,
-				userAgent: req.get("User-Agent"),
-				metadata: { fields: Object.keys(updates) },
-			});
-		} catch (error) {
-			console.error("Update product error:", error);
-			res.status(500).json({ error: "Failed to update product" });
-		}
-	},
+	updateProduct,
 );
 
 // Delete product (farmer only - own products)
@@ -628,45 +349,7 @@ router.delete(
 	authenticateToken,
 	requireRole(["FARMER"]),
 	requireVerified,
-	async (req, res) => {
-		try {
-			const { id } = req.params;
-
-			// Check if product belongs to farmer
-			const existingProduct = await prisma.product.findUnique({
-				where: { id },
-				select: { farmerId: true },
-			});
-
-			if (!existingProduct) {
-				return res.status(404).json({ error: "Product not found" });
-			}
-
-			if (existingProduct.farmerId !== req.user.id) {
-				return res
-					.status(403)
-					.json({ error: "Not authorized to delete this product" });
-			}
-
-			await prisma.product.delete({
-				where: { id },
-			});
-
-			res.json({ message: "Product deleted successfully" });
-
-			await writeAuditLog({
-				actorUserId: req.user.id,
-				action: "product_delete",
-				targetType: "product",
-				targetId: id,
-				ip: req.ip,
-				userAgent: req.get("User-Agent"),
-			});
-		} catch (error) {
-			console.error("Delete product error:", error);
-			res.status(500).json({ error: "Failed to delete product" });
-		}
-	},
+	deleteProduct,
 );
 
 // Get farmer's products
@@ -674,45 +357,6 @@ router.get(
 	"/farmer/my-products",
 	authenticateToken,
 	requireRole(["FARMER"]),
-	async (req, res) => {
-		try {
-			const products = await prisma.product.findMany({
-				where: { farmerId: req.user.id },
-				include: {
-					_count: {
-						select: {
-							orders: true,
-							reviews: true,
-						},
-					},
-					reviews: {
-						select: { rating: true },
-					},
-				},
-				orderBy: { createdAt: "desc" },
-			});
-
-			// Calculate analytics for each product
-			const productsWithAnalytics = products.map((product) => {
-				const avgRating =
-					product.reviews.length > 0
-						? product.reviews.reduce((sum, review) => sum + review.rating, 0) /
-						  product.reviews.length
-						: 0;
-
-				return {
-					...product,
-					avgRating: Math.round(avgRating * 10) / 10,
-					totalOrders: product._count.orders,
-					totalReviews: product._count.reviews,
-				};
-			});
-
-			res.json({ products: productsWithAnalytics });
-		} catch (error) {
-			console.error("Get farmer products error:", error);
-			res.status(500).json({ error: "Failed to fetch your products" });
-		}
-	},
+	getMyProducts,
 );
 export default router;

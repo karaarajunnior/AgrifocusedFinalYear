@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "../db/prisma.js";
 
 const BASE_ACCOUNTS = {
 	AIRTEL_CASH: { code: "1000", name: "Airtel Money Clearing (UGX)", type: "ASSET" },

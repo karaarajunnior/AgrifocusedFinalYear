@@ -1,11 +1,10 @@
 import express from "express";
 import { body, param, query, validationResult } from "express-validator";
-import { PrismaClient } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.js";
 import { requireVerified } from "../middleware/verified.js";
 import { synthesizeToFile } from "../services/ttsService.js";
+import prisma from "../db/prisma.js";
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
 // List conversation counterparts (best-effort, based on recent messages)

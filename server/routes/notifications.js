@@ -1,11 +1,10 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
-import { PrismaClient } from "@prisma/client";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import twilio from "twilio";
 import { updateNotificationStatus } from "../services/smsWhatsappService.js";
+import prisma from "../db/prisma.js";
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
 // Register a device token (mobile app calls this after login)

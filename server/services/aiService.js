@@ -1,7 +1,5 @@
 import tf from "@tensorflow/tfjs";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "../db/prisma.js";
 
 class AIService {
 	constructor() {

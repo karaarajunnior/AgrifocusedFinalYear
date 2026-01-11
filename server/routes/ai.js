@@ -1,11 +1,10 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
-import { PrismaClient } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.js";
 import aiService from "../services/aiService.js";
 import { requireVerified } from "../middleware/verified.js";
+import prisma from "../db/prisma.js";
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
 // Advanced price prediction using AI

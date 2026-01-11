@@ -1,6 +1,5 @@
 import express from "express";
 import { body, param, validationResult } from "express-validator";
-import { PrismaClient } from "@prisma/client";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import { requireVerified } from "../middleware/verified.js";
 import {
@@ -14,8 +13,8 @@ import { sendPushToUser } from "../services/pushService.js";
 import { notifyUser } from "../services/smsWhatsappService.js";
 import { postAirtelPaymentCompleted } from "../services/ledgerService.js";
 import { writeAuditLog } from "../services/auditLogService.js";
+import prisma from "../db/prisma.js";
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
 // Initialize payment for an order (BUYER)

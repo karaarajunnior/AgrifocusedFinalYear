@@ -1,7 +1,5 @@
 import admin from "firebase-admin";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "../db/prisma.js";
 
 let initialized = false;
 

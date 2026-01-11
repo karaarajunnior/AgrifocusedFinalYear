@@ -1,7 +1,5 @@
 import axios from "axios";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "../db/prisma.js";
 
 function parseSourcesEnv() {
 	// MARKET_DATA_SOURCES_JSON = JSON array of sources:

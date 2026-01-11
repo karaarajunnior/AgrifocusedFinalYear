@@ -1,12 +1,11 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
-import { PrismaClient } from "@prisma/client";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import blockchainService from "../services/blockchainService.js";
 import { requireVerified } from "../middleware/verified.js";
 import { initiateAirtelUgCollection, normalizeUgMsisdn } from "../services/payments/airtelUgService.js";
+import prisma from "../db/prisma.js";
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
 // Create order (buyers only)

@@ -1,8 +1,6 @@
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "../db/prisma.js";
 
 function sha256Hex(input) {
 	return crypto.createHash("sha256").update(input).digest("hex");
