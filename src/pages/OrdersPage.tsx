@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
 import { 
   Package, 
   Clock, 
@@ -8,7 +9,6 @@ import {
   Truck, 
   Star,
   Eye,
-  MessageCircle,
   Filter
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -83,8 +83,16 @@ function OrdersPage() {
       await api.patch(`/orders/${orderId}/status`, { status });
       toast.success('Order status updated successfully');
       fetchOrders();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to update order status');
+    } catch (error: unknown) {
+      let message = 'Failed to update order status';
+      if (axios.isAxiosError(error)) {
+        const data = error.response?.data;
+        if (data && typeof data === 'object') {
+          const maybe = data as Record<string, unknown>;
+          if (typeof maybe.error === 'string') message = maybe.error;
+        }
+      }
+      toast.error(message);
     }
   };
 
@@ -98,8 +106,16 @@ function OrdersPage() {
       setSelectedOrder(null);
       setReviewData({ rating: 5, comment: '' });
       fetchOrders();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to submit review');
+    } catch (error: unknown) {
+      let message = 'Failed to submit review';
+      if (axios.isAxiosError(error)) {
+        const data = error.response?.data;
+        if (data && typeof data === 'object') {
+          const maybe = data as Record<string, unknown>;
+          if (typeof maybe.error === 'string') message = maybe.error;
+        }
+      }
+      toast.error(message);
     }
   };
 

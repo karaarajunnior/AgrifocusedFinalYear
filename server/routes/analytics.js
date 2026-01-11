@@ -14,21 +14,34 @@ router.get(
 		try {
 			const [
 				totalUsers,
+				unverifiedUsers,
 				totalProducts,
 				totalOrders,
 				totalTransactions,
+				failedTransactions,
+				pendingOrders,
+				eventsLast24h,
 				revenueData,
 				userGrowth,
 				productCategories,
 				orderStats,
 				topFarmers,
 				recentActivity,
+				recentTransactions,
 			] = await Promise.all([
 				// Total counts
 				prisma.user.count(),
+				prisma.user.count({ where: { verified: false } }),
 				prisma.product.count(),
 				prisma.order.count(),
 				prisma.transaction.count({ where: { status: "COMPLETED" } }),
+				prisma.transaction.count({ where: { status: "FAILED" } }),
+				prisma.order.count({ where: { status: "PENDING" } }),
+				prisma.userAnalytics.count({
+					where: {
+						timestamp: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+					},
+				}),
 
 				// Revenue data (last 30 days)
 				prisma.transaction.aggregate({
@@ -83,6 +96,27 @@ router.get(
 						},
 					},
 				}),
+
+				// Recent blockchain transactions
+				prisma.transaction.findMany({
+					where: { status: "COMPLETED" },
+					select: {
+						id: true,
+						orderId: true,
+						amount: true,
+						blockHash: true,
+						blockNumber: true,
+						timestamp: true,
+						order: {
+							select: {
+								status: true,
+								product: { select: { name: true, category: true } },
+							},
+						},
+					},
+					orderBy: { timestamp: "desc" },
+					take: 5,
+				}),
 			]);
 
 			// Process top farmers data
@@ -105,16 +139,23 @@ router.get(
 			res.json({
 				overview: {
 					totalUsers,
+					unverifiedUsers,
 					totalProducts,
 					totalOrders,
 					totalTransactions,
+					failedTransactions,
+					pendingOrders,
 					totalRevenue: revenueData._sum.amount || 0,
+				},
+				systemHealth: {
+					eventsLast24h,
 				},
 				userGrowth,
 				productCategories,
 				orderStats,
 				topFarmers: topFarmersWithRevenue,
 				recentActivity,
+				recentTransactions,
 			});
 		} catch (error) {
 			console.error("Dashboard analytics error:", error);
@@ -237,62 +278,71 @@ router.get(
 		try {
 			const buyerId = req.user.id;
 
-			const [
-				totalOrders,
-				totalSpent,
-				favoriteCategories,
-				recentOrders,
-				monthlySpending,
-			] = await Promise.all([
-				prisma.order.count({ where: { buyerId } }),
+			const lastYear = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
 
-				prisma.order.aggregate({
-					where: { buyerId, status: "DELIVERED" },
-					_sum: { totalPrice: true },
-				}),
+			const [totalOrders, recentOrders, deliveredOrdersLastYear] =
+				await Promise.all([
+					prisma.order.count({ where: { buyerId } }),
 
-				await prisma.order.groupBy({
-					by: ["productId"],
-					where: { buyerId, status: "DELIVERED" },
-					select: {
-						//  _count: { _all: true },
-						productId: true,
-					},
-					orderBy: { _count: { productId: "desc" } },
-					take: 5,
-				}),
-
-				prisma.order.findMany({
-					where: { buyerId },
-					include: {
-						product: { select: { name: true, category: true, images: true } },
-						farmer: { select: { name: true, location: true } },
-					},
-					orderBy: { createdAt: "desc" },
-					take: 5,
-				}),
-
-				prisma.order.groupBy({
-					by: ["createdAt"],
-					where: {
-						buyerId,
-						status: "DELIVERED",
-						createdAt: {
-							gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+					prisma.order.findMany({
+						where: { buyerId },
+						include: {
+							product: { select: { name: true, category: true, images: true } },
+							farmer: { select: { name: true, location: true } },
 						},
-					},
-					_sum: { totalPrice: true },
-				}),
-			]);
+						orderBy: { createdAt: "desc" },
+						take: 5,
+					}),
+
+					prisma.order.findMany({
+						where: {
+							buyerId,
+							status: "DELIVERED",
+							createdAt: { gte: lastYear },
+						},
+						select: {
+							totalPrice: true,
+							createdAt: true,
+							product: { select: { category: true } },
+						},
+					}),
+				]);
+
+			const totalSpent = deliveredOrdersLastYear.reduce(
+				(sum, o) => sum + (o.totalPrice || 0),
+				0,
+			);
+			const deliveredCount = deliveredOrdersLastYear.length;
+
+			// Favorite categories (by delivered order count in last year)
+			const categoryCounts = new Map();
+			for (const o of deliveredOrdersLastYear) {
+				const category = o.product.category;
+				categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1);
+			}
+			const favoriteCategories = Array.from(categoryCounts.entries())
+				.sort((a, b) => b[1] - a[1])
+				.slice(0, 5)
+				.map(([category, count]) => ({ category, count }));
+
+			// Monthly spending (YYYY-MM) for last year
+			const monthTotals = new Map();
+			for (const o of deliveredOrdersLastYear) {
+				const d = new Date(o.createdAt);
+				const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+				monthTotals.set(key, (monthTotals.get(key) || 0) + (o.totalPrice || 0));
+			}
+			const monthlySpending = Array.from(monthTotals.entries())
+				.sort((a, b) => (a[0] > b[0] ? 1 : -1))
+				.map(([month, totalSpent]) => ({ month, totalSpent }));
 
 			res.json({
 				overview: {
 					totalOrders,
-					totalSpent: totalSpent._sum.totalPrice || 0,
+					totalSpent,
 					averageOrderValue:
-						totalOrders > 0
-							? (totalSpent._sum.totalPrice || 0) / totalOrders
-							: 0,
+						deliveredCount > 0 ? totalSpent / deliveredCount : 0,
+					deliveredOrders: deliveredCount,
 				},
 				favoriteCategories,
 				recentOrders,

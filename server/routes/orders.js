@@ -2,6 +2,7 @@ import express from "express";
 import { body, validationResult } from "express-validator";
 import { PrismaClient } from "@prisma/client";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
+import blockchainService from "../services/blockchainService.js";
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -15,6 +16,7 @@ router.post(
 		body("productId").isString(),
 		body("quantity").isInt({ min: 1 }),
 		body("deliveryDate").optional().isISO8601(),
+		body("notes").optional().trim().isLength({ max: 2000 }).escape(),
 	],
 	async (req, res) => {
 		try {
@@ -195,10 +197,25 @@ router.patch(
 			const { id } = req.params;
 			const { status } = req.body;
 
-			// Check if order belongs to farmer
+			const allowedTransitions = {
+				PENDING: ["CONFIRMED", "CANCELLED"],
+				CONFIRMED: ["IN_TRANSIT", "CANCELLED"],
+				IN_TRANSIT: ["DELIVERED"],
+				DELIVERED: [],
+				CANCELLED: [],
+			};
+
+			// Check if order belongs to farmer + get current status/product/qty
 			const existingOrder = await prisma.order.findUnique({
 				where: { id },
-				select: { farmerId: true },
+				select: {
+					farmerId: true,
+					buyerId: true,
+					status: true,
+					productId: true,
+					quantity: true,
+					totalPrice: true,
+				},
 			});
 
 			if (!existingOrder) {
@@ -211,41 +228,81 @@ router.patch(
 					.json({ error: "Not authorized to update this order" });
 			}
 
-			const order = await prisma.order.update({
-				where: { id },
-				data: { status },
-				include: {
-					product: {
-						select: {
-							name: true,
-							category: true,
-						},
-					},
-					buyer: {
-						select: {
-							name: true,
-							email: true,
-						},
-					},
-				},
-			});
+			const currentStatus = existingOrder.status;
+			if (currentStatus === status) {
+				return res.json({ message: "Order status unchanged", order: existingOrder });
+			}
 
-			// If order is confirmed, create/update blockchain transaction
-			if (status === "CONFIRMED") {
-				const existingTransaction = await prisma.transaction.findUnique({
-					where: { orderId: id },
+			if (!allowedTransitions[currentStatus]?.includes(status)) {
+				return res.status(400).json({
+					error: `Invalid status transition from ${currentStatus} to ${status}`,
+				});
+			}
+
+			// Persist status update + inventory restore on cancel
+			await prisma.$transaction(async (tx) => {
+				await tx.order.update({
+					where: { id },
+					data: { status },
 				});
 
-				if (!existingTransaction) {
-					await prisma.transaction.create({
+				if (status === "CANCELLED") {
+					await tx.product.update({
+						where: { id: existingOrder.productId },
 						data: {
-							orderId: id,
-							productId: order.productId,
-							amount: order.totalPrice,
-							blockHash: `0x${Math.random().toString(16).substr(2, 64)}`,
-							blockNumber: Math.floor(Math.random() * 1000000),
-							gasUsed: Math.random() * 0.01,
+							quantity: { increment: existingOrder.quantity },
+							available: true,
+						},
+					});
+
+					// If a transaction exists, mark it failed/cancelled
+					await tx.transaction.updateMany({
+						where: { orderId: id },
+						data: { status: "FAILED" },
+					});
+				}
+			});
+
+			// If order is confirmed, create/update blockchain transaction (simulated or real)
+			if (status === "CONFIRMED") {
+				try {
+					const blockchainResult = await blockchainService.recordTransaction({
+						orderId: id,
+						productId: existingOrder.productId,
+						buyerAddress: existingOrder.buyerId,
+						farmerAddress: existingOrder.farmerId,
+						quantity: existingOrder.quantity,
+						totalPrice: existingOrder.totalPrice,
+					});
+
+					await prisma.transaction.upsert({
+						where: { orderId: id },
+						update: {
+							blockHash: blockchainResult.transactionHash,
+							blockNumber: blockchainResult.blockNumber,
+							gasUsed: blockchainResult.gasUsed,
 							status: "COMPLETED",
+						},
+						create: {
+							orderId: id,
+							productId: existingOrder.productId,
+							amount: existingOrder.totalPrice,
+							blockHash: blockchainResult.transactionHash,
+							blockNumber: blockchainResult.blockNumber,
+							gasUsed: blockchainResult.gasUsed,
+							status: "COMPLETED",
+						},
+					});
+				} catch (e) {
+					console.error("Blockchain recordTransaction failed:", e);
+					await prisma.transaction.upsert({
+						where: { orderId: id },
+						update: { status: "FAILED" },
+						create: {
+							orderId: id,
+							productId: existingOrder.productId,
+							amount: existingOrder.totalPrice,
+							status: "FAILED",
 						},
 					});
 				}
@@ -253,7 +310,20 @@ router.patch(
 
 			res.json({
 				message: "Order status updated successfully",
-				order,
+				order: await prisma.order.findUnique({
+					where: { id },
+					include: {
+						product: {
+							select: { name: true, images: true, category: true, unit: true },
+						},
+						buyer: { select: { name: true, phone: true, location: true } },
+						farmer: { select: { name: true, phone: true, location: true } },
+						transaction: {
+							select: { status: true, blockHash: true, timestamp: true },
+						},
+						review: { select: { rating: true, comment: true } },
+					},
+				}),
 			});
 		} catch (error) {
 			console.error("Update order status error:", error);
@@ -269,7 +339,7 @@ router.post(
 	requireRole(["BUYER"]),
 	[
 		body("rating").isInt({ min: 1, max: 5 }),
-		body("comment").optional().isLength({ max: 500 }),
+		body("comment").optional().trim().isLength({ max: 500 }).escape(),
 	],
 	async (req, res) => {
 		try {

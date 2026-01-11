@@ -13,7 +13,6 @@ import {
 	Star,
 } from "lucide-react";
 import LoadingSpinner from "../components/LoadingSpinner";
-import { toast } from "react-hot-toast";
 
 function ProfilePage() {
 	const { user, updateProfile } = useAuth();

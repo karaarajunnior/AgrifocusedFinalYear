@@ -19,15 +19,42 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(helmet());
-const allowedOrigins = ["http://localhost:5173"];
+const defaultAllowedOrigins = [
+	"http://localhost:5173",
+	"http://127.0.0.1:5173",
+	"http://localhost:4173",
+	"http://127.0.0.1:4173",
+	"http://localhost:3000",
+	"http://127.0.0.1:3000",
+	// Common hybrid-mobile/webview origins
+	"capacitor://localhost",
+	"ionic://localhost",
+];
+
+const envAllowedOrigins = (process.env.CORS_ORIGINS || "")
+	.split(",")
+	.map((o) => o.trim())
+	.filter(Boolean);
+
+const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...envAllowedOrigins])];
 
 app.use(
 	cors({
 		origin: (origin, callback) => {
-			if (!origin || allowedOrigins.includes(origin)) {
+			// Non-browser clients (curl, server-to-server, mobile native) may not send Origin
+			if (!origin) {
+				return callback(null, true);
+			}
+
+			// In development, allow any origin to avoid front/back iteration friction.
+			if ((process.env.NODE_ENV || "development") !== "production") {
+				return callback(null, true);
+			}
+
+			if (allowedOrigins.includes(origin)) {
 				callback(null, true);
 			} else {
-				console.warn(" Blocked by CORS:", origin);
+				console.warn("Blocked by CORS:", origin);
 				callback(new Error("Not allowed by CORS"));
 			}
 		},

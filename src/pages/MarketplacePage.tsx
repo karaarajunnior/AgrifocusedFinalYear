@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 import {
 	Search,
 	Filter,
@@ -69,7 +70,7 @@ function MarketplacePage() {
 			if (organicOnly) params.append("organic", "true");
 
 			const response = await api.get(`/products?${params.toString()}`);
-			let sortedProducts = response.data.products;
+			const sortedProducts: Product[] = [...response.data.products];
 
 			// Sort products
 			switch (sortBy) {
@@ -118,8 +119,16 @@ function MarketplacePage() {
 			});
 
 			toast.success("Order placed successfully!");
-		} catch (error: any) {
-			toast.error(error.response?.data?.error || "Failed to place order");
+		} catch (error: unknown) {
+			let message = "Failed to place order";
+			if (axios.isAxiosError(error)) {
+				const data = error.response?.data;
+				if (data && typeof data === "object") {
+					const maybe = data as Record<string, unknown>;
+					if (typeof maybe.error === "string") message = maybe.error;
+				}
+			}
+			toast.error(message);
 		}
 	};
 

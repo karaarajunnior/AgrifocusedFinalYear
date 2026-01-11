@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { 
   Users, 
   Package, 
@@ -8,7 +7,8 @@ import {
   BarChart3,
   Activity,
   Shield,
-  AlertTriangle
+  AlertTriangle,
+  Link2
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import api from '../services/api';
@@ -17,10 +17,16 @@ import { toast } from 'react-hot-toast';
 interface DashboardData {
   overview: {
     totalUsers: number;
+    unverifiedUsers: number;
     totalProducts: number;
     totalOrders: number;
     totalTransactions: number;
+    failedTransactions: number;
+    pendingOrders: number;
     totalRevenue: number;
+  };
+  systemHealth: {
+    eventsLast24h: number;
   };
   userGrowth: Array<{
     createdAt: string;
@@ -50,16 +56,30 @@ interface DashboardData {
       role: string;
     };
   }>;
+  recentTransactions: Array<{
+    id: string;
+    orderId: string;
+    amount: number;
+    blockHash: string | null;
+    blockNumber: number | null;
+    timestamp: string;
+    order: {
+      status: string;
+      product: { name: string; category: string };
+    };
+  }>;
 }
 
 function AdminDashboard() {
-  const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [apiLatencyMs, setApiLatencyMs] = useState<number | null>(null);
+  const [apiUptimeSec, setApiUptimeSec] = useState<number | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchApiHealth();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -71,6 +91,20 @@ function AdminDashboard() {
       toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchApiHealth = async () => {
+    try {
+      const start = performance.now();
+      const response = await api.get('/health');
+      const end = performance.now();
+      setApiLatencyMs(Math.round(end - start));
+      setApiUptimeSec(typeof response.data?.uptime === 'number' ? Math.round(response.data.uptime) : null);
+    } catch {
+      // Non-fatal: admin dashboard should still load
+      setApiLatencyMs(null);
+      setApiUptimeSec(null);
     }
   };
 
@@ -183,7 +217,8 @@ function AdminDashboard() {
                 { id: 'overview', name: 'Overview', icon: BarChart3 },
                 { id: 'users', name: 'Users', icon: Users },
                 { id: 'products', name: 'Products', icon: Package },
-                { id: 'activity', name: 'Activity', icon: Activity }
+                { id: 'activity', name: 'Activity', icon: Activity },
+                { id: 'blockchain', name: 'Blockchain', icon: Link2 }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -344,6 +379,63 @@ function AdminDashboard() {
                 </div>
               </div>
             )}
+
+            {activeTab === 'blockchain' && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Blockchain Transactions</h3>
+                {dashboardData.recentTransactions.length === 0 ? (
+                  <p className="text-sm text-gray-600">No transactions recorded yet.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Product
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Amount
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Block
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Hash
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Time
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {dashboardData.recentTransactions.map((tx) => (
+                          <tr key={tx.id}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{tx.order.product.name}</div>
+                              <div className="text-xs text-gray-500">{tx.order.product.category}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">₹{tx.amount.toLocaleString()}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{tx.blockNumber ?? '—'}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-xs text-gray-600">
+                                {tx.blockHash ? `${tx.blockHash.slice(0, 12)}...` : '—'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{new Date(tx.timestamp).toLocaleString()}</div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -353,13 +445,15 @@ function AdminDashboard() {
             <h2 className="text-xl font-semibold text-gray-900">System Health</h2>
           </div>
           <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="text-center">
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-3">
                   <Shield className="h-6 w-6 text-green-600" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-900">Security</h3>
-                <p className="text-sm text-green-600">All systems secure</p>
+                <p className="text-sm text-gray-700">
+                  {dashboardData.overview.unverifiedUsers} unverified users
+                </p>
               </div>
               
               <div className="text-center">
@@ -367,7 +461,9 @@ function AdminDashboard() {
                   <Activity className="h-6 w-6 text-blue-600" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-900">Performance</h3>
-                <p className="text-sm text-blue-600">Optimal performance</p>
+                <p className="text-sm text-gray-700">
+                  API {apiLatencyMs !== null ? `${apiLatencyMs}ms` : '—'} • uptime {apiUptimeSec !== null ? `${apiUptimeSec}s` : '—'}
+                </p>
               </div>
               
               <div className="text-center">
@@ -375,7 +471,19 @@ function AdminDashboard() {
                   <BarChart3 className="h-6 w-6 text-purple-600" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-900">Analytics</h3>
-                <p className="text-sm text-purple-600">Data processing normal</p>
+                <p className="text-sm text-gray-700">
+                  {dashboardData.systemHealth.eventsLast24h} events (24h)
+                </p>
+              </div>
+
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-yellow-100 rounded-full mb-3">
+                  <Link2 className="h-6 w-6 text-yellow-700" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900">Blockchain</h3>
+                <p className="text-sm text-gray-700">
+                  {dashboardData.overview.totalTransactions} ok • {dashboardData.overview.failedTransactions} failed
+                </p>
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
 import { 
   ArrowLeft, 
   MapPin, 
@@ -76,9 +77,9 @@ function ProductDetails() {
     try {
       const response = await api.get(`/products/${id}`);
       setProduct(response.data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to fetch product:', error);
-      if (error.response?.status === 404) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
         toast.error('Product not found');
         navigate('/marketplace');
       } else {
@@ -111,8 +112,16 @@ function ProductDetails() {
       toast.success('Order placed successfully!');
       setShowOrderModal(false);
       navigate('/orders');
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to place order');
+    } catch (error: unknown) {
+      let message = 'Failed to place order';
+      if (axios.isAxiosError(error)) {
+        const data = error.response?.data;
+        if (data && typeof data === 'object') {
+          const maybe = data as Record<string, unknown>;
+          if (typeof maybe.error === 'string') message = maybe.error;
+        }
+      }
+      toast.error(message);
     }
   };
 

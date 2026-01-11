@@ -58,7 +58,7 @@ function AppContent() {
 						path="/login"
 						element={
 							user ? (
-								<Navigate to={getDashboardRoute(user.role)} />
+								<Navigate to={getDashboardRoute()} />
 							) : (
 								<LoginPage />
 							)
@@ -68,7 +68,7 @@ function AppContent() {
 						path="/register"
 						element={
 							user ? (
-								<Navigate to={getDashboardRoute(user.role)} />
+								<Navigate to={getDashboardRoute()} />
 							) : (
 								<RegisterPage />
 							)
@@ -143,7 +143,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 	return <>{children}</>;
 }
 
-function getDashboardRoute(role: string) {
+function getDashboardRoute() {
 	return "/dashboard";
 }
 

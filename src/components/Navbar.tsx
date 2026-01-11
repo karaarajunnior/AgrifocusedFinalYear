@@ -4,7 +4,6 @@ import { useAuth } from "../contexts/AuthContext";
 import {
 	User,
 	LogOut,
-	ShoppingCart,
 	Menu,
 	X,
 	Leaf,

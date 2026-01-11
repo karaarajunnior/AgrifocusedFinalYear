@@ -29,12 +29,18 @@ router.post("/list-product", authenticateToken, async (req, res) => {
 			req.user.id,
 		);
 
-		// Update product with blockchain info
-		await prisma.product.update({
-			where: { id: productId },
+		// Log blockchain listing event (Product model doesn't persist chain fields yet)
+		await prisma.userAnalytics.create({
 			data: {
-				blockchainHash: blockchainResult.transactionHash,
-				blockNumber: blockchainResult.blockNumber,
+				userId: req.user.id,
+				event: "blockchain_product_listed",
+				metadata: JSON.stringify({
+					productId,
+					transactionHash: blockchainResult.transactionHash,
+					blockNumber: blockchainResult.blockNumber,
+					blockHash: blockchainResult.blockHash,
+					gasUsed: blockchainResult.gasUsed,
+				}),
 			},
 		});
 
@@ -286,16 +292,12 @@ router.post("/verify/:transactionId", authenticateToken, async (req, res) => {
 			return res.status(403).json({ error: "Access denied" });
 		}
 
-		const expectedHash = crypto
-			.createHash("sha256")
-			.update(
-				`${transaction.orderId}${transaction.amount}${
-					transaction.productId
-				}${transaction.timestamp.getTime()}`,
-			)
-			.digest("hex");
+		// Verify against the simulated/real chain (best-effort)
+		const chainVerification = transaction.blockHash
+			? await blockchainService.verifyTransaction(transaction.blockHash)
+			: { verified: false };
 
-		const isValid = transaction.blockHash === `0x${expectedHash}`;
+		const isValid = Boolean(chainVerification?.verified);
 
 		const verificationResult = {
 			transactionId: transaction.id,
@@ -305,9 +307,9 @@ router.post("/verify/:transactionId", authenticateToken, async (req, res) => {
 			verificationTime: new Date(),
 			checks: {
 				hashIntegrity: isValid,
-				blockExists: true,
-				transactionInBlock: true,
-				gasCalculation: transaction.gasUsed > 0 && transaction.gasUsed < 1,
+				blockExists: isValid,
+				transactionInBlock: isValid,
+				gasCalculation: typeof transaction.gasUsed === "number" && transaction.gasUsed > 0,
 				amountMatch: transaction.amount === transaction.order.totalPrice,
 			},
 		};

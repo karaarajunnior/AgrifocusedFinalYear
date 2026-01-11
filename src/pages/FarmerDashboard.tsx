@@ -6,8 +6,6 @@ import {
 	Package,
 	TrendingUp,
 	DollarSign,
-	Users,
-	BarChart as BarChart3,
 	Eye,
 	CreditCard as Edit,
 	Trash2,

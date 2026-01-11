@@ -3,8 +3,103 @@ import { body, validationResult, query } from "express-validator";
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 import { authenticateToken, requireRole } from "../middleware/auth.js";
+import locationService from "../utils/locationService.js";
 
 const router = express.Router();
+
+// Get nearby products within radius (location-based discovery)
+router.get(
+	"/nearby",
+	[
+		query("location").isString().trim().isLength({ min: 2 }),
+		query("radius").optional().isInt({ min: 1, max: 500 }),
+		query("category")
+			.optional()
+			.isIn([
+				"VEGETABLES",
+				"FRUITS",
+				"GRAINS",
+				"PULSES",
+				"SPICES",
+				"DAIRY",
+				"POULTRY",
+				"ORGANIC",
+				"PROCESSED",
+			]),
+		query("search").optional().isString().trim().isLength({ min: 1, max: 100 }),
+	],
+	async (req, res) => {
+		try {
+			const errors = validationResult(req);
+			if (!errors.isEmpty()) {
+				return res.status(400).json({ errors: errors.array() });
+			}
+
+			const { location, radius = 50, category, search } = req.query;
+
+			const where = {
+				available: true,
+				quantity: { gt: 0 },
+			};
+
+			if (category) where.category = category;
+			if (search) {
+				where.OR = [
+					{ name: { contains: search } },
+					{ description: { contains: search } },
+				];
+			}
+
+			const products = await prisma.product.findMany({
+				where,
+				include: {
+					farmer: {
+						select: {
+							id: true,
+							name: true,
+							location: true,
+							verified: true,
+						},
+					},
+					reviews: {
+						select: { rating: true },
+					},
+					_count: {
+						select: { orders: true, reviews: true },
+					},
+				},
+				orderBy: { createdAt: "desc" },
+				take: 200,
+			});
+
+			const productsWithRatings = products.map((product) => {
+				const avgRating =
+					product.reviews.length > 0
+						? product.reviews.reduce((sum, review) => sum + review.rating, 0) /
+						  product.reviews.length
+						: 0;
+
+				return {
+					...product,
+					avgRating: Math.round(avgRating * 10) / 10,
+					totalOrders: product._count.orders,
+					totalReviews: product._count.reviews,
+				};
+			});
+
+			const nearby = await locationService.getProductsWithinRadius(
+				location,
+				productsWithRatings,
+				parseInt(radius),
+			);
+
+			res.json({ products: nearby });
+		} catch (error) {
+			console.error("Get nearby products error:", error);
+			res.status(500).json({ error: "Failed to fetch nearby products" });
+		}
+	},
+);
 
 // Get all products with filters
 router.get(
