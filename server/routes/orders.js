@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import blockchainService from "../services/blockchainService.js";
 import { requireVerified } from "../middleware/verified.js";
+import { initiateAirtelUgCollection, normalizeUgMsisdn } from "../services/payments/airtelUgService.js";
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -155,6 +156,10 @@ router.get("/my-orders", authenticateToken, async (req, res) => {
 					select: {
 						status: true,
 						blockHash: true,
+						provider: true,
+						providerReference: true,
+						currency: true,
+						payerMsisdn: true,
 						timestamp: true,
 					},
 				},
@@ -174,6 +179,82 @@ router.get("/my-orders", authenticateToken, async (req, res) => {
 		res.status(500).json({ error: "Failed to fetch orders" });
 	}
 });
+
+// Pay for an order (buyer only, Airtel Uganda for now)
+router.post(
+	"/:id/pay",
+	authenticateToken,
+	requireRole(["BUYER"]),
+	requireVerified,
+	[body("msisdn").optional().isString()],
+	async (req, res) => {
+		try {
+			const errors = validationResult(req);
+			if (!errors.isEmpty()) {
+				return res.status(400).json({ errors: errors.array() });
+			}
+
+			const { id } = req.params;
+			const order = await prisma.order.findUnique({
+				where: { id },
+				include: { buyer: true },
+			});
+			if (!order) return res.status(404).json({ error: "Order not found" });
+			if (order.buyerId !== req.user.id) {
+				return res.status(403).json({ error: "Not authorized" });
+			}
+			if (order.status !== "CONFIRMED") {
+				return res.status(400).json({ error: "Order must be CONFIRMED to pay" });
+			}
+
+			const phone = req.body.msisdn || order.buyer.phone;
+			if (!phone) return res.status(400).json({ error: "Phone number required" });
+			const payerMsisdn = normalizeUgMsisdn(phone);
+
+			const tx = await prisma.transaction.upsert({
+				where: { orderId: id },
+				update: {
+					status: "PENDING",
+					provider: "airtel_ug",
+					currency: "UGX",
+					payerMsisdn,
+					amount: order.totalPrice,
+				},
+				create: {
+					orderId: id,
+					productId: order.productId,
+					amount: order.totalPrice,
+					status: "PENDING",
+					provider: "airtel_ug",
+					currency: "UGX",
+					payerMsisdn,
+				},
+			});
+
+			const airtel = await initiateAirtelUgCollection({
+				amountUgx: order.totalPrice,
+				msisdn: payerMsisdn,
+				orderId: id,
+			});
+
+			const updated = await prisma.transaction.update({
+				where: { id: tx.id },
+				data: {
+					providerReference: airtel.providerReference,
+					providerRaw: JSON.stringify(airtel.raw),
+				},
+			});
+
+			res.json({
+				message: "Airtel Money payment initiated",
+				transaction: updated,
+			});
+		} catch (error) {
+			console.error("Order pay error:", error);
+			res.status(500).json({ error: "Failed to initiate payment" });
+		}
+	},
+);
 
 // Update order status (farmers only)
 router.patch(

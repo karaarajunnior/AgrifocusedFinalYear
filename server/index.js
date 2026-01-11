@@ -17,6 +17,7 @@ import performanceRoutes from "./routes/performance.js";
 import { metricsHandler, metricsMiddleware } from "./metrics.js";
 import chatRoutes from "./routes/chat.js";
 import documentsRoutes from "./routes/documents.js";
+import paymentsRoutes from "./routes/payments.js";
 import { initSocket } from "./socket.js";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -99,6 +100,7 @@ app.use("/api/blockchain", blockchainRoutes);
 app.use("/api/performance", performanceRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/documents", documentsRoutes);
+app.use("/api/payments", paymentsRoutes);
 
 // Serve uploaded files (voice notes, docs, etc.)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

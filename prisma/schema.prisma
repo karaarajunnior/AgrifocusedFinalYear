@@ -96,6 +96,11 @@ model Transaction {
   orderId     String            @unique
   amount      Float
   status      TransactionStatus @default(PENDING)
+  provider         String?  // airtel_ug, stripe, etc.
+  providerReference String? @db.Text
+  currency         String?  @default("UGX")
+  payerMsisdn      String?  @db.Text
+  providerRaw      String?  @db.LongText
   blockHash   String? // Simulated blockchain hash
   blockNumber Int? // Simulated block number
   gasUsed     Float? // Simulated gas cost

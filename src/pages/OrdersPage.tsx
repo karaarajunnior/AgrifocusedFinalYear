@@ -42,6 +42,10 @@ interface Order {
   transaction?: {
     status: string;
     blockHash: string;
+    provider?: string;
+    providerReference?: string;
+    currency?: string;
+    payerMsisdn?: string;
     timestamp: string;
   };
   review?: {
@@ -108,6 +112,24 @@ function OrdersPage() {
       fetchOrders();
     } catch (error: unknown) {
       let message = 'Failed to submit review';
+      if (axios.isAxiosError(error)) {
+        const data = error.response?.data;
+        if (data && typeof data === 'object') {
+          const maybe = data as Record<string, unknown>;
+          if (typeof maybe.error === 'string') message = maybe.error;
+        }
+      }
+      toast.error(message);
+    }
+  };
+
+  const payWithAirtel = async (orderId: string) => {
+    try {
+      await api.post(`/orders/${orderId}/pay`, {});
+      toast.success('Payment initiated. Please approve on your phone.');
+      fetchOrders();
+    } catch (error: unknown) {
+      let message = 'Failed to initiate payment';
       if (axios.isAxiosError(error)) {
         const data = error.response?.data;
         if (data && typeof data === 'object') {
@@ -356,6 +378,15 @@ function OrdersPage() {
                       <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center">
                         <Eye className="h-4 w-4 mr-1" />
                         View Transaction
+                      </button>
+                    )}
+
+                    {user?.role === 'BUYER' && order.status === 'CONFIRMED' && (
+                      <button
+                        onClick={() => payWithAirtel(order.id)}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                      >
+                        Pay with Airtel Money
                       </button>
                     )}
                   </div>
