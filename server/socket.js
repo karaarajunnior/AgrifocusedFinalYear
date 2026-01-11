@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
 import { synthesizeToFile } from "./services/ttsService.js";
 import { setRealtimeIo } from "./realtime.js";
+import { sendPushToUser } from "./services/pushService.js";
 
 const prisma = new PrismaClient();
 
@@ -96,6 +97,18 @@ export function initSocket(httpServer) {
 					fromUserId: user.id,
 					messageId: msg.id,
 					createdAt: msg.createdAt,
+				});
+
+				await sendPushToUser(receiverId, {
+					notification: {
+						title: "New message",
+						body: content.length > 120 ? `${content.slice(0, 117)}...` : content,
+					},
+					data: {
+						type: "message",
+						fromUserId: user.id,
+						messageId: msg.id,
+					},
 				});
 
 				return ack?.({ ok: true, message: full });

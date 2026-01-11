@@ -37,6 +37,7 @@ model User {
   receivedMessages Message[] @relation("MessageReceiver")
   analytics UserAnalytics[]
   documents Document[]
+  deviceTokens DeviceToken[]
 
   @@map("users")
 }
@@ -162,6 +163,19 @@ model Document {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("documents")
+}
+
+model DeviceToken {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String   @unique @db.VarChar(255)
+  platform   String?  // android, ios, web
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("device_tokens")
 }
 
 model PriceHistory {

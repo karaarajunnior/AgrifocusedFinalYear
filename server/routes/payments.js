@@ -10,6 +10,7 @@ import {
 } from "../services/payments/airtelUgService.js";
 import blockchainService from "../services/blockchainService.js";
 import { emitToUser } from "../realtime.js";
+import { sendPushToUser } from "../services/pushService.js";
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -164,19 +165,40 @@ router.post("/airtel/webhook", async (req, res) => {
 				});
 
 				// Automation: emit realtime notification to both parties
-				emitToUser(tx.order.buyerId, "notify", {
+				const paymentNotify = {
 					type: "payment",
 					orderId: tx.orderId,
 					status: mapped,
 					provider: "airtel_ug",
 					timestamp: new Date().toISOString(),
+				};
+				emitToUser(tx.order.buyerId, "notify", paymentNotify);
+				emitToUser(tx.order.farmerId, "notify", paymentNotify);
+
+				// Push notifications (mobile)
+				await sendPushToUser(tx.order.buyerId, {
+					notification: {
+						title: "Payment update",
+						body: `Your Airtel Money payment is ${mapped}`,
+					},
+					data: {
+						type: "payment",
+						orderId: tx.orderId,
+						status: mapped,
+						provider: "airtel_ug",
+					},
 				});
-				emitToUser(tx.order.farmerId, "notify", {
-					type: "payment",
-					orderId: tx.orderId,
-					status: mapped,
-					provider: "airtel_ug",
-					timestamp: new Date().toISOString(),
+				await sendPushToUser(tx.order.farmerId, {
+					notification: {
+						title: "Payment update",
+						body: `Order payment is ${mapped}`,
+					},
+					data: {
+						type: "payment",
+						orderId: tx.orderId,
+						status: mapped,
+						provider: "airtel_ug",
+					},
 				});
 
 				// Log analytics (buyer + farmer)
@@ -253,19 +275,39 @@ router.post("/airtel/webhook", async (req, res) => {
 									data: { status: "IN_TRANSIT" },
 								});
 
-								emitToUser(order.buyerId, "notify", {
+								const orderNotify = {
 									type: "order",
 									orderId: order.id,
 									status: "IN_TRANSIT",
 									reason: "auto_fulfill_on_payment",
 									timestamp: new Date().toISOString(),
+								};
+								emitToUser(order.buyerId, "notify", orderNotify);
+								emitToUser(order.farmerId, "notify", orderNotify);
+
+								await sendPushToUser(order.buyerId, {
+									notification: {
+										title: "Order update",
+										body: "Your order is now IN TRANSIT",
+									},
+									data: {
+										type: "order",
+										orderId: order.id,
+										status: updatedOrder.status,
+										reason: "auto_fulfill_on_payment",
+									},
 								});
-								emitToUser(order.farmerId, "notify", {
-									type: "order",
-									orderId: order.id,
-									status: "IN_TRANSIT",
-									reason: "auto_fulfill_on_payment",
-									timestamp: new Date().toISOString(),
+								await sendPushToUser(order.farmerId, {
+									notification: {
+										title: "Order update",
+										body: "Auto-fulfillment marked the order IN TRANSIT",
+									},
+									data: {
+										type: "order",
+										orderId: order.id,
+										status: updatedOrder.status,
+										reason: "auto_fulfill_on_payment",
+									},
 								});
 
 								await prisma.userAnalytics.createMany({
