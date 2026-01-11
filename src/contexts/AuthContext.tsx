@@ -21,6 +21,11 @@ interface User {
 	verified: boolean;
 	mfaEnabled?: boolean;
 	autoFulfillOnPayment?: boolean;
+	notifySms?: boolean;
+	notifyWhatsapp?: boolean;
+	notifyChat?: boolean;
+	notifyPayment?: boolean;
+	notifyOrder?: boolean;
 	createdAt: string;
 }
 

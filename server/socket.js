@@ -115,6 +115,7 @@ export function initSocket(httpServer) {
 				// SMS/WhatsApp: keep it short (avoid leaking full chat content)
 				await notifyUser({
 					userId: receiverId,
+					type: "chat",
 					smsBody: `AgriConnect: New message from ${user.name}. Open the app to reply.`,
 					whatsappBody: `AgriConnect: New message from *${user.name}*. Open the app to reply.`,
 				});

@@ -275,6 +275,11 @@ router.get("/me", authenticateToken, async (req, res) => {
 				verified: true,
 				mfaEnabled: true,
 				autoFulfillOnPayment: true,
+				notifySms: true,
+				notifyWhatsapp: true,
+				notifyChat: true,
+				notifyPayment: true,
+				notifyOrder: true,
 				createdAt: true,
 			},
 		});

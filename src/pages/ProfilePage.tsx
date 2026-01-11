@@ -593,6 +593,72 @@ function ProfilePage() {
 						</div>
 					</div>
 				)}
+
+				{/* Notification preferences */}
+				<div className="mt-8 bg-white rounded-lg shadow">
+					<div className="px-6 py-4 border-b border-gray-200">
+						<h2 className="text-xl font-semibold text-gray-900">
+							Notifications (SMS / WhatsApp)
+						</h2>
+					</div>
+					<div className="p-6 space-y-4">
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<label className="flex items-center gap-2">
+								<input
+									type="checkbox"
+									checked={Boolean(user.notifyWhatsapp)}
+									onChange={(e) => updateProfile({ notifyWhatsapp: e.target.checked })}
+								/>
+								<span className="text-sm text-gray-800">WhatsApp alerts</span>
+							</label>
+							<label className="flex items-center gap-2">
+								<input
+									type="checkbox"
+									checked={Boolean(user.notifySms)}
+									onChange={(e) => updateProfile({ notifySms: e.target.checked })}
+								/>
+								<span className="text-sm text-gray-800">SMS alerts</span>
+							</label>
+						</div>
+
+						<div className="border-t border-gray-200 pt-4">
+							<p className="text-sm font-medium text-gray-900 mb-3">
+								Alert types
+							</p>
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+								<label className="flex items-center gap-2">
+									<input
+										type="checkbox"
+										checked={Boolean(user.notifyChat)}
+										onChange={(e) => updateProfile({ notifyChat: e.target.checked })}
+									/>
+									<span className="text-sm text-gray-800">Chat</span>
+								</label>
+								<label className="flex items-center gap-2">
+									<input
+										type="checkbox"
+										checked={Boolean(user.notifyPayment)}
+										onChange={(e) =>
+											updateProfile({ notifyPayment: e.target.checked })
+										}
+									/>
+									<span className="text-sm text-gray-800">Payments</span>
+								</label>
+								<label className="flex items-center gap-2">
+									<input
+										type="checkbox"
+										checked={Boolean(user.notifyOrder)}
+										onChange={(e) => updateProfile({ notifyOrder: e.target.checked })}
+									/>
+									<span className="text-sm text-gray-800">Orders</span>
+								</label>
+							</div>
+							<p className="text-xs text-gray-500 mt-3">
+								For privacy, chat notifications don’t include full message content.
+							</p>
+						</div>
+					</div>
+				</div>
 			</div>
 		</div>
 	);

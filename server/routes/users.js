@@ -86,6 +86,11 @@ router.put(
 		body("location").optional().trim().isLength({ min: 2, max: 100 }),
 		body("address").optional().trim().isLength({ max: 200 }),
 		body("autoFulfillOnPayment").optional().isBoolean(),
+		body("notifySms").optional().isBoolean(),
+		body("notifyWhatsapp").optional().isBoolean(),
+		body("notifyChat").optional().isBoolean(),
+		body("notifyPayment").optional().isBoolean(),
+		body("notifyOrder").optional().isBoolean(),
 	],
 	async (req, res) => {
 		try {
@@ -102,6 +107,11 @@ router.put(
 				"address",
 				"avatar",
 				"autoFulfillOnPayment",
+				"notifySms",
+				"notifyWhatsapp",
+				"notifyChat",
+				"notifyPayment",
+				"notifyOrder",
 			];
 
 			Object.keys(req.body).forEach((key) => {
@@ -131,6 +141,11 @@ router.put(
 					avatar: true,
 					verified: true,
 					autoFulfillOnPayment: true,
+					notifySms: true,
+					notifyWhatsapp: true,
+					notifyChat: true,
+					notifyPayment: true,
+					notifyOrder: true,
 					updatedAt: true,
 				},
 			});

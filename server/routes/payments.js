@@ -205,11 +205,13 @@ router.post("/airtel/webhook", async (req, res) => {
 				// SMS + WhatsApp fallback/primary
 				await notifyUser({
 					userId: tx.order.buyerId,
+					type: "payment",
 					smsBody: `AgriConnect: Payment ${mapped} for order ${tx.orderId.slice(-8)} (Airtel Money).`,
 					whatsappBody: `AgriConnect: Payment *${mapped}* for order *${tx.orderId.slice(-8)}* (Airtel Money).`,
 				});
 				await notifyUser({
 					userId: tx.order.farmerId,
+					type: "payment",
 					smsBody: `AgriConnect: Buyer payment ${mapped} for order ${tx.orderId.slice(-8)}.`,
 					whatsappBody: `AgriConnect: Buyer payment *${mapped}* for order *${tx.orderId.slice(-8)}*.`,
 				});
@@ -325,11 +327,13 @@ router.post("/airtel/webhook", async (req, res) => {
 
 								await notifyUser({
 									userId: order.buyerId,
+									type: "order",
 									smsBody: `AgriConnect: Your order ${order.id.slice(-8)} is now IN TRANSIT.`,
 									whatsappBody: `AgriConnect: Your order *${order.id.slice(-8)}* is now *IN TRANSIT*.`,
 								});
 								await notifyUser({
 									userId: order.farmerId,
+									type: "order",
 									smsBody: `AgriConnect: Order ${order.id.slice(-8)} set to IN TRANSIT (auto).`,
 									whatsappBody: `AgriConnect: Order *${order.id.slice(-8)}* set to *IN TRANSIT* (auto).`,
 								});

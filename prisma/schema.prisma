@@ -24,6 +24,11 @@ model User {
   mfaSecret      String? @db.Text
   mfaTempSecret  String? @db.Text
   autoFulfillOnPayment Boolean @default(false)
+  notifySms      Boolean @default(true)
+  notifyWhatsapp Boolean @default(true)
+  notifyChat     Boolean @default(true)
+  notifyPayment  Boolean @default(true)
+  notifyOrder    Boolean @default(true)
   avatar    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -38,6 +43,7 @@ model User {
   analytics UserAnalytics[]
   documents Document[]
   deviceTokens DeviceToken[]
+  notificationLogs NotificationLog[]
 
   @@map("users")
 }
@@ -176,6 +182,25 @@ model DeviceToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("device_tokens")
+}
+
+model NotificationLog {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // chat, payment, order
+  channel   String   // sms, whatsapp
+  to        String   @db.VarChar(32)
+  body      String?  @db.Text
+  provider  String   @default("twilio")
+  providerSid String? @db.VarChar(64)
+  status    String   @default("queued")
+  error     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_logs")
 }
 
 model PriceHistory {
