@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { 
   Users, 
   Package, 
@@ -9,12 +9,16 @@ import {
   Shield,
   AlertTriangle,
   Link2,
-  Bell
+  Bell,
+  Sparkles,
+  Clipboard,
+  ExternalLink
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
+import { useLocalStorageState } from "../hooks/useLocalStorageState";
 
 interface DashboardData {
   overview: {
@@ -106,6 +110,22 @@ function AdminDashboard() {
   const [approvalsLoading, setApprovalsLoading] = useState(false);
   const [notificationStats, setNotificationStats] = useState<NotificationStats | null>(null);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [demoMode, setDemoMode] = useLocalStorageState<boolean>("agri.demoMode", false);
+  const [demoOutput, setDemoOutput] = useState<string>("");
+
+  const demoData = useMemo(() => {
+    const trust = {
+      farmer: { score: 87, band: "high", reasons: ["Verified account", "Delivered sales: 12", "Avg rating: 4.7★"] },
+      buyer: { score: 76, band: "high", reasons: ["Verified account", "Delivered orders: 9", "Cancellations: 0"] },
+    };
+    const sms = [
+      "HELP",
+      "STATUS <order_last8>",
+      "DELIVER <order_last8> <code>",
+    ];
+    const delivery = { code: "123456", note: "Buyer enters this code to confirm delivery (PoD)" };
+    return { trust, sms, delivery };
+  }, []);
 
   useEffect(() => {
     fetchDashboardData();
@@ -215,13 +235,155 @@ function AdminDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Admin Dashboard 👨‍💼
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Monitor and manage the AgriConnect platform
-          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Admin Dashboard 👨‍💼
+              </h1>
+              <p className="text-gray-600 mt-2">
+                Monitor and manage the AgriConnect platform
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
+                <Sparkles className="h-4 w-4 text-purple-600" />
+                <span className="text-sm text-gray-700 font-medium">Demo mode</span>
+                <button
+                  type="button"
+                  onClick={() => setDemoMode(!demoMode)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    demoMode ? "bg-purple-600" : "bg-gray-300"
+                  }`}>
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                      demoMode ? "translate-x-5" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Demo Panel (only when enabled) */}
+        {demoMode && (
+          <div className="bg-white rounded-lg shadow p-6 mb-8 border border-purple-100">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-purple-600" />
+                  Panel demo quick actions
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  These shortcuts let you showcase the unique features even if the DB/Twilio is empty.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href="/marketplace"
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm"
+                  target="_blank"
+                  rel="noreferrer">
+                  Marketplace <ExternalLink className="h-4 w-4" />
+                </a>
+                <a
+                  href="/orders"
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm"
+                  target="_blank"
+                  rel="noreferrer">
+                  Orders <ExternalLink className="h-4 w-4" />
+                </a>
+                <a
+                  href="/chat"
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm"
+                  target="_blank"
+                  rel="noreferrer">
+                  Chat <ExternalLink className="h-4 w-4" />
+                </a>
+                <a
+                  href="/coops"
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm"
+                  target="_blank"
+                  rel="noreferrer">
+                  Co-ops <ExternalLink className="h-4 w-4" />
+                </a>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="font-semibold text-gray-900 mb-1">Trust score (anti-middleman)</div>
+                <div className="text-sm text-gray-700">
+                  Farmer example: <strong>{demoData.trust.farmer.score}/100</strong> ({demoData.trust.farmer.band})
+                </div>
+                <div className="text-xs text-gray-500 mt-1">{demoData.trust.farmer.reasons.join(" • ")}</div>
+                <div className="text-sm text-gray-700 mt-3">
+                  Buyer example: <strong>{demoData.trust.buyer.score}/100</strong> ({demoData.trust.buyer.band})
+                </div>
+                <div className="text-xs text-gray-500 mt-1">{demoData.trust.buyer.reasons.join(" • ")}</div>
+              </div>
+
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="font-semibold text-gray-900 mb-1">Proof of delivery (PoD)</div>
+                <div className="text-sm text-gray-700">
+                  Demo code:{" "}
+                  <span className="font-bold text-lg tracking-widest">{demoData.delivery.code}</span>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">{demoData.delivery.note}</div>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard?.writeText(demoData.delivery.code)}
+                  className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm">
+                  <Clipboard className="h-4 w-4" /> Copy code
+                </button>
+              </div>
+
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="font-semibold text-gray-900 mb-1">SMS fallback (rural)</div>
+                <div className="text-xs text-gray-500">Twilio inbound commands:</div>
+                <ul className="mt-2 text-sm text-gray-700 list-disc pl-5 space-y-1">
+                  {demoData.sms.map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="mt-5 border border-gray-200 rounded-lg p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="font-semibold text-gray-900">Live API demo (optional)</div>
+                  <div className="text-sm text-gray-600">
+                    Click to test demo endpoints on your running server (safe if it fails).
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const out: Record<string, unknown> = {};
+                      out.health = (await api.get("/health")).data;
+                      out.climate = (await api.get("/climate/alerts", { params: { location: "kampala" } })).data;
+                      setDemoOutput(JSON.stringify(out, null, 2));
+                      toast.success("Demo API calls completed");
+                    } catch (e) {
+                      setDemoOutput(JSON.stringify({ error: "Demo API call failed", detail: String(e) }, null, 2));
+                      toast.error("Demo API call failed (check server/DB env)");
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm">
+                  <Sparkles className="h-4 w-4" /> Run demo calls
+                </button>
+              </div>
+              {demoOutput ? (
+                <pre className="mt-3 text-xs bg-gray-50 border border-gray-200 rounded-lg p-3 overflow-auto max-h-60">
+{demoOutput}
+                </pre>
+              ) : null}
+            </div>
+          </div>
+        )}
 
         {/* Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
