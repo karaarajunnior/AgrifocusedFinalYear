@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
+import http from "http";
 
 // Import routes
 import authRoutes from "./routes/auth.js";
@@ -12,6 +13,8 @@ import orderRoutes from "./routes/orders.js";
 import analyticsRoutes from "./routes/analytics.js";
 import aiRoutes from "./routes/ai.js";
 import blockchainRoutes from "./routes/blockchain.js";
+import performanceRoutes from "./routes/performance.js";
+import { metricsHandler, metricsMiddleware } from "./metrics.js";
 
 dotenv.config();
 
@@ -75,6 +78,9 @@ app.use(limiter);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+// Metrics (before routes)
+app.use(metricsMiddleware);
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
@@ -83,6 +89,10 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/blockchain", blockchainRoutes);
+app.use("/api/performance", performanceRoutes);
+
+// Prometheus scrape endpoint (protect in production behind auth/proxy)
+app.get("/api/metrics", metricsHandler);
 
 app.get("/api/health", (req, res) => {
 	res.json({
@@ -109,7 +119,9 @@ app.use("*", (req, res) => {
 	res.status(404).json({ error: "Route not found" });
 });
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+
+server.listen(PORT, () => {
 	console.log(`Server running on port ${PORT}`);
 	console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
 });
