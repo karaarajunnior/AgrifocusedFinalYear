@@ -32,6 +32,96 @@ class BlockchainService {
 		}
 	}
 
+	// ---- Off-chain payment proof (non-repudiation) helpers ----
+	computePaymentProofOrderHash(orderId) {
+		// bytes32 = keccak256(abi.encodePacked(string))
+		return this.web3.utils.soliditySha3({ t: "string", v: String(orderId) });
+	}
+
+	computePaymentProofDetailsHash({ provider, providerReference, amountUgx, currency }) {
+		const amt = Math.max(0, Math.round(Number(amountUgx || 0)));
+		return this.web3.utils.soliditySha3(
+			{ t: "string", v: String(provider || "") },
+			{ t: "string", v: String(providerReference || "") },
+			{ t: "uint256", v: String(amt) },
+			{ t: "string", v: String(currency || "UGX") },
+		);
+	}
+
+	computePaymentProofMessageHash({ orderHash, detailsHash }) {
+		return this.web3.utils.soliditySha3(
+			{ t: "bytes32", v: orderHash },
+			{ t: "bytes32", v: detailsHash },
+		);
+	}
+
+	async recordPaymentProofOnChain({
+		orderHash,
+		detailsHash,
+		buyerWallet,
+		farmerWallet,
+		buyerSignature,
+		farmerSignature,
+	}) {
+		try {
+			if (!this.useSimulation && this.contract) {
+				const accounts = await this.web3.eth.getAccounts();
+				const from = accounts[0];
+				const result = await this.contract.methods
+					.recordPaymentProof(
+						orderHash,
+						detailsHash,
+						buyerWallet,
+						farmerWallet,
+						buyerSignature,
+						farmerSignature,
+					)
+					.send({ from, gas: 350000 });
+
+				return {
+					success: true,
+					transactionHash: result.transactionHash,
+					blockNumber: result.blockNumber,
+					gasUsed: result.gasUsed,
+				};
+			}
+
+			const messageHash = this.computePaymentProofMessageHash({ orderHash, detailsHash });
+
+			// Simulated blockchain
+			const transaction = {
+				type: "PAYMENT_PROOF",
+				orderHash,
+				detailsHash,
+				messageHash,
+				buyer: buyerWallet,
+				farmer: farmerWallet,
+				buyerSignature,
+				farmerSignature,
+				hash: this.generateTransactionHash({
+					orderHash,
+					detailsHash,
+					buyerWallet,
+					farmerWallet,
+				}),
+				timestamp: new Date().toISOString(),
+			};
+
+			const block = this.createBlock([transaction]);
+
+			return {
+				success: true,
+				transactionHash: transaction.hash,
+				blockNumber: block.index,
+				blockHash: block.hash,
+				gasUsed: Math.random() * 60000 + 21000,
+			};
+		} catch (error) {
+			console.error("Blockchain payment proof error:", error);
+			throw new Error("Failed to record payment proof on blockchain");
+		}
+	}
+
 	// Generate a cryptographic hash for transactions
 	generateTransactionHash(data) {
 		return crypto

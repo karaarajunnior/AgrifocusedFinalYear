@@ -121,6 +121,11 @@ model Transaction {
   blockHash   String? // Simulated blockchain hash
   blockNumber Int? // Simulated block number
   gasUsed     Float? // Simulated gas cost
+  paymentProofOrderHash   String? @db.VarChar(66)  // 0x-prefixed bytes32
+  paymentProofDetailsHash String? @db.VarChar(66)  // 0x-prefixed bytes32
+  paymentProofTxHash      String? @db.VarChar(128)
+  paymentProofBlockNumber Int?
+  paymentProofRecordedAt  DateTime?
   timestamp   DateTime          @default(now())
 
   // Relations
