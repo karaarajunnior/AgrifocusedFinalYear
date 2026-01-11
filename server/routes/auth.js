@@ -274,6 +274,7 @@ router.get("/me", authenticateToken, async (req, res) => {
 				avatar: true,
 				verified: true,
 				mfaEnabled: true,
+				autoFulfillOnPayment: true,
 				createdAt: true,
 			},
 		});

@@ -20,6 +20,7 @@ interface User {
 	avatar?: string;
 	verified: boolean;
 	mfaEnabled?: boolean;
+	autoFulfillOnPayment?: boolean;
 	createdAt: string;
 }
 

@@ -23,6 +23,7 @@ model User {
   mfaEnabled     Boolean @default(false)
   mfaSecret      String? @db.Text
   mfaTempSecret  String? @db.Text
+  autoFulfillOnPayment Boolean @default(false)
   avatar    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -39,6 +39,7 @@ function ProfilePage() {
 	const [mfaSetup, setMfaSetup] = useState<null | { qrCodeDataUrl: string }>(null);
 	const [mfaCode, setMfaCode] = useState("");
 	const [mfaDisable, setMfaDisable] = useState({ password: "", code: "" });
+	const [automationLoading, setAutomationLoading] = useState(false);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -154,6 +155,16 @@ function ProfilePage() {
 			toast.error(message);
 		} finally {
 			setMfaLoading(false);
+		}
+	};
+
+	const toggleAutoFulfill = async (value: boolean) => {
+		setAutomationLoading(true);
+		try {
+			const ok = await updateProfile({ autoFulfillOnPayment: value });
+			if (ok) toast.success("Automation setting updated");
+		} finally {
+			setAutomationLoading(false);
 		}
 	};
 
@@ -548,6 +559,40 @@ function ProfilePage() {
 						</div>
 					</div>
 				</div>
+
+				{/* Automation (Farmers) */}
+				{user.role === "FARMER" && (
+					<div className="mt-8 bg-white rounded-lg shadow">
+						<div className="px-6 py-4 border-b border-gray-200">
+							<h2 className="text-xl font-semibold text-gray-900">Automation</h2>
+						</div>
+						<div className="p-6">
+							<div className="flex items-start justify-between gap-4">
+								<div>
+									<h3 className="font-medium text-gray-900">
+										Auto‑mark paid orders as “In Transit”
+									</h3>
+									<p className="text-sm text-gray-600">
+										When Airtel payment completes, automatically move orders from
+										CONFIRMED → IN_TRANSIT and notify both parties.
+									</p>
+								</div>
+								<label className="inline-flex items-center cursor-pointer">
+									<input
+										type="checkbox"
+										className="h-4 w-4"
+										checked={Boolean(user.autoFulfillOnPayment)}
+										disabled={automationLoading}
+										onChange={(e) => toggleAutoFulfill(e.target.checked)}
+									/>
+									<span className="ml-2 text-sm text-gray-700">
+										{user.autoFulfillOnPayment ? "On" : "Off"}
+									</span>
+								</label>
+							</div>
+						</div>
+					</div>
+				)}
 			</div>
 		</div>
 	);

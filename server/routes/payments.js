@@ -240,6 +240,57 @@ router.post("/airtel/webhook", async (req, res) => {
 									gasUsed: chain.gasUsed,
 								},
 							});
+
+							// Automation: optionally progress order to IN_TRANSIT after successful payment
+							const autoGlobal =
+								String(process.env.AUTO_FULFILL_ON_PAYMENT || "false").toLowerCase() ===
+								"true";
+							const autoFarmer = Boolean(order.farmer?.autoFulfillOnPayment);
+
+							if (order.status === "CONFIRMED" && (autoGlobal || autoFarmer)) {
+								const updatedOrder = await prisma.order.update({
+									where: { id: order.id },
+									data: { status: "IN_TRANSIT" },
+								});
+
+								emitToUser(order.buyerId, "notify", {
+									type: "order",
+									orderId: order.id,
+									status: "IN_TRANSIT",
+									reason: "auto_fulfill_on_payment",
+									timestamp: new Date().toISOString(),
+								});
+								emitToUser(order.farmerId, "notify", {
+									type: "order",
+									orderId: order.id,
+									status: "IN_TRANSIT",
+									reason: "auto_fulfill_on_payment",
+									timestamp: new Date().toISOString(),
+								});
+
+								await prisma.userAnalytics.createMany({
+									data: [
+										{
+											userId: order.buyerId,
+											event: "order_auto_in_transit",
+											metadata: JSON.stringify({
+												orderId: order.id,
+												status: updatedOrder.status,
+												provider: "airtel_ug",
+											}),
+										},
+										{
+											userId: order.farmerId,
+											event: "order_auto_in_transit",
+											metadata: JSON.stringify({
+												orderId: order.id,
+												status: updatedOrder.status,
+												provider: "airtel_ug",
+											}),
+										},
+									],
+								});
+							}
 						}
 					} catch (e) {
 						console.error("Webhook blockchain finalize failed:", e);

@@ -85,6 +85,7 @@ router.put(
 		body("phone").optional().isMobilePhone(),
 		body("location").optional().trim().isLength({ min: 2, max: 100 }),
 		body("address").optional().trim().isLength({ max: 200 }),
+		body("autoFulfillOnPayment").optional().isBoolean(),
 	],
 	async (req, res) => {
 		try {
@@ -94,7 +95,14 @@ router.put(
 			}
 
 			const updates = {};
-			const allowedFields = ["name", "phone", "location", "address", "avatar"];
+			const allowedFields = [
+				"name",
+				"phone",
+				"location",
+				"address",
+				"avatar",
+				"autoFulfillOnPayment",
+			];
 
 			Object.keys(req.body).forEach((key) => {
 				if (allowedFields.includes(key) && req.body[key] !== undefined) {
@@ -122,6 +130,7 @@ router.put(
 					address: true,
 					avatar: true,
 					verified: true,
+					autoFulfillOnPayment: true,
 					updatedAt: true,
 				},
 			});
