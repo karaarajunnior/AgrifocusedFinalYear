@@ -1,13 +1,59 @@
 import blockchainService from "../services/blockchainService.js";
 import express from "express";
-import { PrismaClient } from "@prisma/client";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
+import { requireVerified } from "../middleware/verified.js";
+import prisma from "../db/prisma.js";
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
+// Admin: verify farmer on-chain (required by the Solidity contract before listing)
+router.post(
+	"/verify-farmer",
+	authenticateToken,
+	requireRole(["ADMIN"]),
+	async (req, res) => {
+		try {
+			const { userId } = req.body;
+			if (!userId) return res.status(400).json({ error: "userId required" });
+
+			const user = await prisma.user.findUnique({ where: { id: userId } });
+			if (!user) return res.status(404).json({ error: "User not found" });
+			if (user.role !== "FARMER") {
+				return res.status(400).json({ error: "User is not a farmer" });
+			}
+			if (!user.walletAddress) {
+				return res.status(400).json({ error: "Farmer walletAddress not set" });
+			}
+
+			const result = await blockchainService.verifyFarmerOnChain(user.walletAddress);
+
+			await prisma.userAnalytics.create({
+				data: {
+					userId: req.user.id,
+					event: "blockchain_farmer_verified",
+					metadata: JSON.stringify({
+						farmerUserId: user.id,
+						farmerWallet: user.walletAddress,
+						...result,
+					}),
+				},
+			});
+
+			res.json({ message: "Farmer verified on-chain", blockchain: result });
+		} catch (error) {
+			console.error("Verify farmer error:", error);
+			res.status(500).json({ error: "Failed to verify farmer on-chain" });
+		}
+	},
+);
+
 // Record product listing on blockchain
-router.post("/list-product", authenticateToken, async (req, res) => {
+router.post(
+	"/list-product",
+	authenticateToken,
+	requireRole(["FARMER"]),
+	requireVerified,
+	async (req, res) => {
 	try {
 		const { productId } = req.body;
 
@@ -24,17 +70,38 @@ router.post("/list-product", authenticateToken, async (req, res) => {
 			return res.status(403).json({ error: "Not authorized" });
 		}
 
+		if (!product.farmer?.walletAddress && process.env.CONTRACT_ADDRESS) {
+			return res.status(400).json({ error: "Set your wallet address before listing" });
+		}
+
 		const blockchainResult = await blockchainService.listProduct(
 			product,
-			req.user.id,
+			product.farmer?.walletAddress || req.user.id,
 		);
 
-		// Update product with blockchain info
+		// Persist on product (auditability)
 		await prisma.product.update({
 			where: { id: productId },
 			data: {
-				blockchainHash: blockchainResult.transactionHash,
-				blockNumber: blockchainResult.blockNumber,
+				listedOnChain: true,
+				chainTxHash: blockchainResult.transactionHash,
+				chainBlockNumber: blockchainResult.blockNumber,
+				chainListedAt: new Date(),
+			},
+		});
+
+		// Log blockchain listing event
+		await prisma.userAnalytics.create({
+			data: {
+				userId: req.user.id,
+				event: "blockchain_product_listed",
+				metadata: JSON.stringify({
+					productId,
+					transactionHash: blockchainResult.transactionHash,
+					blockNumber: blockchainResult.blockNumber,
+					blockHash: blockchainResult.blockHash,
+					gasUsed: blockchainResult.gasUsed,
+				}),
 			},
 		});
 
@@ -46,10 +113,15 @@ router.post("/list-product", authenticateToken, async (req, res) => {
 		console.error("Blockchain listing error:", error);
 		res.status(500).json({ error: "Failed to list product on blockchain" });
 	}
-});
+	},
+);
 
 // Record transaction on blockchain
-router.post("/record-transaction", authenticateToken, async (req, res) => {
+router.post(
+	"/record-transaction",
+	authenticateToken,
+	requireVerified,
+	async (req, res) => {
 	try {
 		const { orderId } = req.body;
 
@@ -66,11 +138,27 @@ router.post("/record-transaction", authenticateToken, async (req, res) => {
 			return res.status(404).json({ error: "Order not found" });
 		}
 
+		// Access control: only buyer/farmer/admin can record
+		const hasAccess =
+			order.buyerId === req.user.id ||
+			order.farmerId === req.user.id ||
+			req.user.role === "ADMIN";
+		if (!hasAccess) return res.status(403).json({ error: "Access denied" });
+
+		// Real chain needs wallet addresses; simulation can proceed without
+		if (process.env.CONTRACT_ADDRESS) {
+			if (!order.buyer.walletAddress || !order.farmer.walletAddress) {
+				return res.status(400).json({
+					error: "Buyer and farmer walletAddress must be set for on-chain recording",
+				});
+			}
+		}
+
 		const transactionData = {
 			orderId: order.id,
 			productId: order.productId,
-			buyerAddress: order.buyer.id,
-			farmerAddress: order.farmer.id,
+			buyerAddress: order.buyer.walletAddress || order.buyer.id,
+			farmerAddress: order.farmer.walletAddress || order.farmer.id,
 			quantity: order.quantity,
 			totalPrice: order.totalPrice,
 		};
@@ -109,7 +197,8 @@ router.post("/record-transaction", authenticateToken, async (req, res) => {
 			.status(500)
 			.json({ error: "Failed to record transaction on blockchain" });
 	}
-});
+	},
+);
 
 // Get blockchain statistics
 router.get("/stats", authenticateToken, async (req, res) => {
@@ -286,16 +375,12 @@ router.post("/verify/:transactionId", authenticateToken, async (req, res) => {
 			return res.status(403).json({ error: "Access denied" });
 		}
 
-		const expectedHash = crypto
-			.createHash("sha256")
-			.update(
-				`${transaction.orderId}${transaction.amount}${
-					transaction.productId
-				}${transaction.timestamp.getTime()}`,
-			)
-			.digest("hex");
+		// Verify against the simulated/real chain (best-effort)
+		const chainVerification = transaction.blockHash
+			? await blockchainService.verifyTransaction(transaction.blockHash)
+			: { verified: false };
 
-		const isValid = transaction.blockHash === `0x${expectedHash}`;
+		const isValid = Boolean(chainVerification?.verified);
 
 		const verificationResult = {
 			transactionId: transaction.id,
@@ -305,9 +390,9 @@ router.post("/verify/:transactionId", authenticateToken, async (req, res) => {
 			verificationTime: new Date(),
 			checks: {
 				hashIntegrity: isValid,
-				blockExists: true,
-				transactionInBlock: true,
-				gasCalculation: transaction.gasUsed > 0 && transaction.gasUsed < 1,
+				blockExists: isValid,
+				transactionInBlock: isValid,
+				gasCalculation: typeof transaction.gasUsed === "number" && transaction.gasUsed > 0,
 				amountMatch: transaction.amount === transaction.order.totalPrice,
 			},
 		};

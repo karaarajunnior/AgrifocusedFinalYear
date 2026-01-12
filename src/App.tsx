@@ -24,6 +24,8 @@ import ProfilePage from "./pages/ProfilePage";
 import MarketplacePage from "./pages/MarketplacePage";
 import OrdersPage from "./pages/OrdersPage";
 import AIModelPage from "./pages/AiModelpage";
+import ChatPage from "./pages/ChatPage";
+import CoopPage from "./pages/CoopPage";
 
 function AppContent() {
 	const { user, loading } = useAuth();
@@ -58,7 +60,7 @@ function AppContent() {
 						path="/login"
 						element={
 							user ? (
-								<Navigate to={getDashboardRoute(user.role)} />
+								<Navigate to={getDashboardRoute()} />
 							) : (
 								<LoginPage />
 							)
@@ -68,7 +70,7 @@ function AppContent() {
 						path="/register"
 						element={
 							user ? (
-								<Navigate to={getDashboardRoute(user.role)} />
+								<Navigate to={getDashboardRoute()} />
 							) : (
 								<RegisterPage />
 							)
@@ -103,10 +105,26 @@ function AppContent() {
 						}
 					/>
 					<Route
+						path="/chat"
+						element={
+							<ProtectedRoute>
+								<ChatPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
 						path="/ai-models"
 						element={
 							<ProtectedRoute>
 								<AIModelPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/coops"
+						element={
+							<ProtectedRoute>
+								<CoopPage />
 							</ProtectedRoute>
 						}
 					/>
@@ -143,7 +161,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 	return <>{children}</>;
 }
 
-function getDashboardRoute(role: string) {
+function getDashboardRoute() {
 	return "/dashboard";
 }
 

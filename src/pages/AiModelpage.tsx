@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect } from "react";
-import { useAuth } from "../contexts/AuthContext";
+import React, { useState } from "react";
 import {
 	Brain,
 	TrendingUp,
@@ -10,7 +9,6 @@ import {
 	Leaf,
 	DollarSign,
 	Calendar,
-	MapPin,
 	AlertCircle,
 	CheckCircle,
 	Activity,
@@ -55,7 +53,6 @@ interface CropRecommendation {
 }
 
 function AIModelPage() {
-	const { user } = useAuth();
 	const [activeTab, setActiveTab] = useState("price-prediction");
 	const [loading, setLoading] = useState(false);
 

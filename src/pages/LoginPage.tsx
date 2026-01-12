@@ -7,10 +7,12 @@ import LoadingSpinner from '../components/LoadingSpinner';
 function LoginPage() {
   const [formData, setFormData] = useState({
     email: '',
-    password: ''
+    password: '',
+    mfaCode: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [needsMfa, setNeedsMfa] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -18,9 +20,11 @@ function LoginPage() {
     e.preventDefault();
     setLoading(true);
     
-    const success = await login(formData.email, formData.password);
-    if (success) {
+    const result = await login(formData.email, formData.password, needsMfa ? formData.mfaCode : undefined);
+    if (result.ok) {
       navigate('/dashboard');
+    } else if (result.mfaRequired) {
+      setNeedsMfa(true);
     }
     
     setLoading(false);
@@ -102,6 +106,25 @@ function LoginPage() {
                 </button>
               </div>
             </div>
+
+            {needsMfa && (
+              <div>
+                <label htmlFor="mfaCode" className="block text-sm font-medium text-gray-700">
+                  MFA code
+                </label>
+                <div className="mt-1 relative">
+                  <input
+                    id="mfaCode"
+                    name="mfaCode"
+                    inputMode="numeric"
+                    value={formData.mfaCode}
+                    onChange={handleChange}
+                    className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
+                    placeholder="123456"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div>

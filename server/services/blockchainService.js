@@ -32,6 +32,96 @@ class BlockchainService {
 		}
 	}
 
+	// ---- Off-chain payment proof (non-repudiation) helpers ----
+	computePaymentProofOrderHash(orderId) {
+		// bytes32 = keccak256(abi.encodePacked(string))
+		return this.web3.utils.soliditySha3({ t: "string", v: String(orderId) });
+	}
+
+	computePaymentProofDetailsHash({ provider, providerReference, amountUgx, currency }) {
+		const amt = Math.max(0, Math.round(Number(amountUgx || 0)));
+		return this.web3.utils.soliditySha3(
+			{ t: "string", v: String(provider || "") },
+			{ t: "string", v: String(providerReference || "") },
+			{ t: "uint256", v: String(amt) },
+			{ t: "string", v: String(currency || "UGX") },
+		);
+	}
+
+	computePaymentProofMessageHash({ orderHash, detailsHash }) {
+		return this.web3.utils.soliditySha3(
+			{ t: "bytes32", v: orderHash },
+			{ t: "bytes32", v: detailsHash },
+		);
+	}
+
+	async recordPaymentProofOnChain({
+		orderHash,
+		detailsHash,
+		buyerWallet,
+		farmerWallet,
+		buyerSignature,
+		farmerSignature,
+	}) {
+		try {
+			if (!this.useSimulation && this.contract) {
+				const accounts = await this.web3.eth.getAccounts();
+				const from = accounts[0];
+				const result = await this.contract.methods
+					.recordPaymentProof(
+						orderHash,
+						detailsHash,
+						buyerWallet,
+						farmerWallet,
+						buyerSignature,
+						farmerSignature,
+					)
+					.send({ from, gas: 350000 });
+
+				return {
+					success: true,
+					transactionHash: result.transactionHash,
+					blockNumber: result.blockNumber,
+					gasUsed: result.gasUsed,
+				};
+			}
+
+			const messageHash = this.computePaymentProofMessageHash({ orderHash, detailsHash });
+
+			// Simulated blockchain
+			const transaction = {
+				type: "PAYMENT_PROOF",
+				orderHash,
+				detailsHash,
+				messageHash,
+				buyer: buyerWallet,
+				farmer: farmerWallet,
+				buyerSignature,
+				farmerSignature,
+				hash: this.generateTransactionHash({
+					orderHash,
+					detailsHash,
+					buyerWallet,
+					farmerWallet,
+				}),
+				timestamp: new Date().toISOString(),
+			};
+
+			const block = this.createBlock([transaction]);
+
+			return {
+				success: true,
+				transactionHash: transaction.hash,
+				blockNumber: block.index,
+				blockHash: block.hash,
+				gasUsed: Math.random() * 60000 + 21000,
+			};
+		} catch (error) {
+			console.error("Blockchain payment proof error:", error);
+			throw new Error("Failed to record payment proof on blockchain");
+		}
+	}
+
 	// Generate a cryptographic hash for transactions
 	generateTransactionHash(data) {
 		return crypto
@@ -74,6 +164,9 @@ class BlockchainService {
 			if (!this.useSimulation && this.contract) {
 				// Real blockchain implementation
 				const accounts = await this.web3.eth.getAccounts();
+				const from = this.web3.utils.isAddress(farmerAddress)
+					? farmerAddress
+					: accounts[0];
 				const result = await this.contract.methods
 					.listProduct(
 						productData.name,
@@ -81,7 +174,7 @@ class BlockchainService {
 						this.web3.utils.toWei(productData.price.toString(), "ether"),
 						productData.quantity,
 					)
-					.send({ from: farmerAddress, gas: 300000 });
+					.send({ from, gas: 300000 });
 
 				return {
 					success: true,
@@ -121,10 +214,14 @@ class BlockchainService {
 		try {
 			if (!this.useSimulation && this.contract) {
 				// Real blockchain implementation
+				const accounts = await this.web3.eth.getAccounts();
+				const from = this.web3.utils.isAddress(transactionData.buyerAddress)
+					? transactionData.buyerAddress
+					: accounts[0];
 				const result = await this.contract.methods
 					.purchaseProduct(transactionData.productId, transactionData.quantity)
 					.send({
-						from: transactionData.buyerAddress,
+						from,
 						value: this.web3.utils.toWei(
 							transactionData.totalPrice.toString(),
 							"ether",
@@ -201,6 +298,26 @@ class BlockchainService {
 			console.error("Verification error:", error);
 			return { verified: false, error: error.message };
 		}
+	}
+
+	async verifyFarmerOnChain(farmerAddress) {
+		if (this.useSimulation || !this.contract) {
+			return { success: true, simulated: true };
+		}
+		if (!this.web3.utils.isAddress(farmerAddress)) {
+			throw new Error("Invalid farmer wallet address");
+		}
+		const accounts = await this.web3.eth.getAccounts();
+		const from = accounts[0];
+		const result = await this.contract.methods
+			.verifyFarmer(farmerAddress)
+			.send({ from, gas: 200000 });
+		return {
+			success: true,
+			transactionHash: result.transactionHash,
+			blockNumber: result.blockNumber,
+			gasUsed: result.gasUsed,
+		};
 	}
 
 	// Get blockchain statistics

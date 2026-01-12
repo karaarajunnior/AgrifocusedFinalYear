@@ -19,13 +19,24 @@ interface User {
 	address?: string;
 	avatar?: string;
 	verified: boolean;
+	mfaEnabled?: boolean;
+	autoFulfillOnPayment?: boolean;
+	notifySms?: boolean;
+	notifyWhatsapp?: boolean;
+	notifyChat?: boolean;
+	notifyPayment?: boolean;
+	notifyOrder?: boolean;
 	createdAt: string;
 }
 
 interface AuthContextType {
 	user: User | null;
 	loading: boolean;
-	login: (email: string, password: string) => Promise<boolean>;
+	login: (
+		email: string,
+		password: string,
+		mfaCode?: string,
+	) => Promise<{ ok: boolean; mfaRequired?: boolean }>;
 	register: (data: RegisterData) => Promise<boolean>;
 	logout: () => void;
 	updateProfile: (data: Partial<User>) => Promise<boolean>;
@@ -78,20 +89,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		}
 	};
 
-	const login = async (email: string, password: string): Promise<boolean> => {
+	const login = async (
+		email: string,
+		password: string,
+		mfaCode?: string,
+	): Promise<{ ok: boolean; mfaRequired?: boolean }> => {
 		try {
-			const response = await api.post("/auth/login", { email, password });
+			const response = await api.post("/auth/login", { email, password, mfaCode });
 			const { user, token } = response.data;
 
 			localStorage.setItem("token", token);
 			setUser(user);
 
 			toast.success(`Welcome back, ${user.name}!`);
-			return true;
+			return { ok: true };
 		} catch (error: any) {
+			if (error.response?.data?.mfaRequired) {
+				toast.error("MFA required. Enter the code from your authenticator app.");
+				return { ok: false, mfaRequired: true };
+			}
+
 			const message = error.response?.data?.error || "Login failed";
 			toast.error(message);
-			return false;
+			return { ok: false };
 		}
 	};
 

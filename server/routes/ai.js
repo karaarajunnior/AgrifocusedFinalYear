@@ -1,14 +1,28 @@
 import express from "express";
-import { PrismaClient } from "@prisma/client";
+import { body, validationResult } from "express-validator";
 import { authenticateToken } from "../middleware/auth.js";
 import aiService from "../services/aiService.js";
+import { requireVerified } from "../middleware/verified.js";
+import prisma from "../db/prisma.js";
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
 // Advanced price prediction using AI
-router.post("/predict-price", authenticateToken, async (req, res) => {
+router.post(
+	"/predict-price",
+	authenticateToken,
+	requireVerified,
+	[
+		body("category").isString().trim().isLength({ min: 2, max: 30 }),
+		body("quantity").isInt({ min: 1 }),
+		body("location").isString().trim().isLength({ min: 2, max: 100 }),
+		body("organic").optional().isBoolean(),
+	],
+	async (req, res) => {
 	try {
+		const errors = validationResult(req);
+		if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+
 		const productData = req.body;
 		const prediction = await aiService.predictPrice(productData);
 
@@ -25,11 +39,25 @@ router.post("/predict-price", authenticateToken, async (req, res) => {
 			message: error.message,
 		});
 	}
-});
+	},
+);
 
 // Advanced demand forecasting
-router.post("/forecast-demand", authenticateToken, async (req, res) => {
+router.post(
+	"/forecast-demand",
+	authenticateToken,
+	requireVerified,
+	[
+		body("productData").isObject(),
+		body("productData.category").optional().isString().trim().isLength({ min: 2, max: 30 }),
+		body("productData.location").optional().isString().trim().isLength({ min: 2, max: 100 }),
+		body("timeframe").optional().isInt({ min: 1, max: 365 }),
+	],
+	async (req, res) => {
 	try {
+		const errors = validationResult(req);
+		if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+
 		const { productData, timeframe } = req.body;
 		const forecast = await aiService.forecastDemand(productData, timeframe);
 
@@ -46,11 +74,25 @@ router.post("/forecast-demand", authenticateToken, async (req, res) => {
 			message: error.message,
 		});
 	}
-});
+	},
+);
 
 // Crop recommendations for farmers
-router.post("/recommend-crops", authenticateToken, async (req, res) => {
+router.post(
+	"/recommend-crops",
+	authenticateToken,
+	requireVerified,
+	[
+		body("location").isString().trim().isLength({ min: 2, max: 100 }),
+		body("soilType").optional().isString().trim().isLength({ min: 2, max: 40 }),
+		body("climate").optional().isString().trim().isLength({ min: 2, max: 40 }),
+		body("farmSize").optional().isFloat({ min: 0.1, max: 100000 }),
+	],
+	async (req, res) => {
 	try {
+		const errors = validationResult(req);
+		if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+
 		const farmerData = req.body;
 		const recommendations = await aiService.recommendCrops(farmerData);
 
@@ -67,11 +109,23 @@ router.post("/recommend-crops", authenticateToken, async (req, res) => {
 			message: error.message,
 		});
 	}
-});
+	},
+);
 
 // Market analysis
-router.post("/analyze-market", authenticateToken, async (req, res) => {
+router.post(
+	"/analyze-market",
+	authenticateToken,
+	requireVerified,
+	[
+		body("category").optional().isString().trim().isLength({ min: 2, max: 30 }),
+		body("location").optional().isString().trim().isLength({ min: 2, max: 100 }),
+	],
+	async (req, res) => {
 	try {
+		const errors = validationResult(req);
+		if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+
 		const { category, location } = req.body;
 		const analysis = await aiService.analyzeMarket(category, location);
 
@@ -88,29 +142,29 @@ router.post("/analyze-market", authenticateToken, async (req, res) => {
 			message: error.message,
 		});
 	}
-});
+	},
+);
 
 // Get AI model performance metrics
-router.get("/model-performance", authenticateToken, async (req, res) => {
+router.get("/model-performance", authenticateToken, requireVerified, async (req, res) => {
 	try {
+		const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+		const [pricePoints, orders, views] = await Promise.all([
+			prisma.priceHistory.count({ where: { date: { gte: since30d } } }),
+			prisma.userAnalytics.count({ where: { event: "order_placed", timestamp: { gte: since30d } } }),
+			prisma.userAnalytics.count({ where: { event: "product_view", timestamp: { gte: since30d } } }),
+		]);
+
 		const performance = {
-			priceModel: {
-				accuracy: 0.87,
-				meanAbsoluteError: 2.34,
-				lastTrained: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-				trainingDataPoints: 5,
-			},
-			demandModel: {
-				accuracy: 0.82,
-				precision: 0.79,
-				recall: 0.85,
-				lastTrained: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-				trainingDataPoints: 4,
+			dataSignals: {
+				priceHistoryPoints30d: pricePoints,
+				ordersPlaced30d: orders,
+				productViews30d: views,
+				conversionApprox: views > 0 ? Math.round((orders / views) * 1000) / 10 : 0,
 			},
 			systemHealth: {
 				status: "healthy",
-				uptime: "99.7%",
-				responseTime: "245ms",
+				uptimeSec: process.uptime(),
 				lastUpdate: new Date(),
 			},
 		};

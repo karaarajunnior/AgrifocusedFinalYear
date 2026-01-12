@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 import {
 	Search,
 	Filter,
@@ -14,6 +15,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import api from "../services/api";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../contexts/AuthContext";
+import TrustBadge, { TrustScore } from "../components/TrustBadge";
 
 interface Product {
 	id: string;
@@ -32,6 +34,7 @@ interface Product {
 		location: string;
 		verified: boolean;
 	};
+	farmerTrust?: TrustScore;
 }
 
 function MarketplacePage() {
@@ -69,7 +72,7 @@ function MarketplacePage() {
 			if (organicOnly) params.append("organic", "true");
 
 			const response = await api.get(`/products?${params.toString()}`);
-			let sortedProducts = response.data.products;
+			const sortedProducts: Product[] = [...response.data.products];
 
 			// Sort products
 			switch (sortBy) {
@@ -118,8 +121,16 @@ function MarketplacePage() {
 			});
 
 			toast.success("Order placed successfully!");
-		} catch (error: any) {
-			toast.error(error.response?.data?.error || "Failed to place order");
+		} catch (error: unknown) {
+			let message = "Failed to place order";
+			if (axios.isAxiosError(error)) {
+				const data = error.response?.data;
+				if (data && typeof data === "object") {
+					const maybe = data as Record<string, unknown>;
+					if (typeof maybe.error === "string") message = maybe.error;
+				}
+			}
+			toast.error(message);
 		}
 	};
 
@@ -331,7 +342,7 @@ function MarketplacePage() {
 									{/* Price */}
 									<div className="mb-3">
 										<span className="text-2xl font-bold text-green-600">
-											₹{product.price}
+											UGX {product.price}
 										</span>
 										<span className="text-gray-600">/{product.unit}</span>
 									</div>
@@ -354,6 +365,11 @@ function MarketplacePage() {
 														✓
 													</span>
 												)}
+												{product.farmerTrust ? (
+													<span className="ml-2">
+														<TrustBadge trust={product.farmerTrust} compact />
+													</span>
+												) : null}
 											</div>
 
 											{product.totalReviews > 0 && (

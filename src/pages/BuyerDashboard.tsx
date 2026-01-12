@@ -21,6 +21,8 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import api from "../services/api";
 import { toast } from "react-hot-toast";
 import AIInsights from "../components/AIInsights";
+import ClimateAlertsCard from "../components/ClimateAlertsCard";
+import TrustBadge, { TrustScore } from "../components/TrustBadge";
 
 interface Product {
 	id: string;
@@ -41,6 +43,7 @@ interface Product {
 		location: string;
 		verified: boolean;
 	};
+	farmerTrust?: TrustScore;
 }
 
 interface Analytics {
@@ -265,7 +268,7 @@ function BuyerDashboard() {
 
 										<div className="space-y-1 text-sm text-gray-600 mb-3">
 											<p className="text-lg font-bold text-green-600">
-												₹{product.price}/{product.unit}
+												UGX {product.price}/{product.unit}
 											</p>
 											<div className="flex items-center">
 												<User className="h-4 w-4 mr-1" />
@@ -314,6 +317,11 @@ function BuyerDashboard() {
 						)}
 					</div>
 				</div>
+
+				{/* Climate alerts */}
+				<div className="mb-8">
+					<ClimateAlertsCard location={userLocation || user?.location || "kampala"} />
+				</div>
 				{/* Analytics Cards */}
 				{analytics && (
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -342,9 +350,9 @@ function BuyerDashboard() {
 									<p className="text-sm font-medium text-gray-600">
 										Total Spent
 									</p>
-									<p className="text-2xl font-bold text-gray-900">
-										₹{analytics.overview.totalSpent.toLocaleString()}
-									</p>
+										<p className="text-2xl font-bold text-gray-900">
+											UGX {analytics.overview.totalSpent.toLocaleString()}
+										</p>
 								</div>
 							</div>
 						</div>
@@ -358,9 +366,9 @@ function BuyerDashboard() {
 									<p className="text-sm font-medium text-gray-600">
 										Avg Order Value
 									</p>
-									<p className="text-2xl font-bold text-gray-900">
-										₹{analytics.overview.averageOrderValue.toLocaleString()}
-									</p>
+										<p className="text-2xl font-bold text-gray-900">
+											UGX {analytics.overview.averageOrderValue.toLocaleString()}
+										</p>
 								</div>
 							</div>
 						</div>
@@ -490,7 +498,7 @@ function BuyerDashboard() {
 
 										<div className="space-y-2 text-sm text-gray-600 mb-4">
 											<p className="text-lg font-bold text-green-600">
-												₹{product.price}/{product.unit}
+												UGX {product.price}/{product.unit}
 											</p>
 											<p>
 												<span className="font-medium">Available:</span>{" "}
@@ -509,6 +517,11 @@ function BuyerDashboard() {
 													{product.farmer.verified && (
 														<span className="ml-1 text-blue-500">✓</span>
 													)}
+												{product.farmerTrust ? (
+													<span className="ml-2">
+														<TrustBadge trust={product.farmerTrust} compact />
+													</span>
+												) : null}
 												</div>
 
 												{product.totalReviews > 0 && (
@@ -561,7 +574,7 @@ function BuyerDashboard() {
 												{order.product.name}
 											</h3>
 											<p className="text-sm text-gray-600">
-												{order.quantity} units • ₹{order.totalPrice} •{" "}
+												{order.quantity} units • UGX {order.totalPrice} •{" "}
 												{order.farmer.name}
 											</p>
 											<p className="text-xs text-gray-500">

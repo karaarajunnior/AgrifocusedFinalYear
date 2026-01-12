@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
 import { 
   Package, 
   Clock, 
@@ -8,12 +9,12 @@ import {
   Truck, 
   Star,
   Eye,
-  MessageCircle,
   Filter
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
+import SpeakButton from "../components/SpeakButton";
 
 interface Order {
   id: string;
@@ -42,6 +43,10 @@ interface Order {
   transaction?: {
     status: string;
     blockHash: string;
+    provider?: string;
+    providerReference?: string;
+    currency?: string;
+    payerMsisdn?: string;
     timestamp: string;
   };
   review?: {
@@ -61,6 +66,11 @@ function OrdersPage() {
     rating: 5,
     comment: ''
   });
+
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [deliveryOrder, setDeliveryOrder] = useState<Order | null>(null);
+  const [deliveryCode, setDeliveryCode] = useState("");
+  const [generatedProof, setGeneratedProof] = useState<{ code: string; qrToken: string } | null>(null);
 
   useEffect(() => {
     fetchOrders();
@@ -83,8 +93,16 @@ function OrdersPage() {
       await api.patch(`/orders/${orderId}/status`, { status });
       toast.success('Order status updated successfully');
       fetchOrders();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to update order status');
+    } catch (error: unknown) {
+      let message = 'Failed to update order status';
+      if (axios.isAxiosError(error)) {
+        const data = error.response?.data;
+        if (data && typeof data === 'object') {
+          const maybe = data as Record<string, unknown>;
+          if (typeof maybe.error === 'string') message = maybe.error;
+        }
+      }
+      toast.error(message);
     }
   };
 
@@ -98,8 +116,68 @@ function OrdersPage() {
       setSelectedOrder(null);
       setReviewData({ rating: 5, comment: '' });
       fetchOrders();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to submit review');
+    } catch (error: unknown) {
+      let message = 'Failed to submit review';
+      if (axios.isAxiosError(error)) {
+        const data = error.response?.data;
+        if (data && typeof data === 'object') {
+          const maybe = data as Record<string, unknown>;
+          if (typeof maybe.error === 'string') message = maybe.error;
+        }
+      }
+      toast.error(message);
+    }
+  };
+
+  const payWithAirtel = async (orderId: string) => {
+    try {
+      await api.post(`/orders/${orderId}/pay`, {});
+      toast.success('Payment initiated. Please approve on your phone.');
+      fetchOrders();
+    } catch (error: unknown) {
+      let message = 'Failed to initiate payment';
+      if (axios.isAxiosError(error)) {
+        const data = error.response?.data;
+        if (data && typeof data === 'object') {
+          const maybe = data as Record<string, unknown>;
+          if (typeof maybe.error === 'string') message = maybe.error;
+        }
+      }
+      toast.error(message);
+    }
+  };
+
+  const generateDeliveryProof = async (orderId: string) => {
+    try {
+      const res = await api.post("/delivery-proof/generate", { orderId });
+      setGeneratedProof(res.data?.proof || null);
+      toast.success("Delivery proof generated. Show the code/QR to buyer.");
+    } catch (error: unknown) {
+      let message = "Failed to generate delivery proof";
+      if (axios.isAxiosError(error)) {
+        const data = error.response?.data as { error?: string } | undefined;
+        if (data?.error) message = data.error;
+      }
+      toast.error(message);
+    }
+  };
+
+  const confirmDelivery = async () => {
+    if (!deliveryOrder) return;
+    try {
+      await api.post("/delivery-proof/confirm", { orderId: deliveryOrder.id, code: deliveryCode });
+      toast.success("Delivery confirmed");
+      setShowDeliveryModal(false);
+      setDeliveryOrder(null);
+      setDeliveryCode("");
+      fetchOrders();
+    } catch (error: unknown) {
+      let message = "Failed to confirm delivery";
+      if (axios.isAxiosError(error)) {
+        const data = error.response?.data as { error?: string } | undefined;
+        if (data?.error) message = data.error;
+      }
+      toast.error(message);
     }
   };
 
@@ -209,6 +287,57 @@ function OrdersPage() {
           </div>
         </div>
 
+        {/* Delivery proof modal */}
+        {showDeliveryModal && deliveryOrder && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-md w-full">
+              <div className="p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">Confirm delivery</h2>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Enter the 6-digit delivery code shown by the farmer/driver.
+                    </p>
+                  </div>
+                  <SpeakButton
+                    text="Confirm delivery. Ask the farmer for the six digit delivery code, then type it here and press confirm."
+                    label="Listen"
+                  />
+                </div>
+
+                <div className="mt-4">
+                  <input
+                    value={deliveryCode}
+                    onChange={(e) => setDeliveryCode(e.target.value)}
+                    className="w-full px-3 py-3 border border-gray-300 rounded-lg text-base"
+                    placeholder="e.g. 123456"
+                  />
+                </div>
+
+                <div className="mt-4 flex justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      setShowDeliveryModal(false);
+                      setDeliveryOrder(null);
+                      setDeliveryCode("");
+                    }}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelivery}
+                    className="px-4 py-2 bg-green-600 text-white hover:bg-green-700 rounded-lg"
+                    disabled={!deliveryCode.trim()}
+                  >
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Orders List */}
         {filteredOrders.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
@@ -308,11 +437,34 @@ function OrdersPage() {
                     )}
                     
                     {user?.role === 'FARMER' && order.status === 'IN_TRANSIT' && (
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          onClick={() => generateDeliveryProof(order.id)}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                        >
+                          Generate delivery code
+                        </button>
+                        {generatedProof?.code ? (
+                          <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                            <div className="text-gray-600">Code</div>
+                            <div className="font-bold text-gray-900 text-lg tracking-widest">
+                              {generatedProof.code}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">QR token (demo): {generatedProof.qrToken}</div>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+
+                    {user?.role === 'BUYER' && order.status === 'IN_TRANSIT' && (
                       <button
-                        onClick={() => updateOrderStatus(order.id, 'DELIVERED')}
+                        onClick={() => {
+                          setDeliveryOrder(order);
+                          setShowDeliveryModal(true);
+                        }}
                         className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
                       >
-                        Mark as Delivered
+                        Confirm delivery (code)
                       </button>
                     )}
                     
@@ -337,9 +489,25 @@ function OrdersPage() {
                     )}
                     
                     {order.transaction && (
-                      <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center">
-                        <Eye className="h-4 w-4 mr-1" />
-                        View Transaction
+                      <div className="flex items-center gap-2">
+                        <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center">
+                          <Eye className="h-4 w-4 mr-1" />
+                          View Transaction
+                        </button>
+                        {order.transaction.provider === 'airtel_ug' && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                            Payment: {order.transaction.status}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {user?.role === 'BUYER' && order.status === 'CONFIRMED' && (
+                      <button
+                        onClick={() => payWithAirtel(order.id)}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                      >
+                        Pay with Airtel Money
                       </button>
                     )}
                   </div>
