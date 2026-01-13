@@ -26,6 +26,7 @@ import OrdersPage from "./pages/OrdersPage";
 import AIModelPage from "./pages/AiModelpage";
 import ChatPage from "./pages/ChatPage";
 import CoopPage from "./pages/CoopPage";
+import FormBuilderPage from "./pages/FormBuilderPage";
 
 function AppContent() {
 	const { user, loading } = useAuth();
@@ -125,6 +126,14 @@ function AppContent() {
 						element={
 							<ProtectedRoute>
 								<CoopPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/form-builder"
+						element={
+							<ProtectedRoute>
+								<FormBuilderPage />
 							</ProtectedRoute>
 						}
 					/>

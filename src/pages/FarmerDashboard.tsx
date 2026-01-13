@@ -29,6 +29,12 @@ import {
 	removeOfflineProductDraft,
 } from "../utils/offlineProductQueue";
 import ClimateAlertsCard from "../components/ClimateAlertsCard";
+import DynamicFieldsetForm from "../components/DynamicFieldsetForm";
+import {
+	PRODUCT_FORM_KEY,
+	defaultProductFormDefinition,
+	type FormDefinition,
+} from "../utils/formDefinitions";
 
 interface Product {
 	id: string;
@@ -85,6 +91,10 @@ function FarmerDashboard() {
 	const [offlineDraftCount, setOfflineDraftCount] = useState<number>(0);
 	const [addStep, setAddStep] = useState<number>(0);
 	const [submitting, setSubmitting] = useState<boolean>(false);
+	const [productFormDef, setProductFormDef] = useState<FormDefinition>(
+		defaultProductFormDefinition(),
+	);
+	const [customFields, setCustomFields] = useState<Record<string, unknown>>({});
 	const [newProduct, setNewProduct] = useState({
 		name: "",
 		description: "",
@@ -103,6 +113,16 @@ function FarmerDashboard() {
 	useEffect(() => {
 		// Keep a visible count for offline drafts
 		setOfflineDraftCount(getOfflineProductQueue().length);
+	}, []);
+
+	useEffect(() => {
+		try {
+			const raw = window.localStorage.getItem(PRODUCT_FORM_KEY);
+			const parsed = raw ? (JSON.parse(raw) as FormDefinition) : defaultProductFormDefinition();
+			setProductFormDef(parsed);
+		} catch {
+			setProductFormDef(defaultProductFormDefinition());
+		}
 	}, []);
 
 	useEffect(() => {
@@ -160,6 +180,7 @@ function FarmerDashboard() {
 	const resetAddProductWizard = () => {
 		setAddStep(0);
 		setSubmitting(false);
+		setCustomFields({});
 		setNewProduct({
 			name: "",
 			description: "",
@@ -178,8 +199,9 @@ function FarmerDashboard() {
 	};
 
 	const isLastStep = () => {
-		// simple mode: 3 steps (0,1,2); advanced: 4 steps (0,1,2,3)
-		return addStep >= (simpleMode ? 2 : 3);
+		// include dynamic fields as a final step for both modes
+		// steps: 0 name (+ category if advanced), 1 price/unit, 2 qty/location, 3 custom fields (+ optional description if advanced)
+		return addStep >= 3;
 	};
 
 	const fillGpsLocationFromGps = async () => {
@@ -224,6 +246,7 @@ function FarmerDashboard() {
 			unit: newProduct.unit,
 			location,
 			organic: simpleMode ? false : Boolean(newProduct.organic),
+			customFields,
 		};
 
 		setSubmitting(true);
@@ -843,46 +866,69 @@ function FarmerDashboard() {
 									</div>
 								)}
 
-								{/* Step 4: Optional details + confirm (advanced only) */}
-								{!simpleMode && addStep === 3 && (
+								{/* Step 4: Custom fields (dynamic) + optional details */}
+								{addStep === 3 && (
 									<div className="space-y-4">
+										{!simpleMode && (
+											<div>
+												<label className="block text-sm font-medium text-gray-700 mb-1">
+													Description
+												</label>
+												<textarea
+													rows={3}
+													value={newProduct.description}
+													onChange={(e) =>
+														setNewProduct({
+															...newProduct,
+															description: e.target.value,
+														})
+													}
+													className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+													placeholder="Describe your product..."
+												/>
+											</div>
+										)}
+
+										{!simpleMode && (
+											<div className="flex items-center">
+												<input
+													type="checkbox"
+													id="organic"
+													checked={newProduct.organic}
+													onChange={(e) =>
+														setNewProduct({
+															...newProduct,
+															organic: e.target.checked,
+														})
+													}
+													className="h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+												/>
+												<label
+													htmlFor="organic"
+													className="ml-3 block text-sm text-gray-900">
+													Organic Product
+												</label>
+											</div>
+										)}
+
 										<div>
-											<label className="block text-sm font-medium text-gray-700 mb-1">
-												Description
-											</label>
-											<textarea
-												rows={3}
-												value={newProduct.description}
-												onChange={(e) =>
-													setNewProduct({
-														...newProduct,
-														description: e.target.value,
-													})
-												}
-												className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-												placeholder="Describe your product..."
-											/>
+											<div className="flex items-center justify-between">
+												<h3 className="text-sm font-semibold text-gray-900">
+													Custom fields (dynamic)
+												</h3>
+												<p className="text-xs text-gray-500">
+													Admin config at <code>/form-builder</code>
+												</p>
+											</div>
+											<div className="mt-2">
+												<DynamicFieldsetForm
+													fieldSets={productFormDef.fieldSets}
+													values={customFields}
+													onChange={setCustomFields}
+												/>
+											</div>
 										</div>
 
-										<div className="flex items-center">
-											<input
-												type="checkbox"
-												id="organic"
-												checked={newProduct.organic}
-												onChange={(e) =>
-													setNewProduct({
-														...newProduct,
-														organic: e.target.checked,
-													})
-												}
-												className="h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-											/>
-											<label
-												htmlFor="organic"
-												className="ml-3 block text-sm text-gray-900">
-												Organic Product
-											</label>
-										</div>
 										<div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-800">
 											<strong>Review</strong>
 											<div className="mt-2 space-y-1">
@@ -892,6 +938,10 @@ function FarmerDashboard() {
 												</div>
 												<div>Quantity: {newProduct.quantity || "-"}</div>
 												<div>Location: {newProduct.location || "-"}</div>
+												<div>
+													Custom fields:{" "}
+													{Object.keys(customFields).length > 0 ? "Yes" : "No"}
+												</div>
 											</div>
 										</div>
 									</div>

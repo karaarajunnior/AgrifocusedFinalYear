@@ -127,6 +127,7 @@ export async function createProduct(req, res) {
 			location,
 			images,
 			organic,
+			customFields,
 		} = req.body;
 
 		const product = await prisma.product.create({
@@ -141,6 +142,7 @@ export async function createProduct(req, res) {
 				expiryDate: expiryDate ? new Date(expiryDate) : null,
 				location,
 				images: images ? JSON.stringify(images) : null,
+				customFields: customFields ? JSON.stringify(customFields) : null,
 				organic: Boolean(organic),
 				farmerId: req.user.id,
 			},
@@ -194,6 +196,7 @@ export async function updateProduct(req, res) {
 			"location",
 			"organic",
 			"available",
+			"customFields",
 		];
 
 		Object.keys(req.body || {}).forEach((key) => {
@@ -209,6 +212,9 @@ export async function updateProduct(req, res) {
 		}
 		if (typeof updates.expiryDate !== "undefined") {
 			updates.expiryDate = updates.expiryDate ? new Date(updates.expiryDate) : null;
+		}
+		if (typeof updates.customFields !== "undefined") {
+			updates.customFields = updates.customFields ? JSON.stringify(updates.customFields) : null;
 		}
 
 		const existingProduct = await prisma.product.findUnique({
