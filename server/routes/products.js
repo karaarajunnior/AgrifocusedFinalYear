@@ -279,9 +279,17 @@ router.get("/:id", async (req, res) => {
 				  product.reviews.length
 				: 0;
 
+	let customFieldsParsed = null;
+	try {
+		customFieldsParsed = product.customFields ? JSON.parse(product.customFields) : null;
+	} catch {
+		customFieldsParsed = null;
+	}
+
 		res.json({
 			...product,
 			avgRating: Math.round(avgRating * 10) / 10,
+		customFields: customFieldsParsed,
 		});
 	} catch (error) {
 		console.error("Get product error:", error);
@@ -311,6 +319,7 @@ router.post(
 		body("price").isFloat({ min: 0.01 }),
 		body("quantity").isInt({ min: 1 }),
 		body("location").trim().isLength({ min: 2 }),
+		body("customFields").optional().isObject(),
 	],
 	createProduct,
 );
@@ -345,6 +354,7 @@ router.put(
 		body("location").optional().isString().trim().isLength({ min: 2, max: 120 }),
 		body("organic").optional().isBoolean(),
 		body("available").optional().isBoolean(),
+		body("customFields").optional().isObject(),
 	],
 	updateProduct,
 );

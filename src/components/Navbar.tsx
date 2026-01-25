@@ -11,6 +11,7 @@ import {
 	Package,
 	MessageSquare,
 	Users,
+	SlidersHorizontal,
 } from "lucide-react";
 
 function Navbar() {
@@ -85,6 +86,19 @@ function Navbar() {
 										}`}>
 										<Users className="h-4 w-4" />
 										<span>Co-ops</span>
+									</Link>
+								)}
+
+								{user.role === "ADMIN" && (
+									<Link
+										to="/form-builder"
+										className={`flex items-center space-x-1 text-sm font-medium transition-colors ${
+											isActive("/form-builder")
+												? "text-green-600"
+												: "text-gray-600 hover:text-gray-900"
+										}`}>
+										<SlidersHorizontal className="h-4 w-4" />
+										<span>Forms</span>
 									</Link>
 								)}
 
@@ -178,6 +192,15 @@ function Navbar() {
 											className="block text-gray-600 hover:text-gray-900 font-medium"
 											onClick={() => setIsMenuOpen(false)}>
 											Co-ops
+										</Link>
+									)}
+
+									{user.role === "ADMIN" && (
+										<Link
+											to="/form-builder"
+											className="block text-gray-600 hover:text-gray-900 font-medium"
+											onClick={() => setIsMenuOpen(false)}>
+											Forms
 										</Link>
 									)}
 
