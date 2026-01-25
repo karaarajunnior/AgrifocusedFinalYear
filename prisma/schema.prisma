@@ -70,6 +70,10 @@ model Product {
   location    String
   country     String?   @db.VarChar(64)
   images      String?   @db.Text // JSON array of image URLs
+<<<<<<< HEAD
+=======
+  customFields String?  @db.LongText // JSON object of dynamic form fields
+>>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
   organic     Boolean   @default(false)
   available   Boolean   @default(true)
   listedOnChain Boolean @default(false)

@@ -11,6 +11,10 @@ import {
 	Package,
 	MessageSquare,
 	Users,
+<<<<<<< HEAD
+=======
+	SlidersHorizontal,
+>>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
 } from "lucide-react";
 
 function Navbar() {
@@ -88,6 +92,22 @@ function Navbar() {
 									</Link>
 								)}
 
+<<<<<<< HEAD
+=======
+								{user.role === "ADMIN" && (
+									<Link
+										to="/form-builder"
+										className={`flex items-center space-x-1 text-sm font-medium transition-colors ${
+											isActive("/form-builder")
+												? "text-green-600"
+												: "text-gray-600 hover:text-gray-900"
+										}`}>
+										<SlidersHorizontal className="h-4 w-4" />
+										<span>Forms</span>
+									</Link>
+								)}
+
+>>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
 								<Link
 									to="/chat"
 									className={`flex items-center space-x-1 text-sm font-medium transition-colors ${
@@ -181,6 +201,18 @@ function Navbar() {
 										</Link>
 									)}
 
+<<<<<<< HEAD
+=======
+									{user.role === "ADMIN" && (
+										<Link
+											to="/form-builder"
+											className="block text-gray-600 hover:text-gray-900 font-medium"
+											onClick={() => setIsMenuOpen(false)}>
+											Forms
+										</Link>
+									)}
+
+>>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
 									<Link
 										to="/chat"
 										className="block text-gray-600 hover:text-gray-900 font-medium"

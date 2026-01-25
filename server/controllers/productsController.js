@@ -127,6 +127,10 @@ export async function createProduct(req, res) {
 			location,
 			images,
 			organic,
+<<<<<<< HEAD
+=======
+			customFields,
+>>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
 		} = req.body;
 
 		const product = await prisma.product.create({
@@ -141,6 +145,10 @@ export async function createProduct(req, res) {
 				expiryDate: expiryDate ? new Date(expiryDate) : null,
 				location,
 				images: images ? JSON.stringify(images) : null,
+<<<<<<< HEAD
+=======
+				customFields: customFields ? JSON.stringify(customFields) : null,
+>>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
 				organic: Boolean(organic),
 				farmerId: req.user.id,
 			},
@@ -194,6 +202,10 @@ export async function updateProduct(req, res) {
 			"location",
 			"organic",
 			"available",
+<<<<<<< HEAD
+=======
+			"customFields",
+>>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
 		];
 
 		Object.keys(req.body || {}).forEach((key) => {
@@ -210,6 +222,12 @@ export async function updateProduct(req, res) {
 		if (typeof updates.expiryDate !== "undefined") {
 			updates.expiryDate = updates.expiryDate ? new Date(updates.expiryDate) : null;
 		}
+<<<<<<< HEAD
+=======
+		if (typeof updates.customFields !== "undefined") {
+			updates.customFields = updates.customFields ? JSON.stringify(updates.customFields) : null;
+		}
+>>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
 
 		const existingProduct = await prisma.product.findUnique({
 			where: { id },
