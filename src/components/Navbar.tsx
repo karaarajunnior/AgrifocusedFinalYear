@@ -11,10 +11,9 @@ import {
 	Package,
 	MessageSquare,
 	Users,
-<<<<<<< HEAD
-=======
+
 	SlidersHorizontal,
->>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
+
 } from "lucide-react";
 
 function Navbar() {
@@ -92,8 +91,7 @@ function Navbar() {
 									</Link>
 								)}
 
-<<<<<<< HEAD
-=======
+
 								{user.role === "ADMIN" && (
 									<Link
 										to="/form-builder"
@@ -107,7 +105,7 @@ function Navbar() {
 									</Link>
 								)}
 
->>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
+
 								<Link
 									to="/chat"
 									className={`flex items-center space-x-1 text-sm font-medium transition-colors ${
@@ -201,8 +199,7 @@ function Navbar() {
 										</Link>
 									)}
 
-<<<<<<< HEAD
-=======
+
 									{user.role === "ADMIN" && (
 										<Link
 											to="/form-builder"
@@ -212,7 +209,7 @@ function Navbar() {
 										</Link>
 									)}
 
->>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
+
 									<Link
 										to="/chat"
 										className="block text-gray-600 hover:text-gray-900 font-medium"
