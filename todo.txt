@@ -1,0 +1,42 @@
+### A highly flexible agri focused system. consider flexibility of all features
+☑ update order status, confirm and cancel not functioning as intended
+☑ update nodejs
+performance metrics(priority)
+☑ "error": "Failed to fetch buyer analytics" endpoint
+☑ work on brock chain and ai service, controller and routes
+☑ install other dep especially for tensorflow
+☑ cors failure thus front-back interaction failure
+consider sanitising endpoints
+use of procedures
+mobile money integration
+ci/cd pipeline
+redis server
+enhancing the user interface
+chat agent: n8n.io using open AI(where do u recommend it to be used based on my projct)
+voice assistants
+multi lang model
+☑ ai and blockchain
+performance metrics
+analytics
+security and x-site scripting
+☑ demo
+technical documentation and multer or ai agent for doc upload and conversion
+expanding model and configurations plus rules
+approval for buyers and farmers
+front: form builder
+wireframes: figma and make research on other tools 
+
+......................................................................
+the dashboard of admin has nothing related to blockchain, and security, performance and analytics are static not dynamic.
+consider automation of all features.
+consider automating data processing, security and performance and they should be dynamic
+how do l know that buyers using my system are not third party or middlemen(the feature that does this should be active) not a third party
+more communication btn buyer and farmer for negotiations by aid of a chat.
+AI to assist famer and buyer ask( chatbot)
+countries that donot support mobile money use stripe and integrate with banks
+☑ if a if buyer logins in, automation should bring farmers items in his locality and near
+on security the change password and MFA are inactive, but l need them enabled
+.......................................................................
+The AI-powered platform connects verified buyers and sellers, automates paperwork(zypir)
+
+

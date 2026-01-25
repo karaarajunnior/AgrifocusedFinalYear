@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>AgriConnect - Admin Demo Mode</title>
+    <style>
+      @import url("../base.css");
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <div class="statusbar">
+        <div>09:41</div>
+        <div>4G • 100%</div>
+      </div>
+      <div class="appbar">
+        <div class="brand">
+          <div class="leaf">🌿</div>
+          <div>AgriConnect</div>
+        </div>
+        <div class="pill">Admin • Demo mode ON</div>
+      </div>
+
+      <div class="content">
+        <div class="title">Admin Dashboard</div>
+        <div class="subtitle">
+          Panel-ready overview: live monitoring + demo shortcuts for unique features.
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <h3>Trust Score</h3>
+            <p>Anti‑middleman signal: explainable score + reasons.</p>
+            <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap">
+              <span class="badge green">Trust 87/100 • Farmer</span>
+              <span class="badge yellow">Trust 62/100 • Buyer</span>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Proof of Delivery</h3>
+            <p>One-time code to confirm delivery. Works offline/SMS.</p>
+            <div style="margin-top:12px">
+              <span class="badge purple">PoD code: 123456</span>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Climate Alerts</h3>
+            <p>Weather risk alerts per location (Open‑Meteo).</p>
+            <div style="margin-top:12px">
+              <span class="badge blue">Heavy rain risk</span>
+              <span class="badge yellow">High heat risk</span>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Cooperatives</h3>
+            <p>Farmers pool inventory and negotiate as a group.</p>
+            <div style="margin-top:12px">
+              <span class="badge">3 co-ops • 24 members</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px">
+          <h3>SMS fallback commands (rural)</h3>
+          <p>HELP • STATUS &lt;order_last8&gt; • DELIVER &lt;order_last8&gt; &lt;code&gt;</p>
+          <div class="btnrow">
+            <button class="btn">View Audit Logs</button>
+            <button class="btn primary">Run Demo Calls</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="nav"><div class="dot">🏠</div>Home</div>
+        <div class="nav"><div class="dot">🛒</div>Market</div>
+        <div class="nav active"><div class="dot">📊</div>Admin</div>
+        <div class="nav"><div class="dot">💬</div>Chat</div>
+        <div class="nav"><div class="dot">👤</div>Profile</div>
+      </div>
+    </div>
+  </body>
+</html>
+

@@ -1,0 +1,489 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  passwordChangedAt DateTime @default(now())
+  role      Role     @default(FARMER)
+  phone     String?
+  location  String?
+  address   String?
+  country   String?  @db.VarChar(64)
+  walletAddress String? @db.VarChar(64)
+  verified  Boolean  @default(false)
+  mfaEnabled     Boolean @default(false)
+  mfaSecret      String? @db.Text
+  mfaTempSecret  String? @db.Text
+  autoFulfillOnPayment Boolean @default(false)
+  notifySms      Boolean @default(true)
+  notifyWhatsapp Boolean @default(true)
+  notifyChat     Boolean @default(true)
+  notifyPayment  Boolean @default(true)
+  notifyOrder    Boolean @default(true)
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  products  Product[]
+  orders    Order[]         @relation("BuyerOrders")
+  sales     Order[]         @relation("FarmerSales")
+  reviews   Review[]
+  sentMessages     Message[] @relation("MessageSender")
+  receivedMessages Message[] @relation("MessageReceiver")
+  analytics UserAnalytics[]
+  documents Document[]
+  deviceTokens DeviceToken[]
+  notificationLogs NotificationLog[]
+  refreshTokens RefreshToken[]
+  auditLogs AuditLog[] @relation("AuditLogActor")
+  generatedDeliveryProofs DeliveryProof[] @relation("DeliveryProofGeneratedBy")
+  confirmedDeliveryProofs DeliveryProof[] @relation("DeliveryProofConfirmedBy")
+  createdCoops CooperativeGroup[] @relation("CoopCreatedBy")
+  coopMemberships CooperativeMember[]
+
+  @@map("users")
+}
+
+model Product {
+  id          String    @id @default(cuid())
+  name        String
+  description String?   @db.Text
+  category    Category
+  price       Float
+  quantity    Int
+  unit        String    @default("kg")
+  harvestDate DateTime?
+  expiryDate  DateTime?
+  location    String
+  country     String?   @db.VarChar(64)
+  images      String?   @db.Text // JSON array of image URLs
+  organic     Boolean   @default(false)
+  available   Boolean   @default(true)
+  listedOnChain Boolean @default(false)
+  chainProductId Int?
+  chainTxHash    String? @db.VarChar(128)
+  chainBlockNumber Int?
+  chainListedAt  DateTime?
+  farmerId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  farmer       User           @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  orders       Order[]
+  reviews      Review[]
+  priceHistory PriceHistory[]
+  transactions Transaction[]
+  batches      ProductBatch[]
+
+  @@map("products")
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  quantity     Int
+  totalPrice   Float
+  status       OrderStatus @default(PENDING)
+  deliveryDate DateTime?
+  notes        String?     @db.Text
+  // Proof of delivery (one-time code / QR) support
+  deliveryProof DeliveryProof?
+  buyerId      String
+  farmerId     String
+  productId    String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  buyer       User         @relation("BuyerOrders", fields: [buyerId], references: [id])
+  farmer      User         @relation("FarmerSales", fields: [farmerId], references: [id])
+  product     Product      @relation(fields: [productId], references: [id])
+  transaction Transaction?
+  review      Review?
+
+  @@map("orders")
+}
+
+model DeliveryProof {
+  id               String   @id @default(cuid())
+  orderId           String   @unique
+  codeHash          String   @db.VarChar(64) // sha256 hex of short code
+  qrTokenHash       String?  @db.VarChar(64) // sha256 hex of QR token (optional)
+  generatedByUserId String
+  confirmedByUserId String?
+  generatedAt       DateTime @default(now())
+  confirmedAt       DateTime?
+  gpsLocation       String?  @db.VarChar(128)
+  chainTxHash       String?  @db.VarChar(128)
+  chainBlockNumber  Int?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  generatedBy User @relation("DeliveryProofGeneratedBy", fields: [generatedByUserId], references: [id])
+  confirmedBy User? @relation("DeliveryProofConfirmedBy", fields: [confirmedByUserId], references: [id])
+
+  @@index([generatedByUserId, generatedAt])
+  @@map("delivery_proofs")
+}
+
+model Transaction {
+  id          String            @id @default(cuid())
+  orderId     String            @unique
+  amount      Float
+  status      TransactionStatus @default(PENDING)
+  provider         String?  // airtel_ug, stripe, etc.
+  providerReference String? @db.Text
+  currency         String?  @default("UGX")
+  payerMsisdn      String?  @db.Text
+  providerRaw      String?  @db.LongText
+  ledgerEntryId    String?  @db.VarChar(64)
+  blockHash   String? // Simulated blockchain hash
+  blockNumber Int? // Simulated block number
+  gasUsed     Float? // Simulated gas cost
+  paymentProofOrderHash   String? @db.VarChar(66)  // 0x-prefixed bytes32
+  paymentProofDetailsHash String? @db.VarChar(66)  // 0x-prefixed bytes32
+  paymentProofTxHash      String? @db.VarChar(128)
+  paymentProofBlockNumber Int?
+  paymentProofRecordedAt  DateTime?
+  timestamp   DateTime          @default(now())
+
+  // Relations
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+
+  @@map("transactions")
+}
+
+model CooperativeGroup {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(80)
+  location    String?  @db.VarChar(120)
+  description String?  @db.Text
+  createdById String
+  createdAt   DateTime @default(now())
+
+  createdBy User @relation("CoopCreatedBy", fields: [createdById], references: [id])
+  members   CooperativeMember[]
+
+  @@index([createdById, createdAt])
+  @@map("cooperative_groups")
+}
+
+model CooperativeMember {
+  id        String   @id @default(cuid())
+  groupId   String
+  userId    String
+  role      String   @default("MEMBER") @db.VarChar(16) // MEMBER | ADMIN
+  joinedAt  DateTime @default(now())
+
+  group CooperativeGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("cooperative_members")
+}
+
+model ProductBatch {
+  id          String   @id @default(cuid())
+  productId   String
+  batchCode   String   @db.VarChar(64)
+  harvestedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  events  TraceEvent[]
+
+  @@index([productId, createdAt])
+  @@map("product_batches")
+}
+
+model TraceEvent {
+  id        String   @id @default(cuid())
+  batchId   String
+  type      String   @db.VarChar(32) // harvest, storage, transport, delivery, etc.
+  note      String?  @db.Text
+  location  String?  @db.VarChar(120)
+  createdAt DateTime @default(now())
+
+  batch ProductBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId, createdAt])
+  @@map("trace_events")
+}
+
+model ClimateAlert {
+  id        String   @id @default(cuid())
+  location  String   @db.VarChar(120)
+  severity  String   @db.VarChar(16) // info, warning, critical
+  title     String   @db.VarChar(120)
+  body      String   @db.Text
+  source    String   @db.VarChar(64) // open-meteo, etc.
+  validFrom DateTime @default(now())
+  validTo   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([location, validTo])
+  @@map("climate_alerts")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique @db.VarChar(128)
+  expiresAt DateTime
+  revokedAt DateTime?
+  replacedById String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy RefreshToken? @relation("RefreshTokenRotation", fields: [replacedById], references: [id])
+  replaces RefreshToken[] @relation("RefreshTokenRotation")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  action      String   @db.VarChar(64)
+  targetType  String?  @db.VarChar(64)
+  targetId    String?  @db.VarChar(64)
+  ip          String?  @db.VarChar(64)
+  userAgent   String?  @db.Text
+  metadata    String?  @db.LongText
+  createdAt   DateTime @default(now())
+
+  actor User? @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+model LedgerAccount {
+  id        String   @id @default(cuid())
+  code      String   @unique @db.VarChar(32)
+  name      String
+  type      LedgerAccountType
+  parentId  String?
+  userId    String? // optional: ties subledger to a specific user (e.g., farmer payable subaccount)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent LedgerAccount? @relation("LedgerAccountParent", fields: [parentId], references: [id])
+  children LedgerAccount[] @relation("LedgerAccountParent")
+
+  lines JournalLine[]
+
+  @@map("ledger_accounts")
+}
+
+model JournalEntry {
+  id            String   @id @default(cuid())
+  referenceType String   // payment, payout, adjustment, etc.
+  referenceId   String   // e.g. transactionId
+  orderId       String?  // optional helper for filtering
+  memo          String?  @db.Text
+  currency      String   @default("UGX")
+  createdAt     DateTime @default(now())
+
+  lines JournalLine[]
+
+  @@unique([referenceType, referenceId])
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id        String @id @default(cuid())
+  entryId   String
+  accountId String
+  debit     Float  @default(0)
+  credit    Float  @default(0)
+  memo      String? @db.Text
+
+  entry   JournalEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account LedgerAccount @relation(fields: [accountId], references: [id])
+
+  @@map("journal_lines")
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int // 1-5 stars
+  comment   String?  @db.Text
+  userId    String
+  productId String
+  orderId   String   @unique
+  createdAt DateTime @default(now())
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id])
+
+  @@map("reviews")
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  content    String   @db.Text
+  audioUrl   String?  @db.Text
+  senderId   String
+  receiverId String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  // Relations
+  sender   User @relation("MessageSender", fields: [senderId], references: [id])
+  receiver User @relation("MessageReceiver", fields: [receiverId], references: [id])
+
+  @@map("messages")
+}
+
+model Document {
+  id           String   @id @default(cuid())
+  userId       String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  storagePath  String
+  extractedText String? @db.LongText
+  aiSummary     String? @db.LongText
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("documents")
+}
+
+model DeviceToken {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String   @unique @db.VarChar(255)
+  platform   String?  // android, ios, web
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("device_tokens")
+}
+
+model NotificationLog {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // chat, payment, order
+  channel   String   // sms, whatsapp
+  to        String   @db.VarChar(32)
+  body      String?  @db.Text
+  provider  String   @default("twilio")
+  providerSid String? @db.VarChar(64)
+  status    String   @default("queued")
+  error     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_logs")
+}
+
+model MarketWebPrice {
+  id          String    @id @default(cuid())
+  category    Category?
+  commodity   String?   @db.VarChar(100)
+  market      String?   @db.VarChar(32) // local, urban, international
+  country     String?   @db.VarChar(64)
+  location    String?   @db.VarChar(120)
+  price       Float
+  currency    String    @default("UGX")
+  unit        String?   @db.VarChar(32)
+  source      String    @db.VarChar(64)
+  sourceUrl   String?   @db.Text
+  collectedAt DateTime  @default(now())
+  raw         String?   @db.LongText
+
+  @@index([category, country, market, collectedAt])
+  @@map("market_web_prices")
+}
+
+model PriceHistory {
+  id        String   @id @default(cuid())
+  productId String
+  price     Float
+  date      DateTime @default(now())
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("price_history")
+}
+
+model UserAnalytics {
+  id        String   @id @default(cuid())
+  userId    String
+  event     String // login, product_view, purchase, etc.
+  metadata  String?  @db.Text // JSON data
+  timestamp DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("user_analytics")
+}
+
+enum Role {
+  FARMER
+  BUYER
+  ADMIN
+}
+
+enum Category {
+  VEGETABLES
+  FRUITS
+  GRAINS
+  PULSES
+  SPICES
+  DAIRY
+  POULTRY
+  ORGANIC
+  PROCESSED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum LedgerAccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}

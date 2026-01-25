@@ -1,0 +1,211 @@
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import dotenv from "dotenv";
+import rateLimit from "express-rate-limit";
+import http from "http";
+import hpp from "hpp";
+
+// Import routes
+import authRoutes from "./routes/auth.js";
+import userRoutes from "./routes/users.js";
+import productRoutes from "./routes/products.js";
+import orderRoutes from "./routes/orders.js";
+import analyticsRoutes from "./routes/analytics.js";
+import aiRoutes from "./routes/ai.js";
+import blockchainRoutes from "./routes/blockchain.js";
+import performanceRoutes from "./routes/performance.js";
+import { metricsHandler, metricsMiddleware } from "./metrics.js";
+import chatRoutes from "./routes/chat.js";
+import documentsRoutes from "./routes/documents.js";
+import paymentsRoutes from "./routes/payments.js";
+import notificationsRoutes from "./routes/notifications.js";
+import ledgerRoutes from "./routes/ledger.js";
+import marketAIRoutes from "./routes/marketAI.js";
+import marketDataRoutes from "./routes/marketData.js";
+import auditRoutes from "./routes/audit.js";
+import trustRoutes from "./routes/trust.js";
+import deliveryProofRoutes from "./routes/deliveryProof.js";
+import climateRoutes from "./routes/climate.js";
+import coopRoutes from "./routes/coop.js";
+import traceRoutes from "./routes/trace.js";
+import cron from "node-cron";
+import { initSocket } from "./socket.js";
+import path from "path";
+import { fileURLToPath } from "url";
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Behind proxies (Render/NGINX/etc) this makes req.ip correct for rate-limits/logs
+app.set("trust proxy", 1);
+
+app.use(
+	helmet({
+		contentSecurityPolicy: {
+			useDefaults: true,
+			directives: {
+				"default-src": ["'none'"],
+				"frame-ancestors": ["'none'"],
+				"base-uri": ["'none'"],
+				"form-action": ["'none'"],
+			},
+		},
+		referrerPolicy: { policy: "no-referrer" },
+	}),
+);
+const defaultAllowedOrigins = [
+	"http://localhost:5173",
+	"http://127.0.0.1:5173",
+	"http://localhost:4173",
+	"http://127.0.0.1:4173",
+	"http://localhost:3000",
+	"http://127.0.0.1:3000",
+	// Common hybrid-mobile/webview origins
+	"capacitor://localhost",
+	"ionic://localhost",
+];
+
+const envAllowedOrigins = (process.env.CORS_ORIGINS || "")
+	.split(",")
+	.map((o) => o.trim())
+	.filter(Boolean);
+
+const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...envAllowedOrigins])];
+
+app.use(
+	cors({
+		origin: (origin, callback) => {
+			// Non-browser clients (curl, server-to-server, mobile native) may not send Origin
+			if (!origin) {
+				return callback(null, true);
+			}
+
+			// In development, allow any origin to avoid front/back iteration friction.
+			if ((process.env.NODE_ENV || "development") !== "production") {
+				return callback(null, true);
+			}
+
+			if (allowedOrigins.includes(origin)) {
+				callback(null, true);
+			} else {
+				console.warn("Blocked by CORS:", origin);
+				callback(new Error("Not allowed by CORS"));
+			}
+		},
+		credentials: true,
+		methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+		allowedHeaders: ["Content-Type", "Authorization"],
+	}),
+);
+
+// Rate limiting
+const limiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 100, // limit each IP to 100 requests per windowMs
+	standardHeaders: true,
+	legacyHeaders: false,
+});
+app.use(limiter);
+
+// HTTP Parameter Pollution protection (?a=1&a=2)
+app.use(hpp());
+
+// Body parsing middleware
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+
+// Metrics (before routes)
+app.use(metricsMiddleware);
+
+// Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/ai", aiRoutes);
+app.use("/api/blockchain", blockchainRoutes);
+app.use("/api/performance", performanceRoutes);
+app.use("/api/chat", chatRoutes);
+app.use("/api/documents", documentsRoutes);
+app.use("/api/payments", paymentsRoutes);
+app.use("/api/notifications", notificationsRoutes);
+app.use("/api/ledger", ledgerRoutes);
+app.use("/api/market-ai", marketAIRoutes);
+app.use("/api/market-data", marketDataRoutes);
+app.use("/api/audit", auditRoutes);
+app.use("/api/trust", trustRoutes);
+app.use("/api/delivery-proof", deliveryProofRoutes);
+app.use("/api/climate", climateRoutes);
+app.use("/api/coop", coopRoutes);
+app.use("/api/trace", traceRoutes);
+
+// Optional scheduled refresh of web market data
+if (String(process.env.MARKET_DATA_CRON_ENABLED || "false").toLowerCase() === "true") {
+	// Default: every 6 hours
+	const schedule = process.env.MARKET_DATA_CRON_SCHEDULE || "0 */6 * * *";
+	cron.schedule(schedule, async () => {
+		try {
+			// Lazy import to avoid unnecessary overhead if unused
+			const { refreshMarketWebPrices } = await import("./services/webMarketDataService.js");
+			await refreshMarketWebPrices();
+		} catch (e) {
+			console.error("Market data cron refresh failed:", e);
+		}
+	});
+}
+
+// Serve uploaded files (voice notes, docs, etc.)
+app.use(
+	"/uploads",
+	express.static(path.join(__dirname, "uploads"), {
+		index: false,
+		dotfiles: "deny",
+		setHeaders: (res) => {
+			res.setHeader("X-Content-Type-Options", "nosniff");
+		},
+	}),
+);
+
+// Prometheus scrape endpoint (protect in production behind auth/proxy)
+app.get("/api/metrics", metricsHandler);
+
+app.get("/api/health", (req, res) => {
+	res.json({
+		status: "OK",
+		timestamp: new Date().toISOString(),
+		uptime: process.uptime(),
+	});
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+	console.error(err.stack);
+	res.status(500).json({
+		error: "Something went wrong!",
+		message:
+			process.env.NODE_ENV === "development"
+				? err.message
+				: "Internal server error",
+	});
+});
+
+// 404 handler
+app.use("*", (req, res) => {
+	res.status(404).json({ error: "Route not found" });
+});
+
+const server = http.createServer(app);
+initSocket(server);
+
+server.listen(PORT, () => {
+	console.log(`Server running on port ${PORT}`);
+	console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+});
+
+export default app;
