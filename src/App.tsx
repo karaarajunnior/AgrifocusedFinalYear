@@ -26,10 +26,9 @@ import OrdersPage from "./pages/OrdersPage";
 import AIModelPage from "./pages/AiModelpage";
 import ChatPage from "./pages/ChatPage";
 import CoopPage from "./pages/CoopPage";
-<<<<<<< HEAD
-=======
+
 import FormBuilderPage from "./pages/FormBuilderPage";
->>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
+
 
 function AppContent() {
 	const { user, loading } = useAuth();
@@ -132,8 +131,7 @@ function AppContent() {
 							</ProtectedRoute>
 						}
 					/>
-<<<<<<< HEAD
-=======
+
 					<Route
 						path="/form-builder"
 						element={
@@ -142,7 +140,7 @@ function AppContent() {
 							</ProtectedRoute>
 						}
 					/>
->>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
+
 
 					{/* Fallback */}
 					<Route path="*" element={<Navigate to="/" />} />
