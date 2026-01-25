@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
 	BrowserRouter as Router,
 	Routes,
@@ -26,9 +26,7 @@ import OrdersPage from "./pages/OrdersPage";
 import AIModelPage from "./pages/AiModelpage";
 import ChatPage from "./pages/ChatPage";
 import CoopPage from "./pages/CoopPage";
-
 import FormBuilderPage from "./pages/FormBuilderPage";
-
 
 function AppContent() {
 	const { user, loading } = useAuth();
@@ -62,25 +60,17 @@ function AppContent() {
 					<Route
 						path="/login"
 						element={
-							user ? (
-								<Navigate to={getDashboardRoute()} />
-							) : (
-								<LoginPage />
-							)
+							user ? <Navigate to="/dashboard" /> : <LoginPage />
 						}
 					/>
 					<Route
 						path="/register"
 						element={
-							user ? (
-								<Navigate to={getDashboardRoute()} />
-							) : (
-								<RegisterPage />
-							)
+							user ? <Navigate to="/dashboard" /> : <RegisterPage />
 						}
 					/>
 
-					{/* Protected routes */}
+					{/* Protected dashboard */}
 					<Route
 						path="/dashboard"
 						element={
@@ -91,6 +81,7 @@ function AppContent() {
 							</ProtectedRoute>
 						}
 					/>
+
 					<Route
 						path="/profile"
 						element={
@@ -131,7 +122,6 @@ function AppContent() {
 							</ProtectedRoute>
 						}
 					/>
-
 					<Route
 						path="/form-builder"
 						element={
@@ -141,11 +131,11 @@ function AppContent() {
 						}
 					/>
 
-
 					{/* Fallback */}
 					<Route path="*" element={<Navigate to="/" />} />
 				</Routes>
 			</main>
+
 			<Toaster
 				position="top-right"
 				toastOptions={{
@@ -164,7 +154,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 	const { user, loading } = useAuth();
 
 	if (loading) {
-		return <LoadingSpinner size="lg" />;
+		return (
+			<div className="flex justify-center py-10">
+				<LoadingSpinner size="lg" />
+			</div>
+		);
 	}
 
 	if (!user) {
@@ -172,10 +166,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 	}
 
 	return <>{children}</>;
-}
-
-function getDashboardRoute() {
-	return "/dashboard";
 }
 
 function App() {
