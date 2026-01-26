@@ -17,11 +17,10 @@ function refreshTokenDays() {
 }
 
 export function issueAccessToken({ userId }) {
-<<<<<<< HEAD
 	return jwt.sign({ userId }, process.env.JWT_SECRET||"mysecret", {
-=======
+
 	return jwt.sign({ userId }, process.env.JWT_SECRET, {
->>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
+
 		expiresIn: accessTokenTtl(),
 	});
 }
