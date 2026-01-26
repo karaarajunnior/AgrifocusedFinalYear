@@ -279,11 +279,11 @@ router.get("/:id", async (req, res) => {
 				  product.reviews.length
 				: 0;
 
-<<<<<<< HEAD
+
 		res.json({
 			...product,
 			avgRating: Math.round(avgRating * 10) / 10,
-=======
+
 	let customFieldsParsed = null;
 	try {
 		customFieldsParsed = product.customFields ? JSON.parse(product.customFields) : null;
@@ -295,7 +295,7 @@ router.get("/:id", async (req, res) => {
 			...product,
 			avgRating: Math.round(avgRating * 10) / 10,
 		customFields: customFieldsParsed,
->>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
+
 		});
 	} catch (error) {
 		console.error("Get product error:", error);
@@ -325,10 +325,9 @@ router.post(
 		body("price").isFloat({ min: 0.01 }),
 		body("quantity").isInt({ min: 1 }),
 		body("location").trim().isLength({ min: 2 }),
-<<<<<<< HEAD
-=======
+
 		body("customFields").optional().isObject(),
->>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
+
 	],
 	createProduct,
 );
@@ -363,10 +362,9 @@ router.put(
 		body("location").optional().isString().trim().isLength({ min: 2, max: 120 }),
 		body("organic").optional().isBoolean(),
 		body("available").optional().isBoolean(),
-<<<<<<< HEAD
-=======
+
 		body("customFields").optional().isObject(),
->>>>>>> 225243225361ddfd0eb3107de5c6df2f70ee111c
+
 	],
 	updateProduct,
 );
