@@ -17,13 +17,15 @@ function refreshTokenDays() {
 }
 
 export function issueAccessToken({ userId }) {
-	return jwt.sign({ userId }, process.env.JWT_SECRET||"mysecret", {
-
-	return jwt.sign({ userId }, process.env.JWT_SECRET, {
-
-		expiresIn: accessTokenTtl(),
-	});
+	return jwt.sign(
+		{ userId },
+		process.env.JWT_SECRET || "mysecret",
+		{
+			expiresIn: accessTokenTtl(),
+		}
+	);
 }
+
 
 export async function issueRefreshToken({ userId }) {
 	const token = crypto.randomBytes(48).toString("hex");
