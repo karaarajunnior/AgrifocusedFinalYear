@@ -1,6 +1,10 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\docs",
+    "\\server",
+    "\\server\\controllers",
+    "\\server\\routes"
   ],
   "PreviewInSolutionExplorer": false
 }

@@ -1,7 +1,6 @@
 import express from "express";
-import { body, validationResult } from "express-validator";
+import { body, param, validationResult } from "express-validator";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
-import twilio from "twilio";
 import { updateNotificationStatus } from "../services/smsWhatsappService.js";
 import prisma from "../db/prisma.js";
 import { handleInboundSms } from "../services/smsCommandService.js";
@@ -130,59 +129,84 @@ router.put(
 	},
 );
 
-// Twilio delivery receipts (status callback). Public endpoint.
-router.post("/twilio/status", async (req, res) => {
+// Get in-app notifications for the current user
+router.get("/my", authenticateToken, async (req, res) => {
 	try {
-		// Optional signature verification (recommended in production)
-		const verify = String(process.env.TWILIO_VALIDATE_WEBHOOK || "false").toLowerCase() === "true";
-		if (verify) {
-			const signature = req.get("x-twilio-signature");
-			const url =
-				process.env.TWILIO_STATUS_CALLBACK_URL ||
-				(process.env.PUBLIC_BASE_URL
-					? `${process.env.PUBLIC_BASE_URL.replace(/\/$/, "")}/api/notifications/twilio/status`
-					: null);
-			if (!signature || !url) {
-				return res.status(401).json({ error: "Signature verification failed" });
-			}
-			const ok = twilio.validateRequest(
-				process.env.TWILIO_AUTH_TOKEN,
-				signature,
-				url,
-				req.body || {},
-			);
-			if (!ok) return res.status(401).json({ error: "Invalid signature" });
+		const limit = Math.min(Number(req.query.limit || 50), 100);
+		const notifications = await prisma.notificationLog.findMany({
+			where: { userId: req.user.id },
+			orderBy: { createdAt: "desc" },
+			take: limit,
+			select: {
+				id: true,
+				type: true,
+				channel: true,
+				body: true,
+				status: true,
+				createdAt: true,
+			},
+		});
+		res.json({ notifications });
+	} catch (error) {
+		console.error("Get notifications error:", error);
+		res.status(500).json({ error: "Failed to fetch notifications" });
+	}
+});
+
+// Mark a notification as read
+router.patch(
+	"/:id/read",
+	authenticateToken,
+	[param("id").isString()],
+	async (req, res) => {
+		try {
+			const notification = await prisma.notificationLog.findFirst({
+				where: { id: req.params.id, userId: req.user.id },
+			});
+			if (!notification) return res.status(404).json({ error: "Notification not found" });
+
+			await prisma.notificationLog.update({
+				where: { id: notification.id },
+				data: { status: "read" },
+			});
+
+			res.json({ ok: true });
+		} catch (error) {
+			console.error("Mark read error:", error);
+			res.status(500).json({ error: "Failed to mark notification as read" });
 		}
+	},
+);
 
-		const sid = req.body?.MessageSid || req.body?.SmsSid;
-		const status = req.body?.MessageStatus || req.body?.SmsStatus;
-		await updateNotificationStatus({ providerSid: sid, status, raw: req.body });
-		res.json({ ok: true });
-	} catch (error) {
-		console.error("Twilio status webhook error:", error);
-		res.status(500).json({ error: "Failed to process status" });
-	}
-});
+// In-app text command handler (simulates SMS/USSD commands in-app)
+router.post(
+	"/command",
+	authenticateToken,
+	[body("command").isString().trim().isLength({ min: 1, max: 200 })],
+	async (req, res) => {
+		try {
+			const errors = validationResult(req);
+			if (!errors.isEmpty()) {
+				return res.status(400).json({ errors: errors.array() });
+			}
 
-// Twilio inbound SMS webhook (SMS fallback for rural users)
-// Configure in Twilio: Messaging webhook -> POST to /api/notifications/twilio/inbound
-router.post("/twilio/inbound", async (req, res) => {
-	try {
-		const from = req.body?.From || req.body?.from || null;
-		const bodyText = req.body?.Body || req.body?.body || "";
-		const { twiml } = await handleInboundSms({ from, body: bodyText });
-		res.set("Content-Type", "text/xml");
-		return res.status(200).send(twiml);
-	} catch (error) {
-		console.error("Twilio inbound error:", error);
-		res.set("Content-Type", "text/xml");
-		return res
-			.status(200)
-			.send(
-				`<?xml version="1.0" encoding="UTF-8"?><Response><Message>Server error. Try again later.</Message></Response>`,
-			);
-	}
-});
+			const user = await prisma.user.findUnique({
+				where: { id: req.user.id },
+				select: { phone: true },
+			});
+
+			const { response } = await handleInboundSms({
+				from: user?.phone || req.user.id,
+				body: req.body.command,
+			});
+
+			res.json({ response });
+		} catch (error) {
+			console.error("Command handler error:", error);
+			res.status(500).json({ error: "Failed to process command" });
+		}
+	},
+);
 
 // Admin: notifications delivery analytics
 router.get(
@@ -258,4 +282,3 @@ router.get(
 );
 
 export default router;
-

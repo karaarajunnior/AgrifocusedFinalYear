@@ -16,13 +16,19 @@ import {
 	Navigation,
 	Target,
 	Clock,
+	RefreshCw,
 } from "lucide-react";
 import LoadingSpinner from "../components/LoadingSpinner";
 import api from "../services/api";
 import { toast } from "react-hot-toast";
+import axios from "axios";
 import AIInsights from "../components/AIInsights";
 import ClimateAlertsCard from "../components/ClimateAlertsCard";
 import TrustBadge, { TrustScore } from "../components/TrustBadge";
+import { saveToCache, getFromCache, isOffline } from "../utils/offlineCache";
+import { useOfflineSync } from "../hooks/useOfflineSync";
+import OfflineBadge from "../components/OfflineBadge";
+import { enqueueOfflineOrderDraft, getOfflineOrderCount } from "../utils/offlineOrderQueue";
 
 interface Product {
 	id: string;
@@ -85,6 +91,12 @@ function BuyerDashboard() {
 	const [searchRadius, setSearchRadius] = useState(25);
 	const [showAIModal, setShowAIModal] = useState(false);
 	const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+	const [cacheTime, setCacheTime] = useState<string | undefined>();
+
+	const { isOnline } = useOfflineSync(() => {
+		fetchData();
+		fetchProducts();
+	});
 
 	const categories = [
 		"VEGETABLES",
@@ -112,8 +124,17 @@ function BuyerDashboard() {
 		try {
 			const analyticsRes = await api.get("/analytics/buyer");
 			setAnalytics(analyticsRes.data);
+			saveToCache('buyer.analytics', analyticsRes.data);
+			setCacheTime(undefined);
 		} catch (error) {
 			console.error("Failed to fetch analytics:", error);
+			if (axios.isAxiosError(error) && !error.response) {
+				const cached = getFromCache<Analytics>('buyer.analytics');
+				if (cached) {
+					setAnalytics(cached.data);
+					setCacheTime(cached.timestamp);
+				}
+			}
 		}
 	};
 
@@ -141,9 +162,8 @@ function BuyerDashboard() {
 				.map((product, index) => ({
 					...product,
 					distance: Math.round((Math.random() * searchRadius + 1) * 10) / 10,
-					distanceText: `${
-						Math.round((Math.random() * searchRadius + 1) * 10) / 10
-					} km away`,
+					distanceText: `${Math.round((Math.random() * searchRadius + 1) * 10) / 10
+						} km away`,
 				}));
 			setNearbyProducts(productsWithDistance);
 		}
@@ -158,9 +178,18 @@ function BuyerDashboard() {
 
 			const response = await api.get(`/products?${params.toString()}`);
 			setProducts(response.data.products);
+
+			if (!searchTerm && !selectedCategory) {
+				saveToCache('buyer.products', response.data.products);
+			}
 		} catch (error) {
 			console.error("Failed to fetch products:", error);
-			toast.error("Failed to load products");
+			if (axios.isAxiosError(error) && !error.response) {
+				const cached = getFromCache<Product[]>('buyer.products');
+				if (cached) setProducts(cached.data);
+			} else {
+				toast.error("Failed to load products");
+			}
 		} finally {
 			setLoading(false);
 			setLocationLoading(false);
@@ -168,6 +197,8 @@ function BuyerDashboard() {
 	};
 
 	const handleOrder = async (productId: string, quantity: number = 1) => {
+		const product = products.find(p => p.id === productId) || nearbyProducts.find(p => p.id === productId);
+
 		try {
 			await api.post("/orders", {
 				productId,
@@ -178,7 +209,16 @@ function BuyerDashboard() {
 			toast.success("Order placed successfully!");
 			fetchData(); // Refresh analytics
 		} catch (error: any) {
-			toast.error(error.response?.data?.error || "Failed to place order");
+			if (axios.isAxiosError(error) && !error.response) {
+				enqueueOfflineOrderDraft({
+					productId,
+					quantity,
+					notes: "Order placed from dashboard (Offline)"
+				}, product?.name || "Product");
+				toast.success("Order saved offline. Will sync when online.");
+			} else {
+				toast.error(error.response?.data?.error || "Failed to place order");
+			}
 		}
 	};
 
@@ -195,6 +235,7 @@ function BuyerDashboard() {
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 				{/* Header */}
 				<div className="mb-8">
+					<OfflineBadge isOffline={!isOnline} timestamp={cacheTime} />
 					<h1 className="text-3xl font-bold text-gray-900">
 						Welcome back, {user?.name}! 🛒
 					</h1>
@@ -202,6 +243,26 @@ function BuyerDashboard() {
 						Discover fresh produce directly from farmers
 					</p>
 				</div>
+
+				{/* Pending Sync Alert */}
+				{getOfflineOrderCount() > 0 && (
+					<div className="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
+						<div className="flex items-center gap-3">
+							<RefreshCw className="h-5 w-5 text-blue-600 animate-spin-slow" />
+							<div>
+								<p className="text-sm font-bold text-blue-900">
+									{getOfflineOrderCount()} Pending Order(s)
+								</p>
+								<p className="text-xs text-blue-700">
+									These orders will be placed automatically when your connection returns.
+								</p>
+							</div>
+						</div>
+						{!isOnline && (
+							<span className="text-[10px] font-black bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full uppercase">Waiting for Network</span>
+						)}
+					</div>
+				)}
 
 				{/* Location-Based Shopping Section */}
 				<div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow mb-8">
@@ -259,9 +320,8 @@ function BuyerDashboard() {
 											<span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
 												📍{" "}
 												{product.distanceText ||
-													`${
-														product.distance ||
-														Math.round(Math.random() * searchRadius + 1)
+													`${product.distance ||
+													Math.round(Math.random() * searchRadius + 1)
 													}km away`}
 											</span>
 										</div>
@@ -350,9 +410,9 @@ function BuyerDashboard() {
 									<p className="text-sm font-medium text-gray-600">
 										Total Spent
 									</p>
-										<p className="text-2xl font-bold text-gray-900">
-											UGX {analytics.overview.totalSpent.toLocaleString()}
-										</p>
+									<p className="text-2xl font-bold text-gray-900">
+										UGX {analytics.overview.totalSpent.toLocaleString()}
+									</p>
 								</div>
 							</div>
 						</div>
@@ -366,9 +426,9 @@ function BuyerDashboard() {
 									<p className="text-sm font-medium text-gray-600">
 										Avg Order Value
 									</p>
-										<p className="text-2xl font-bold text-gray-900">
-											UGX {analytics.overview.averageOrderValue.toLocaleString()}
-										</p>
+									<p className="text-2xl font-bold text-gray-900">
+										UGX {analytics.overview.averageOrderValue.toLocaleString()}
+									</p>
 								</div>
 							</div>
 						</div>
@@ -517,11 +577,11 @@ function BuyerDashboard() {
 													{product.farmer.verified && (
 														<span className="ml-1 text-blue-500">✓</span>
 													)}
-												{product.farmerTrust ? (
-													<span className="ml-2">
-														<TrustBadge trust={product.farmerTrust} compact />
-													</span>
-												) : null}
+													{product.farmerTrust ? (
+														<span className="ml-2">
+															<TrustBadge trust={product.farmerTrust} compact />
+														</span>
+													) : null}
 												</div>
 
 												{product.totalReviews > 0 && (
@@ -582,13 +642,12 @@ function BuyerDashboard() {
 											</p>
 										</div>
 										<span
-											className={`px-2 py-1 text-xs font-medium rounded-full ${
-												order.status === "DELIVERED"
-													? "bg-green-100 text-green-800"
-													: order.status === "PENDING"
+											className={`px-2 py-1 text-xs font-medium rounded-full ${order.status === "DELIVERED"
+												? "bg-green-100 text-green-800"
+												: order.status === "PENDING"
 													? "bg-yellow-100 text-yellow-800"
 													: "bg-blue-100 text-blue-800"
-											}`}>
+												}`}>
 											{order.status}
 										</span>
 									</div>

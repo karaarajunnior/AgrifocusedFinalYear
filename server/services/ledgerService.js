@@ -1,7 +1,7 @@
 import prisma from "../db/prisma.js";
 
 const BASE_ACCOUNTS = {
-	AIRTEL_CASH: { code: "1000", name: "Airtel Money Clearing (UGX)", type: "ASSET" },
+	MOBILE_MONEY_CASH: { code: "1000", name: "Mobile Money Clearing (UGX)", type: "ASSET" },
 	FARMER_PAYABLES: { code: "2000", name: "Payables to Farmers (UGX)", type: "LIABILITY" },
 	PLATFORM_FEES: { code: "4000", name: "Platform Fees Revenue (UGX)", type: "REVENUE" },
 };
@@ -15,7 +15,7 @@ async function upsertAccount({ code, name, type, parentId = null, userId = null 
 }
 
 async function ensureBaseAccounts() {
-	const cash = await upsertAccount(BASE_ACCOUNTS.AIRTEL_CASH);
+	const cash = await upsertAccount(BASE_ACCOUNTS.MOBILE_MONEY_CASH);
 	const payables = await upsertAccount(BASE_ACCOUNTS.FARMER_PAYABLES);
 	const fees = await upsertAccount(BASE_ACCOUNTS.PLATFORM_FEES);
 	return { cash, payables, fees };
@@ -43,11 +43,11 @@ function round2(n) {
 	return Math.round(n * 100) / 100;
 }
 
-export async function postAirtelPaymentCompleted({ transactionId }) {
+export async function postPaymentCompleted({ transactionId }) {
 	// Idempotent by (referenceType, referenceId)
 	const existing = await prisma.journalEntry.findUnique({
 		where: {
-			referenceType_referenceId: { referenceType: "airtel_payment", referenceId: transactionId },
+			referenceType_referenceId: { referenceType: "mobile_money_payment", referenceId: transactionId },
 		},
 	});
 	if (existing) return { ok: true, entryId: existing.id, idempotent: true };
@@ -78,18 +78,18 @@ export async function postAirtelPaymentCompleted({ transactionId }) {
 
 	const entry = await prisma.journalEntry.create({
 		data: {
-			referenceType: "airtel_payment",
+			referenceType: "mobile_money_payment",
 			referenceId: tx.id,
 			orderId: tx.orderId,
 			currency: tx.currency || "UGX",
-			memo: `Airtel Money payment completed for order ${tx.orderId}`,
+			memo: `Mobile Money payment completed for order ${tx.orderId}`,
 			lines: {
 				create: [
 					{
 						accountId: cash.id,
 						debit: gross,
 						credit: 0,
-						memo: "Cash received (Airtel clearing)",
+						memo: "Cash received (Mobile Money clearing)",
 					},
 					{
 						accountId: farmerSub.id,

@@ -11,8 +11,12 @@ import {
 	Package,
 	MessageSquare,
 	Users,
-
+	Truck,
+	ShieldCheck,
 	SlidersHorizontal,
+	ShoppingBag,
+	FileSignature,
+	Search,
 
 } from "lucide-react";
 
@@ -39,18 +43,17 @@ function Navbar() {
 					{/* Logo */}
 					<Link to="/" className="flex items-center space-x-2">
 						<Leaf className="h-8 w-8 text-green-600" />
-						<span className="text-xl font-bold text-gray-900">AgriConnect</span>
+						<span className="text-xl font-bold text-gray-900">DAFIS</span>
 					</Link>
 
 					{/* Desktop Navigation */}
 					<div className="hidden md:flex items-center space-x-6">
 						<Link
 							to="/marketplace"
-							className={`text-sm font-medium transition-colors ${
-								isActive("/marketplace")
-									? "text-green-600"
-									: "text-gray-600 hover:text-gray-900"
-							}`}>
+							className={`text-sm font-medium transition-colors ${isActive("/marketplace")
+								? "text-green-600"
+								: "text-gray-600 hover:text-gray-900"
+								}`}>
 							Marketplace
 						</Link>
 
@@ -58,48 +61,90 @@ function Navbar() {
 							<>
 								<Link
 									to="/dashboard"
-									className={`flex items-center space-x-1 text-sm font-medium transition-colors ${
-										isActive("/dashboard")
-											? "text-green-600"
-											: "text-gray-600 hover:text-gray-900"
-									}`}>
+									className={`flex items-center space-x-1 text-sm font-medium transition-colors ${isActive("/dashboard")
+										? "text-green-600"
+										: "text-gray-600 hover:text-gray-900"
+										}`}>
 									<BarChart3 className="h-4 w-4" />
 									<span>Dashboard</span>
 								</Link>
 
 								<Link
 									to="/orders"
-									className={`flex items-center space-x-1 text-sm font-medium transition-colors ${
-										isActive("/orders")
-											? "text-green-600"
-											: "text-gray-600 hover:text-gray-900"
-									}`}>
+									className={`flex items-center space-x-1 text-sm font-medium transition-colors ${isActive("/orders")
+										? "text-green-600"
+										: "text-gray-600 hover:text-gray-900"
+										}`}>
 									<Package className="h-4 w-4" />
 									<span>Orders</span>
 								</Link>
 
+								{(user.role === "FARMER" || user.role === "BUYER") && (
+									<Link
+										to="/logistics"
+										className={`flex items-center space-x-1 text-sm font-medium transition-colors ${isActive("/logistics")
+											? "text-green-600"
+											: "text-gray-600 hover:text-gray-900"
+											}`}>
+										<Truck className="h-4 w-4" />
+										<span>Logistics</span>
+									</Link>
+								)}
+
 								{user.role === "FARMER" && (
 									<Link
 										to="/coops"
-										className={`flex items-center space-x-1 text-sm font-medium transition-colors ${
-											isActive("/coops")
-												? "text-green-600"
-												: "text-gray-600 hover:text-gray-900"
-										}`}>
+										className={`flex items-center space-x-1 text-sm font-medium transition-colors ${isActive("/coops")
+											? "text-green-600"
+											: "text-gray-600 hover:text-gray-900"
+											}`}>
 										<Users className="h-4 w-4" />
 										<span>Co-ops</span>
 									</Link>
+								)}
+
+								{user.role === "FARMER" && (
+									<>
+										<Link
+											to="/export-verification"
+											className={`flex items-center space-x-1 text-sm font-medium transition-colors ${isActive("/export-verification")
+												? "text-green-600"
+												: "text-gray-600 hover:text-gray-900"
+												}`}>
+											<ShieldCheck className="h-4 w-4" />
+											<span>Export</span>
+										</Link>
+
+										<Link
+											to="/agro-store"
+											className={`flex items-center space-x-1 text-sm font-medium transition-colors ${isActive("/agro-store")
+												? "text-green-600"
+												: "text-gray-600 hover:text-gray-900"
+												}`}>
+											<ShoppingBag className="h-4 w-4" />
+											<span>Inputs</span>
+										</Link>
+
+										<Link
+											to="/contracts"
+											className={`flex items-center space-x-1 text-sm font-medium transition-colors ${isActive("/contracts")
+												? "text-green-600"
+												: "text-gray-600 hover:text-gray-900"
+												}`}>
+											<FileSignature className="h-4 w-4" />
+											<span>Contracts</span>
+										</Link>
+									</>
 								)}
 
 
 								{user.role === "ADMIN" && (
 									<Link
 										to="/form-builder"
-										className={`flex items-center space-x-1 text-sm font-medium transition-colors ${
-											isActive("/form-builder")
-												? "text-green-600"
-												: "text-gray-600 hover:text-gray-900"
-										}`}>
+										className={`flex items-center space-x-1 text-sm font-medium transition-colors ${isActive("/form-builder")
+											? "text-green-600"
+											: "text-gray-600 hover:text-gray-900"
+											}`}>
 										<SlidersHorizontal className="h-4 w-4" />
 										<span>Forms</span>
 									</Link>
@@ -108,11 +153,10 @@ function Navbar() {
 
 								<Link
 									to="/chat"
-									className={`flex items-center space-x-1 text-sm font-medium transition-colors ${
-										isActive("/chat")
-											? "text-green-600"
-											: "text-gray-600 hover:text-gray-900"
-									}`}>
+									className={`flex items-center space-x-1 text-sm font-medium transition-colors ${isActive("/chat")
+										? "text-green-600"
+										: "text-gray-600 hover:text-gray-900"
+										}`}>
 									<MessageSquare className="h-4 w-4" />
 									<span>Chat</span>
 								</Link>
@@ -190,6 +234,15 @@ function Navbar() {
 										Orders
 									</Link>
 
+									{(user.role === "FARMER" || user.role === "BUYER") && (
+										<Link
+											to="/logistics"
+											className="block text-gray-600 hover:text-gray-900 font-medium"
+											onClick={() => setIsMenuOpen(false)}>
+											Logistics
+										</Link>
+									)}
+
 									{user.role === "FARMER" && (
 										<Link
 											to="/coops"
@@ -197,6 +250,32 @@ function Navbar() {
 											onClick={() => setIsMenuOpen(false)}>
 											Co-ops
 										</Link>
+									)}
+
+									{user.role === "FARMER" && (
+										<Link
+											to="/export-verification"
+											className="block text-gray-600 hover:text-gray-900 font-medium"
+											onClick={() => setIsMenuOpen(false)}>
+											Export Verification
+										</Link>
+									)}
+
+									{user.role === "FARMER" && (
+										<>
+											<Link
+												to="/agro-store"
+												className="block text-gray-600 hover:text-gray-900 font-medium"
+												onClick={() => setIsMenuOpen(false)}>
+												Agro-Input Store
+											</Link>
+											<Link
+												to="/contracts"
+												className="block text-gray-600 hover:text-gray-900 font-medium"
+												onClick={() => setIsMenuOpen(false)}>
+												Forward Contracts
+											</Link>
+										</>
 									)}
 
 

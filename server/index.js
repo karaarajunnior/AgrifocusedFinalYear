@@ -29,6 +29,11 @@ import deliveryProofRoutes from "./routes/deliveryProof.js";
 import climateRoutes from "./routes/climate.js";
 import coopRoutes from "./routes/coop.js";
 import traceRoutes from "./routes/trace.js";
+import logisticsRoutes from "./routes/logistics.js";
+import exportRoutes from "./routes/export.js";
+import inputRoutes from "./routes/inputs.js";
+import contractRoutes from "./routes/contracts.js";
+import gradingRoutes from "./routes/grading.js";
 import cron from "node-cron";
 import { initSocket } from "./socket.js";
 import path from "path";
@@ -99,7 +104,8 @@ app.use(
 		},
 		credentials: true,
 		methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-		allowedHeaders: ["Content-Type", "Authorization"],
+		allowedHeaders: ["*", "Authorization"]
+		//"Content-Type"
 	}),
 );
 
@@ -144,6 +150,11 @@ app.use("/api/delivery-proof", deliveryProofRoutes);
 app.use("/api/climate", climateRoutes);
 app.use("/api/coop", coopRoutes);
 app.use("/api/trace", traceRoutes);
+app.use("/api/logistics", logisticsRoutes);
+app.use("/api/export", exportRoutes);
+app.use("/api/inputs", inputRoutes);
+app.use("/api/contracts", contractRoutes);
+app.use("/api/grading", gradingRoutes);
 
 // Optional scheduled refresh of web market data
 if (String(process.env.MARKET_DATA_CRON_ENABLED || "false").toLowerCase() === "true") {

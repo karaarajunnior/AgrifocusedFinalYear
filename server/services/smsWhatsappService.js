@@ -1,43 +1,30 @@
-import twilio from "twilio";
 import prisma from "../db/prisma.js";
+import nodemailer from "nodemailer";
+import { emitToUser } from "../realtime.js";
 
-function isConfigured() {
-	return Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
-}
+/**
+ * DAFIS Notification Service
+ *
+ * Replaces Twilio SMS/WhatsApp with:
+ *   1. In-app notifications (stored in DB, pushed via Socket.IO)
+ *   2. Email fallback via Nodemailer (free with any SMTP or localhost)
+ *
+ * The exported functions keep the same signatures so all callers
+ * (payments, orders, etc.) work without changes.
+ */
 
-function client() {
-	return twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-}
-
-function toE164Ug(phone) {
-	let msisdn = String(phone || "").trim();
-	msisdn = msisdn.replace(/\s+/g, "");
-	if (msisdn.startsWith("+")) return msisdn;
-	if (msisdn.startsWith("0")) return `+256${msisdn.slice(1)}`;
-	if (msisdn.startsWith("256")) return `+${msisdn}`;
-	throw new Error("Phone must be a Uganda number (e.g. 07..., 2567..., +2567...)");
-}
-
-function getAllowedChannels() {
-	// NOTIFY_CHANNELS=sms,whatsapp
-	const raw = (process.env.NOTIFY_CHANNELS || "sms,whatsapp")
-		.split(",")
-		.map((s) => s.trim().toLowerCase())
-		.filter(Boolean);
-	return raw;
-}
-
-function getFallbackOrder() {
-	// NOTIFY_FALLBACK_ORDER=whatsapp_then_sms | sms_then_whatsapp
-	const v = (process.env.NOTIFY_FALLBACK_ORDER || "whatsapp_then_sms").toLowerCase();
-	return v === "sms_then_whatsapp" ? ["sms", "whatsapp"] : ["whatsapp", "sms"];
-}
-
-function getStatusCallbackUrl() {
-	// Prefer explicit URL; else derive from PUBLIC_BASE_URL
-	if (process.env.TWILIO_STATUS_CALLBACK_URL) return process.env.TWILIO_STATUS_CALLBACK_URL;
-	if (!process.env.PUBLIC_BASE_URL) return null;
-	return `${process.env.PUBLIC_BASE_URL.replace(/\/$/, "")}/api/notifications/twilio/status`;
+function getTransporter() {
+	const host = process.env.SMTP_HOST;
+	if (!host) return null;
+	return nodemailer.createTransport({
+		host,
+		port: Number(process.env.SMTP_PORT || 587),
+		secure: process.env.SMTP_SECURE === "true",
+		auth: {
+			user: process.env.SMTP_USER || "",
+			pass: process.env.SMTP_PASS || "",
+		},
+	});
 }
 
 function isTypeEnabled(user, type) {
@@ -47,68 +34,95 @@ function isTypeEnabled(user, type) {
 	return true;
 }
 
-async function sendOne({ channel, toE164, body, userId, type }) {
+/**
+ * Send an in-app notification — stored in NotificationLog and emitted via Socket.IO.
+ */
+async function sendInApp({ userId, type, body }) {
 	if (!body) return { ok: false, skipped: true };
-
-	const to =
-		channel === "whatsapp" ? `whatsapp:${toE164}` : toE164;
-
-	const from =
-		channel === "whatsapp"
-			? process.env.TWILIO_WHATSAPP_FROM
-				? `whatsapp:${process.env.TWILIO_WHATSAPP_FROM}`
-				: null
-			: process.env.TWILIO_SMS_FROM || null;
-
-	if (!from) return { ok: false, error: `missing_from_for_${channel}` };
 
 	const log = await prisma.notificationLog.create({
 		data: {
 			userId,
 			type,
-			channel,
-			to: toE164,
+			channel: "in_app",
+			to: "in_app",
 			body,
-			provider: "twilio",
+			provider: "internal",
+			status: "delivered",
+		},
+	});
+
+	// Push via Socket.IO in realtime
+	emitToUser(userId, "notify", {
+		type: "notification",
+		notificationId: log.id,
+		category: type,
+		body,
+		timestamp: new Date().toISOString(),
+	});
+
+	return { ok: true, channel: "in_app", id: log.id };
+}
+
+/**
+ * Send an email notification via Nodemailer (free fallback).
+ */
+async function sendEmail({ userId, email, type, body }) {
+	if (!body || !email) return { ok: false, skipped: true };
+
+	const transporter = getTransporter();
+	if (!transporter) return { ok: false, error: "smtp_not_configured" };
+
+	const log = await prisma.notificationLog.create({
+		data: {
+			userId,
+			type,
+			channel: "email",
+			to: email,
+			body,
+			provider: "nodemailer",
 			status: "queued",
 		},
 	});
 
 	try {
-		const statusCallback = getStatusCallbackUrl();
-		const msg = await client().messages.create({
-			from,
-			to,
-			body,
-			statusCallback: statusCallback || undefined,
+		const fromAddr = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@dafis.ug";
+		await transporter.sendMail({
+			from: `DAFIS <${fromAddr}>`,
+			to: email,
+			subject: `DAFIS ${type} notification`,
+			text: body,
 		});
 
 		await prisma.notificationLog.update({
 			where: { id: log.id },
-			data: {
-				providerSid: msg.sid,
-				status: msg.status || "sent",
-			},
+			data: { status: "sent" },
 		});
 
-		return { ok: true, sid: msg.sid, channel };
+		return { ok: true, channel: "email" };
 	} catch (e) {
 		const err = e?.message || String(e);
 		await prisma.notificationLog.update({
 			where: { id: log.id },
 			data: { status: "failed", error: err },
 		});
-		return { ok: false, error: err, channel };
+		return { ok: false, error: err, channel: "email" };
 	}
 }
 
+/**
+ * Main notification function — same signature as the old Twilio-based notifyUser.
+ * Sends in-app first (always), then tries email as fallback.
+ *
+ * smsBody and whatsappBody params are accepted for backwards compatibility
+ * but both map to in-app and email channels.
+ */
 export async function notifyUser({ userId, type, smsBody, whatsappBody }) {
-	if (!isConfigured()) return { ok: false, reason: "twilio_not_configured" };
-
 	const user = await prisma.user.findUnique({
 		where: { id: userId },
 		select: {
 			phone: true,
+			email: true,
 			notifySms: true,
 			notifyWhatsapp: true,
 			notifyChat: true,
@@ -116,50 +130,33 @@ export async function notifyUser({ userId, type, smsBody, whatsappBody }) {
 			notifyOrder: true,
 		},
 	});
-	if (!user?.phone) return { ok: false, reason: "no_phone" };
+	if (!user) return { ok: false, reason: "user_not_found" };
 	if (!isTypeEnabled(user, type)) return { ok: false, reason: "type_disabled" };
 
-	const to = toE164Ug(user.phone);
-	const allowed = new Set(getAllowedChannels());
-	const order = getFallbackOrder();
+	// Use whatsappBody (richer formatting) if available, fallback to smsBody
+	const messageBody = whatsappBody || smsBody;
 
-	const bodies = {
-		sms: smsBody,
-		whatsapp: whatsappBody,
-	};
+	// 1. Always send in-app notification
+	const inAppResult = await sendInApp({ userId, type, body: messageBody });
 
-	// Apply user channel preferences
-	const channelEnabled = {
-		sms: Boolean(user.notifySms),
-		whatsapp: Boolean(user.notifyWhatsapp),
-	};
-
-	let lastError = null;
-	for (const channel of order) {
-		if (!allowed.has(channel)) continue;
-		if (!channelEnabled[channel]) continue;
-		const resp = await sendOne({
-			channel,
-			toE164: to,
-			body: bodies[channel],
-			userId,
-			type,
-		});
-		if (resp.ok) return { ok: true, channel };
-		if (!resp.skipped) lastError = resp.error;
+	// 2. Try email as fallback (if user has email and SMTP is configured)
+	if (user.email) {
+		await sendEmail({ userId, email: user.email, type, body: smsBody || whatsappBody });
 	}
 
-	return { ok: false, reason: "all_channels_failed", error: lastError };
+	return inAppResult;
 }
 
+/**
+ * Update notification status (kept for compatibility with existing callers).
+ */
 export async function updateNotificationStatus({ providerSid, status, raw }) {
 	if (!providerSid) return;
 	await prisma.notificationLog.updateMany({
-		where: { provider: "twilio", providerSid },
+		where: { provider: "internal", providerSid },
 		data: {
 			status: status || "unknown",
 			error: raw ? JSON.stringify(raw).slice(0, 2000) : undefined,
 		},
 	});
 }
-

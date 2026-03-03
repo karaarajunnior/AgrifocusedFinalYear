@@ -27,6 +27,12 @@ import AIModelPage from "./pages/AiModelpage";
 import ChatPage from "./pages/ChatPage";
 import CoopPage from "./pages/CoopPage";
 import FormBuilderPage from "./pages/FormBuilderPage";
+import LogisticsPage from "./pages/LogisticsPage";
+import ExportApplicationPage from "./pages/ExportApplicationPage";
+import AgroStore from "./pages/AgroStore";
+import TracePage from "./pages/TracePage";
+import ContractsPage from "./pages/ContractsPage";
+import GradingPage from "./pages/GradingPage";
 
 function AppContent() {
 	const { user, loading } = useAuth();
@@ -55,6 +61,7 @@ function AppContent() {
 					<Route path="/" element={<LandingPage />} />
 					<Route path="/marketplace" element={<MarketplacePage />} />
 					<Route path="/product/:id" element={<ProductDetails />} />
+					<Route path="/trace/:batchId" element={<TracePage />} />
 
 					{/* Auth routes */}
 					<Route
@@ -127,6 +134,46 @@ function AppContent() {
 						element={
 							<ProtectedRoute>
 								<FormBuilderPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/logistics"
+						element={
+							<ProtectedRoute>
+								<LogisticsPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/export-verification"
+						element={
+							<ProtectedRoute>
+								<ExportApplicationPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/agro-store"
+						element={
+							<ProtectedRoute>
+								<AgroStore />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/contracts"
+						element={
+							<ProtectedRoute>
+								<ContractsPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/grading"
+						element={
+							<ProtectedRoute>
+								<GradingPage />
 							</ProtectedRoute>
 						}
 					/>

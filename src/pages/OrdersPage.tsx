@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
-import { 
-  Package, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  Truck, 
+import {
+  Package,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Truck,
   Star,
   Eye,
   Filter
@@ -108,7 +108,7 @@ function OrdersPage() {
 
   const submitReview = async () => {
     if (!selectedOrder) return;
-    
+
     try {
       await api.post(`/orders/${selectedOrder.id}/review`, reviewData);
       toast.success('Review submitted successfully');
@@ -215,7 +215,7 @@ function OrdersPage() {
     }
   };
 
-  const filteredOrders = statusFilter 
+  const filteredOrders = statusFilter
     ? orders.filter(order => order.status === statusFilter)
     : orders;
 
@@ -236,7 +236,7 @@ function OrdersPage() {
             {user?.role === 'FARMER' ? 'Sales Orders' : 'My Orders'} 📦
           </h1>
           <p className="text-gray-600 mt-2">
-            {user?.role === 'FARMER' 
+            {user?.role === 'FARMER'
               ? 'Manage orders from your customers'
               : 'Track your orders and purchase history'
             }
@@ -251,32 +251,30 @@ function OrdersPage() {
                 <Filter className="h-5 w-5 text-gray-400" />
                 <span className="text-sm font-medium text-gray-700">Filter by status:</span>
               </div>
-              
+
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setStatusFilter('')}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                    statusFilter === '' 
-                      ? 'bg-green-100 text-green-800' 
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${statusFilter === ''
+                      ? 'bg-green-100 text-green-800'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   All ({orders.length})
                 </button>
-                
+
                 {['PENDING', 'CONFIRMED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'].map((status) => {
                   const count = orders.filter(order => order.status === status).length;
                   if (count === 0) return null;
-                  
+
                   return (
                     <button
                       key={status}
                       onClick={() => setStatusFilter(status)}
-                      className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                        statusFilter === status 
+                      className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${statusFilter === status
                           ? getStatusColor(status)
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                        }`}
                     >
                       {status.charAt(0) + status.slice(1).toLowerCase()} ({count})
                     </button>
@@ -346,7 +344,7 @@ function OrdersPage() {
               {statusFilter ? `No ${statusFilter.toLowerCase()} orders` : 'No orders yet'}
             </h3>
             <p className="text-gray-600">
-              {user?.role === 'FARMER' 
+              {user?.role === 'FARMER'
                 ? 'Orders from customers will appear here'
                 : 'Start shopping to see your orders here'
               }
@@ -369,7 +367,7 @@ function OrdersPage() {
                         </p>
                       </div>
                     </div>
-                    
+
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
                       {order.status.charAt(0) + order.status.slice(1).toLowerCase()}
                     </span>
@@ -380,17 +378,17 @@ function OrdersPage() {
                       <p className="text-sm text-gray-600">Quantity</p>
                       <p className="font-medium">{order.quantity} {order.product.unit}</p>
                     </div>
-                    
+
                     <div>
                       <p className="text-sm text-gray-600">Total Price</p>
                       <p className="font-medium text-green-600">₹{order.totalPrice.toLocaleString()}</p>
                     </div>
-                    
+
                     <div>
                       <p className="text-sm text-gray-600">Order Date</p>
                       <p className="font-medium">{new Date(order.createdAt).toLocaleDateString()}</p>
                     </div>
-                    
+
                     <div>
                       <p className="text-sm text-gray-600">
                         {user?.role === 'FARMER' ? 'Customer' : 'Farmer'}
@@ -426,7 +424,7 @@ function OrdersPage() {
                         </button>
                       </>
                     )}
-                    
+
                     {user?.role === 'FARMER' && order.status === 'CONFIRMED' && (
                       <button
                         onClick={() => updateOrderStatus(order.id, 'IN_TRANSIT')}
@@ -435,7 +433,7 @@ function OrdersPage() {
                         Mark as In Transit
                       </button>
                     )}
-                    
+
                     {user?.role === 'FARMER' && order.status === 'IN_TRANSIT' && (
                       <div className="flex flex-wrap gap-3">
                         <button
@@ -450,7 +448,7 @@ function OrdersPage() {
                             <div className="font-bold text-gray-900 text-lg tracking-widest">
                               {generatedProof.code}
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">QR token (demo): {generatedProof.qrToken}</div>
+                            <div className="text-xs text-gray-500 mt-1">QR verification token: {generatedProof.qrToken}</div>
                           </div>
                         ) : null}
                       </div>
@@ -467,7 +465,7 @@ function OrdersPage() {
                         Confirm delivery (code)
                       </button>
                     )}
-                    
+
                     {user?.role === 'BUYER' && order.status === 'DELIVERED' && !order.review && (
                       <button
                         onClick={() => {
@@ -480,14 +478,14 @@ function OrdersPage() {
                         Write Review
                       </button>
                     )}
-                    
+
                     {order.review && (
                       <div className="flex items-center text-sm text-gray-600">
                         <Star className="h-4 w-4 text-yellow-400 fill-current mr-1" />
                         <span>Rated {order.review.rating}/5</span>
                       </div>
                     )}
-                    
+
                     {order.transaction && (
                       <div className="flex items-center gap-2">
                         <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center">
@@ -524,14 +522,14 @@ function OrdersPage() {
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Write a Review</h2>
-              
+
               <div className="mb-4">
                 <h3 className="font-medium text-gray-900 mb-2">{selectedOrder.product.name}</h3>
                 <p className="text-sm text-gray-600">
                   Order from {selectedOrder.farmer?.name}
                 </p>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -545,17 +543,16 @@ function OrdersPage() {
                         className="focus:outline-none"
                       >
                         <Star
-                          className={`h-8 w-8 ${
-                            star <= reviewData.rating
+                          className={`h-8 w-8 ${star <= reviewData.rating
                               ? 'text-yellow-400 fill-current'
                               : 'text-gray-300'
-                          }`}
+                            }`}
                         />
                       </button>
                     ))}
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Comment (Optional)

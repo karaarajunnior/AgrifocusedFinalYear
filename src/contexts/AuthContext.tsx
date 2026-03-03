@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, {
+import {
 	createContext,
 	useContext,
 	useState,
@@ -13,12 +13,13 @@ interface User {
 	id: string;
 	name: string;
 	email: string;
-	role: "FARMER" | "BUYER" | "ADMIN";
+	role: "FARMER" | "BUYER" | "ADMIN" | "AGRO_SHOP";
 	phone?: string;
 	location?: string;
 	address?: string;
 	avatar?: string;
 	verified: boolean;
+	isExportVerified: boolean;
 	mfaEnabled?: boolean;
 	autoFulfillOnPayment?: boolean;
 	notifySms?: boolean;

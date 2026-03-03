@@ -61,3 +61,7 @@ export function removeOfflineProductDraft(id: string) {
   return next;
 }
 
+export function getOfflineProductCount(): number {
+  return getOfflineProductQueue().length;
+}
+

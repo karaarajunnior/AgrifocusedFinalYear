@@ -3,7 +3,7 @@ import { body, validationResult } from "express-validator";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import blockchainService from "../services/blockchainService.js";
 import { requireVerified } from "../middleware/verified.js";
-import { initiateAirtelUgCollection, normalizeUgMsisdn } from "../services/payments/airtelUgService.js";
+import { initiateCollection, normalizeUgMsisdn } from "../services/payments/mobileMoneySimService.js";
 import prisma from "../db/prisma.js";
 
 const router = express.Router();
@@ -179,7 +179,7 @@ router.get("/my-orders", authenticateToken, async (req, res) => {
 	}
 });
 
-// Pay for an order (buyer only, Airtel Uganda for now)
+// Pay for an order (buyer only, Mobile Money)
 router.post(
 	"/:id/pay",
 	authenticateToken,
@@ -214,7 +214,7 @@ router.post(
 				where: { orderId: id },
 				update: {
 					status: "PENDING",
-					provider: "airtel_ug",
+					provider: "mobile_money",
 					currency: "UGX",
 					payerMsisdn,
 					amount: order.totalPrice,
@@ -230,7 +230,7 @@ router.post(
 				},
 			});
 
-			const airtel = await initiateAirtelUgCollection({
+			const result = await initiateCollection({
 				amountUgx: order.totalPrice,
 				msisdn: payerMsisdn,
 				orderId: id,
@@ -239,13 +239,13 @@ router.post(
 			const updated = await prisma.transaction.update({
 				where: { id: tx.id },
 				data: {
-					providerReference: airtel.providerReference,
-					providerRaw: JSON.stringify(airtel.raw),
+					providerReference: result.providerReference,
+					providerRaw: JSON.stringify(result.raw),
 				},
 			});
 
 			res.json({
-				message: "Airtel Money payment initiated",
+				message: "Mobile Money payment initiated",
 				transaction: updated,
 			});
 		} catch (error) {

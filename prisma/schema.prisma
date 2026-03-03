@@ -23,6 +23,7 @@ model User {
   country   String?  @db.VarChar(64)
   walletAddress String? @db.VarChar(64)
   verified  Boolean  @default(false)
+  isExportVerified Boolean @default(false)
   mfaEnabled     Boolean @default(false)
   mfaSecret      String? @db.Text
   mfaTempSecret  String? @db.Text
@@ -53,6 +54,18 @@ model User {
   confirmedDeliveryProofs DeliveryProof[] @relation("DeliveryProofConfirmedBy")
   createdCoops CooperativeGroup[] @relation("CoopCreatedBy")
   coopMemberships CooperativeMember[]
+  postedSchedules  CollectionSchedule[] @relation("SchedulePostedBy")
+  collectionRequests CollectionRequest[] @relation("FarmerCollectionRequests")
+  exportApplications ExportApplication[]
+  
+  // Ecosystem Expansion Relations
+  agroInputs       AgroInput[]        @relation("ShopInputs")
+  credits          InputCredit[]      @relation("FarmerCredits")
+  givenCredits     InputCredit[]      @relation("ShopCredits")
+  forwardContracts ForwardContract[]  @relation("ContractFarmer")
+  buyingContracts  ForwardContract[]  @relation("ContractBuyer")
+  gradingRequests  GradingRequest[]
+  traceRecords     TraceabilityRecord[]
 
   @@map("users")
 }
@@ -101,7 +114,6 @@ model Order {
   status       OrderStatus @default(PENDING)
   deliveryDate DateTime?
   notes        String?     @db.Text
-  // Proof of delivery (one-time code / QR) support
   deliveryProof DeliveryProof?
   buyerId      String
   farmerId     String
@@ -122,8 +134,8 @@ model Order {
 model DeliveryProof {
   id               String   @id @default(cuid())
   orderId           String   @unique
-  codeHash          String   @db.VarChar(64) // sha256 hex of short code
-  qrTokenHash       String?  @db.VarChar(64) // sha256 hex of QR token (optional)
+  codeHash          String   @db.VarChar(64)
+  qrTokenHash       String?  @db.VarChar(64)
   generatedByUserId String
   confirmedByUserId String?
   generatedAt       DateTime @default(now())
@@ -145,17 +157,17 @@ model Transaction {
   orderId     String            @unique
   amount      Float
   status      TransactionStatus @default(PENDING)
-  provider         String?  // airtel_ug, stripe, etc.
+  provider         String?
   providerReference String? @db.Text
   currency         String?  @default("UGX")
   payerMsisdn      String?  @db.Text
   providerRaw      String?  @db.LongText
   ledgerEntryId    String?  @db.VarChar(64)
-  blockHash   String? // Simulated blockchain hash
-  blockNumber Int? // Simulated block number
-  gasUsed     Float? // Simulated gas cost
-  paymentProofOrderHash   String? @db.VarChar(66)  // 0x-prefixed bytes32
-  paymentProofDetailsHash String? @db.VarChar(66)  // 0x-prefixed bytes32
+  blockHash   String?
+  blockNumber Int?
+  gasUsed     Float?
+  paymentProofOrderHash   String? @db.VarChar(66)
+  paymentProofDetailsHash String? @db.VarChar(66)
   paymentProofTxHash      String? @db.VarChar(128)
   paymentProofBlockNumber Int?
   paymentProofRecordedAt  DateTime?
@@ -167,6 +179,47 @@ model Transaction {
   productId String
 
   @@map("transactions")
+}
+
+model CollectionSchedule {
+  id              String           @id @default(cuid())
+  title           String
+  subcounty       String           @db.VarChar(120)
+  district        String           @default("Jinja") @db.VarChar(120)
+  collectionDate  DateTime
+  vehicleType     String           @default("truck") @db.VarChar(32)
+  maxCapacityKg   Int              @default(5000)
+  currentBookedKg Int              @default(0)
+  pricePerKg      Float?
+  notes           String?          @db.Text
+  status          CollectionStatus @default(OPEN)
+  postedById      String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  postedBy User @relation("SchedulePostedBy", fields: [postedById], references: [id])
+  requests CollectionRequest[]
+
+  @@index([subcounty, collectionDate])
+  @@index([status, collectionDate])
+  @@map("collection_schedules")
+}
+
+model CollectionRequest {
+  id             String        @id @default(cuid())
+  scheduleId     String
+  farmerId       String
+  quantityKg     Int
+  productId      String?
+  pickupLocation String?       @db.VarChar(200)
+  status         RequestStatus @default(PENDING)
+  createdAt      DateTime      @default(now())
+
+  schedule CollectionSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  farmer   User @relation("FarmerCollectionRequests", fields: [farmerId], references: [id])
+
+  @@unique([scheduleId, farmerId])
+  @@map("collection_requests")
 }
 
 model CooperativeGroup {
@@ -188,7 +241,7 @@ model CooperativeMember {
   id        String   @id @default(cuid())
   groupId   String
   userId    String
-  role      String   @default("MEMBER") @db.VarChar(16) // MEMBER | ADMIN
+  role      String   @default("MEMBER") @db.VarChar(16)
   joinedAt  DateTime @default(now())
 
   group CooperativeGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -216,7 +269,7 @@ model ProductBatch {
 model TraceEvent {
   id        String   @id @default(cuid())
   batchId   String
-  type      String   @db.VarChar(32) // harvest, storage, transport, delivery, etc.
+  type      String   @db.VarChar(32)
   note      String?  @db.Text
   location  String?  @db.VarChar(120)
   createdAt DateTime @default(now())
@@ -230,10 +283,10 @@ model TraceEvent {
 model ClimateAlert {
   id        String   @id @default(cuid())
   location  String   @db.VarChar(120)
-  severity  String   @db.VarChar(16) // info, warning, critical
+  severity  String   @db.VarChar(16)
   title     String   @db.VarChar(120)
   body      String   @db.Text
-  source    String   @db.VarChar(64) // open-meteo, etc.
+  source    String   @db.VarChar(64)
   validFrom DateTime @default(now())
   validTo   DateTime
   createdAt DateTime @default(now())
@@ -284,13 +337,12 @@ model LedgerAccount {
   name      String
   type      LedgerAccountType
   parentId  String?
-  userId    String? // optional: ties subledger to a specific user (e.g., farmer payable subaccount)
+  userId    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   parent LedgerAccount? @relation("LedgerAccountParent", fields: [parentId], references: [id])
   children LedgerAccount[] @relation("LedgerAccountParent")
-
   lines JournalLine[]
 
   @@map("ledger_accounts")
@@ -298,9 +350,9 @@ model LedgerAccount {
 
 model JournalEntry {
   id            String   @id @default(cuid())
-  referenceType String   // payment, payout, adjustment, etc.
-  referenceId   String   // e.g. transactionId
-  orderId       String?  // optional helper for filtering
+  referenceType String
+  referenceId   String
+  orderId       String?
   memo          String?  @db.Text
   currency      String   @default("UGX")
   createdAt     DateTime @default(now())
@@ -327,14 +379,13 @@ model JournalLine {
 
 model Review {
   id        String   @id @default(cuid())
-  rating    Int // 1-5 stars
+  rating    Int
   comment   String?  @db.Text
   userId    String
   productId String
   orderId   String   @unique
   createdAt DateTime @default(now())
 
-  // Relations
   user    User    @relation(fields: [userId], references: [id])
   product Product @relation(fields: [productId], references: [id])
   order   Order   @relation(fields: [orderId], references: [id])
@@ -351,7 +402,6 @@ model Message {
   read       Boolean  @default(false)
   createdAt  DateTime @default(now())
 
-  // Relations
   sender   User @relation("MessageSender", fields: [senderId], references: [id])
   receiver User @relation("MessageReceiver", fields: [receiverId], references: [id])
 
@@ -378,7 +428,7 @@ model DeviceToken {
   id         String   @id @default(cuid())
   userId     String
   token      String   @unique @db.VarChar(255)
-  platform   String?  // android, ios, web
+  platform   String?
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
 
@@ -390,11 +440,11 @@ model DeviceToken {
 model NotificationLog {
   id        String   @id @default(cuid())
   userId    String
-  type      String   // chat, payment, order
-  channel   String   // sms, whatsapp
-  to        String   @db.VarChar(32)
+  type      String
+  channel   String
+  to        String   @db.VarChar(255)
   body      String?  @db.Text
-  provider  String   @default("twilio")
+  provider  String   @default("internal")
   providerSid String? @db.VarChar(64)
   status    String   @default("queued")
   error     String?  @db.Text
@@ -410,7 +460,7 @@ model MarketWebPrice {
   id          String    @id @default(cuid())
   category    Category?
   commodity   String?   @db.VarChar(100)
-  market      String?   @db.VarChar(32) // local, urban, international
+  market      String?   @db.VarChar(32)
   country     String?   @db.VarChar(64)
   location    String?   @db.VarChar(120)
   price       Float
@@ -431,7 +481,6 @@ model PriceHistory {
   price     Float
   date      DateTime @default(now())
 
-  // Relations
   product Product @relation(fields: [productId], references: [id])
 
   @@map("price_history")
@@ -440,23 +489,184 @@ model PriceHistory {
 model UserAnalytics {
   id        String   @id @default(cuid())
   userId    String
-  event     String // login, product_view, purchase, etc.
-  metadata  String?  @db.Text // JSON data
+  event     String
+  metadata  String?  @db.Text
   timestamp DateTime @default(now())
 
-  // Relations
   user User @relation(fields: [userId], references: [id])
 
   @@map("user_analytics")
+}
+
+model ExportApplication {
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id])
+  businessName      String
+  tinNumber         String
+  permitNumber      String?
+  status            ExportStatus      @default(PENDING)
+  documents         Json?             // Array of {name, path, type}
+  rejectionReason   String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@map("export_applications")
+}
+
+model MarketPrice {
+  id            String      @id @default(cuid())
+  commodity     String      // e.g. "Arabic Coffee", "Robusta"
+  region        String      // e.g. "Central", "Western", "Eastern"
+  marketType    MarketType  @default(LOCAL)
+  pricePerKg    Float
+  currency      String      @default("UGX")
+  timestamp     DateTime    @default(now())
+
+  @@map("market_prices")
+}
+
+model AgroInput {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  price       Float
+  unit        String   @default("item")
+  category    String   // Fertilizer, Tool, Seedling, Pesticide
+  inStock     Boolean  @default(true)
+  shopId      String
+  shop        User     @relation("ShopInputs", fields: [shopId], references: [id])
+  credits     InputCredit[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("agro_inputs")
+}
+
+model InputCredit {
+  id               String       @id @default(cuid())
+  farmerId         String
+  shopId           String
+  agroInputId      String
+  quantity         Int
+  totalAmount      Float
+  status           CreditStatus @default(PENDING)
+  repaymentStatus  Boolean      @default(false)
+  deductionPercent Float        @default(100) // Percent of market sale to deduct
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  farmer    User      @relation("FarmerCredits", fields: [farmerId], references: [id])
+  shop      User      @relation("ShopCredits", fields: [shopId], references: [id])
+  agroInput AgroInput @relation(fields: [agroInputId], references: [id])
+
+  @@map("input_credits")
+}
+
+model TraceabilityRecord {
+  id              String   @id @default(cuid())
+  productId       String   @unique
+  batchNumber     String   @unique
+  altitude        Int?     // Farm altitude in meters
+  variety         String?  // e.g. SL28, SL14, Ruiru 11
+  processingMethod String? // e.g. Washed, Natural, Honey
+  roastProfile    String?
+  cuppingScore    Float?
+  farmerId        String
+  story           String?  @db.LongText
+  mapLocation     String?  // lat,lng
+  qrCodeUrl       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  farmer  User @relation(fields: [farmerId], references: [id])
+  
+  @@map("traceability_records")
+}
+
+model ForwardContract {
+  id              String         @id @default(cuid())
+  farmerId        String
+  buyerId         String
+  commodity       String
+  quantity        Int
+  pricePerUnit    Float
+  totalValuation  Float
+  deliveryMonth   String         // e.g. "Oct 2026"
+  status          ContractStatus @default(PROPOSED)
+  terms           String?        @db.Text
+  escrowDeposit   Float          @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  farmer User @relation("ContractFarmer", fields: [farmerId], references: [id])
+  buyer  User @relation("ContractBuyer", fields: [buyerId], references: [id])
+
+  @@map("forward_contracts")
+}
+
+model GradingRequest {
+  id              String        @id @default(cuid())
+  userId          String
+  commodity       String
+  status          GradingStatus @default(PENDING)
+  grade           String?
+  aromaScore      Float?
+  flavorScore     Float?
+  bodyScore       Float?
+  notes           String?       @db.Text
+  certificateUrl  String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("grading_requests")
+}
+
+enum CreditStatus {
+  PENDING
+  APPROVED
+  ACTIVE
+  SETTLED
+  REJECTED
+}
+
+enum ContractStatus {
+  PROPOSED
+  ACTIVE
+  FULFILLED
+  CANCELLED
+}
+
+enum GradingStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum ExportStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MarketType {
+  LOCAL
+  REGIONAL
+  EXPORT
 }
 
 enum Role {
   FARMER
   BUYER
   ADMIN
+  AGRO_SHOP
 }
 
 enum Category {
+  COFFEE
   VEGETABLES
   FRUITS
   GRAINS
@@ -480,6 +690,21 @@ enum TransactionStatus {
   PENDING
   COMPLETED
   FAILED
+}
+
+enum CollectionStatus {
+  OPEN
+  FULL
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COLLECTED
 }
 
 enum LedgerAccountType {

@@ -1,41 +1,76 @@
-import express from "express";
-import { body } from "express-validator";
-import { authenticateToken, requireRole } from "../middleware/auth.js";
-import { requireVerified } from "../middleware/verified.js";
-import { addTraceEvent, createBatch, getProductTrace } from "../controllers/traceController.js";
+import express from 'express';
+import { PrismaClient } from '@prisma/client';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
+const prisma = new PrismaClient();
 
-// Public read (no PII): traceability timeline for a product
-router.get("/product/:productId", getProductTrace);
+// Get traceability record for a product (Public)
+router.get('/:batchNumber', async (req, res) => {
+	try {
+		const record = await prisma.traceabilityRecord.findUnique({
+			where: { batchNumber: req.params.batchNumber },
+			include: {
+				farmer: {
+					select: {
+						name: true,
+						location: true,
+						avatar: true,
+						country: true
+					}
+				}
+			}
+		});
 
-// Farmers manage batches/events
-router.post(
-	"/batch",
-	authenticateToken,
-	requireRole(["FARMER"]),
-	requireVerified,
-	[
-		body("productId").isString(),
-		body("batchCode").isString().trim().isLength({ min: 3, max: 64 }),
-		body("harvestedAt").optional().isISO8601(),
-	],
-	createBatch,
-);
+		if (!record) {
+			return res.status(404).json({ error: 'Traceability record not found for this batch' });
+		}
 
-router.post(
-	"/event",
-	authenticateToken,
-	requireRole(["FARMER"]),
-	requireVerified,
-	[
-		body("batchId").isString(),
-		body("type").isString().trim().isLength({ min: 2, max: 32 }),
-		body("note").optional().isString().trim().isLength({ max: 2000 }),
-		body("location").optional().isString().trim().isLength({ max: 120 }),
-	],
-	addTraceEvent,
-);
+		res.json({ record });
+	} catch (error) {
+		res.status(500).json({ error: 'Failed' });
+	}
+});
+
+// Create/Update traceability (Farmer only)
+router.post('/record', authenticateToken, async (req, res) => {
+	try {
+		const farmerId = req.user.id;
+		const {
+			productId,
+			batchNumber,
+			altitude,
+			variety,
+			processingMethod,
+			story,
+			mapLocation
+		} = req.body;
+
+		const record = await prisma.traceabilityRecord.upsert({
+			where: { batchNumber },
+			update: {
+				altitude: parseInt(altitude),
+				variety,
+				processingMethod,
+				story,
+				mapLocation
+			},
+			create: {
+				productId,
+				batchNumber,
+				farmerId,
+				altitude: parseInt(altitude),
+				variety,
+				processingMethod,
+				story,
+				mapLocation
+			}
+		});
+
+		res.json({ message: 'Traceability record updated', record });
+	} catch (error) {
+		res.status(500).json({ error: 'Failed to save traceability' });
+	}
+});
 
 export default router;
-
