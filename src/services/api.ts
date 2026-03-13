@@ -2,7 +2,7 @@ import axios from "axios";
 import { toast } from "react-hot-toast";
 
 const API_BASE_URL =
-	import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+	import.meta.env.VITE_API_URL || "https://your-api-url.com/api"; // Replace with your actual public API URL
 
 const api = axios.create({
 	baseURL: API_BASE_URL,
