@@ -21,6 +21,10 @@ dist-ssr
 *.sln
 *.sw?
 .env
+prisma/.env
 
+# Docker
+docker-compose.override.yml
+.env.docker
 .vs/
 

@@ -29,6 +29,37 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 });
 
+// Buy agro-input (Farmer only)
+router.post('/buy', authenticateToken, requireRole(['FARMER']), async (req, res) => {
+    try {
+        const { agroInputId, quantity } = req.body;
+        const farmerId = req.user.id;
+
+        const input = await prisma.agroInput.findUnique({
+            where: { id: agroInputId }
+        });
+
+        if (!input) return res.status(404).json({ error: 'Input not found' });
+
+        const totalAmount = input.price * quantity;
+
+        const purchase = await prisma.inputPurchase.create({
+            data: {
+                farmerId,
+                shopId: input.shopId,
+                agroInputId,
+                quantity,
+                totalAmount
+            }
+        });
+
+        res.json({ message: 'Purchase successful', purchase });
+    } catch (error) {
+        console.error('Purchase error:', error);
+        res.status(500).json({ error: 'Failed to complete purchase' });
+    }
+});
+
 // Apply for input credit (Farmer only)
 router.post('/credit/apply', authenticateToken, requireRole(['FARMER']), async (req, res) => {
     try {
@@ -107,6 +138,68 @@ router.patch('/shop/review/:id', authenticateToken, requireRole(['AGRO_SHOP']), 
         res.json({ message: `Credit ${status.toLowerCase()}`, credit });
     } catch (error) {
         res.status(500).json({ error: 'Failed' });
+    }
+});
+
+// Admin: Get all agro-inputs
+router.get('/admin/list', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+    try {
+        const inputs = await prisma.agroInput.findMany({
+            include: {
+                shop: {
+                    select: { name: true, location: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json({ inputs });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch inputs' });
+    }
+});
+
+// Admin: Create agro-input
+router.post('/admin/create', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+    try {
+        const { name, description, price, unit, category, shopId } = req.body;
+        const input = await prisma.agroInput.create({
+            data: {
+                name,
+                description,
+                price: parseFloat(price),
+                unit,
+                category,
+                shopId
+            }
+        });
+        res.status(201).json({ message: 'Agro-input created successfully', input });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to create agro-input' });
+    }
+});
+
+// Admin: Delete agro-input
+router.delete('/admin/:id', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+    try {
+        await prisma.agroInput.delete({
+            where: { id: req.params.id }
+        });
+        res.json({ message: 'Agro-input deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete agro-input' });
+    }
+});
+
+// Admin: List all agro-shops
+router.get('/admin/shops', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+    try {
+        const shops = await prisma.user.findMany({
+            where: { role: 'AGRO_SHOP' },
+            select: { id: true, name: true, location: true }
+        });
+        res.json({ shops });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch shops' });
     }
 });
 

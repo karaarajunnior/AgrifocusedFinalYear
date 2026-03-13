@@ -139,6 +139,15 @@ export async function notifyUser({ userId, type, smsBody, whatsappBody }) {
 	// 1. Always send in-app notification
 	const inAppResult = await sendInApp({ userId, type, body: messageBody });
 
+	// 3. Log simulated external notifications (for developers/users to see it worked)
+	if (user.notifySms || user.notifyWhatsapp) {
+		console.log(`\n--- SIMULATED EXTERNAL NOTIFICATION ---`);
+		console.log(`To: ${user.phone || 'N/A'}`);
+		console.log(`Channels: ${[user.notifySms ? 'SMS' : null, user.notifyWhatsapp ? 'WhatsApp' : null].filter(Boolean).join(', ')}`);
+		console.log(`Message: ${messageBody}`);
+		console.log(`----------------------------------------\n`);
+	}
+
 	// 2. Try email as fallback (if user has email and SMTP is configured)
 	if (user.email) {
 		await sendEmail({ userId, email: user.email, type, body: smsBody || whatsappBody });

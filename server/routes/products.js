@@ -86,6 +86,14 @@ router.get(
 	getNearbyProducts,
 );
 
+// Get farmer's products
+router.get(
+	"/farmer/my-products",
+	authenticateToken,
+	requireRole(["FARMER"]),
+	getMyProducts,
+);
+
 // Get all products with filters
 router.get(
 	"/",
@@ -218,6 +226,35 @@ router.get(
 	},
 );
 
+// Create product (farmers only)
+router.post(
+	"/",
+	authenticateToken,
+	requireRole(["FARMER"]),
+	requireVerified,
+	[
+		body("name").trim().isLength({ min: 2, max: 100 }),
+		body("description").optional().isString().trim().isLength({ max: 5000 }),
+		body("category").isIn([
+			"COFFEE",
+			"VEGETABLES",
+			"FRUITS",
+			"GRAINS",
+			"PULSES",
+			"SPICES",
+			"DAIRY",
+			"POULTRY",
+			"ORGANIC",
+			"PROCESSED",
+		]),
+		body("price").isFloat({ min: 0.01 }),
+		body("quantity").isInt({ min: 1 }),
+		body("location").trim().isLength({ min: 2 }),
+		body("customFields").optional().isObject(),
+	],
+	createProduct,
+);
+
 // Get single product
 router.get("/:id", async (req, res) => {
 	try {
@@ -299,33 +336,6 @@ router.get("/:id", async (req, res) => {
 	}
 });
 
-// Create product (farmers only)
-router.post(
-	"/",
-	authenticateToken,
-	requireRole(["FARMER"]),
-	requireVerified,
-	[
-		body("name").trim().isLength({ min: 2, max: 100 }),
-		body("category").isIn([
-			"VEGETABLES",
-			"FRUITS",
-			"GRAINS",
-			"PULSES",
-			"SPICES",
-			"DAIRY",
-			"POULTRY",
-			"ORGANIC",
-			"PROCESSED",
-		]),
-		body("price").isFloat({ min: 0.01 }),
-		body("quantity").isInt({ min: 1 }),
-		body("location").trim().isLength({ min: 2 }),
-		body("customFields").optional().isObject(),
-	],
-	createProduct,
-);
-
 // Update product (farmer only - own products)
 router.put(
 	"/:id",
@@ -338,6 +348,7 @@ router.put(
 		body("category")
 			.optional()
 			.isIn([
+				"COFFEE",
 				"VEGETABLES",
 				"FRUITS",
 				"GRAINS",
@@ -370,12 +381,14 @@ router.delete(
 	deleteProduct,
 );
 
-// Get farmer's products
-router.get(
-	"/farmer/my-products",
+// Upload product images (farmers only, own product)
+router.post(
+	"/:id/images",
 	authenticateToken,
 	requireRole(["FARMER"]),
-	getMyProducts,
+	requireVerified,
+	uploadProductImages.array("images", 6),
+	uploadProductImagesHandler,
 );
 
 export default router;

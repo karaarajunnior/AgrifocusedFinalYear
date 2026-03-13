@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import {
 	Zap,
@@ -59,6 +59,12 @@ interface Analytics {
 	recentOrders: any[];
 }
 
+interface MarketPrice {
+	item: string;
+	price: number;
+	trend: string;
+}
+
 function FarmerDashboard() {
 	const { user } = useAuth();
 
@@ -67,6 +73,8 @@ function FarmerDashboard() {
 	const [loading, setLoading] = useState(true);
 	const [cacheTime, setCacheTime] = useState<string | undefined>();
 	const [showAddProduct, setShowAddProduct] = useState(false);
+	const [showAllProducts, setShowAllProducts] = useState(false);
+	const [marketPrices, setMarketPrices] = useState<MarketPrice[]>([]);
 
 	const { isOnline } = useOfflineSync(() => {
 		fetchData();
@@ -109,16 +117,19 @@ function FarmerDashboard() {
 
 	const fetchData = async () => {
 		try {
-			const [p, a] = await Promise.all([
+			const [p, a, m] = await Promise.all([
 				api.get("/products/farmer/my-products"),
 				api.get("/analytics/farmer"),
+				api.get("/analytics/market-prices"),
 			]);
 			setProducts(p.data.products);
 			setAnalytics(a.data);
+			setMarketPrices(m.data);
 
 			// Save to cache
 			saveToCache('farmer.products', p.data.products);
 			saveToCache('farmer.analytics', a.data);
+			saveToCache('farmer.marketPrices', m.data);
 			setCacheTime(undefined);
 		} catch (e) {
 			if (axios.isAxiosError(e) && !e.response) {
@@ -131,6 +142,8 @@ function FarmerDashboard() {
 					setAnalytics(cachedAnalytics.data);
 					setCacheTime(cachedAnalytics.timestamp);
 				}
+				const cachedMarket = getFromCache<MarketPrice[]>('farmer.marketPrices');
+				if (cachedMarket) setMarketPrices(cachedMarket.data);
 
 				toast.error("Offline: Showing cached data", { icon: "📡" });
 			} else {
@@ -283,18 +296,21 @@ function FarmerDashboard() {
 				<div className="grid lg:grid-cols-3 gap-8 mb-10">
 					{/* Left Column: Analytics & Proof */}
 					<div className="lg:col-span-2 space-y-8">
-						<ProfitMaximizer />
+						<ProfitMaximizer onSellDirect={() => setShowAddProduct(true)} />
 
 						{/* My Listings */}
 						<div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
 							<div className="p-6 border-b flex justify-between items-center">
 								<h3 className="text-xl font-bold text-gray-900">My Listings</h3>
-								<button className="text-sm font-bold text-green-600 hover:text-green-700 flex items-center gap-1">
-									Manage All <ArrowRight className="h-4 w-4" />
+								<button 
+									onClick={() => setShowAllProducts(!showAllProducts)}
+									className="text-sm font-bold text-green-600 hover:text-green-700 flex items-center gap-1"
+								>
+									{showAllProducts ? 'Show Less' : 'Manage All'} <ArrowRight className={`h-4 w-4 transition-transform ${showAllProducts ? 'rotate-90' : ''}`} />
 								</button>
 							</div>
 							<div className="divide-y">
-								{products.length > 0 ? products.slice(0, 5).map(product => (
+								{products.length > 0 ? (showAllProducts ? products : products.slice(0, 5)).map(product => (
 									<div key={product.id} className="p-6 hover:bg-gray-50 transition flex items-center justify-between">
 										<div className="flex items-center gap-4">
 											<div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center font-bold text-xs">
@@ -349,18 +365,14 @@ function FarmerDashboard() {
 								Regional Price Index
 							</h4>
 							<div className="space-y-4">
-								<div className="flex justify-between items-center text-sm">
-									<span className="text-gray-600 font-medium">Arabic Coffee (Western)</span>
-									<span className="font-bold text-green-600">6,800/kg</span>
-								</div>
-								<div className="flex justify-between items-center text-sm">
-									<span className="text-gray-600 font-medium">Robusta Coffee (Central)</span>
-									<span className="font-bold text-green-600">5,400/kg</span>
-								</div>
-								<div className="flex justify-between items-center text-sm">
-									<span className="text-gray-600 font-medium">Fine Robusta (Nile)</span>
-									<span className="font-bold text-green-600">7,200/kg</span>
-								</div>
+								{marketPrices.length > 0 ? marketPrices.map((mp, i) => (
+									<div key={i} className="flex justify-between items-center text-sm">
+										<span className="text-gray-600 font-medium">{mp.item}</span>
+										<span className="font-bold text-green-600">{mp.price.toLocaleString()}/kg</span>
+									</div>
+								)) : (
+									<p className="text-xs text-gray-400 italic">No recent price data available.</p>
+								)}
 							</div>
 						</div>
 					</div>

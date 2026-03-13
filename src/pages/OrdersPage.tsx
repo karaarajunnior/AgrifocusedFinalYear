@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import {
@@ -488,7 +488,10 @@ function OrdersPage() {
 
                     {order.transaction && (
                       <div className="flex items-center gap-2">
-                        <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center">
+                        <button 
+                          onClick={() => setSelectedOrder(order)}
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center"
+                        >
                           <Eye className="h-4 w-4 mr-1" />
                           View Transaction
                         </button>
@@ -585,6 +588,76 @@ function OrdersPage() {
                   Submit Review
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transaction Details Modal */}
+      {selectedOrder?.transaction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl">
+            <div className="p-6 border-b bg-gray-50 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900">Transaction Details</h2>
+              <button 
+                onClick={() => setSelectedOrder(null)}
+                className="p-2 hover:bg-gray-200 rounded-full transition"
+              >
+                <XCircle className="h-6 w-6 text-gray-400" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="p-4 bg-gray-50 rounded-xl">
+                  <p className="text-xs font-bold text-gray-400 uppercase mb-1">Status</p>
+                  <p className={`font-bold ${selectedOrder.transaction.status === 'COMPLETED' ? 'text-green-600' : 'text-amber-600'}`}>
+                    {selectedOrder.transaction.status}
+                  </p>
+                </div>
+                <div className="p-4 bg-gray-50 rounded-xl">
+                  <p className="text-xs font-bold text-gray-400 uppercase mb-1">Amount</p>
+                  <p className="font-bold text-gray-900">UGX {selectedOrder.totalPrice.toLocaleString()}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 border rounded-xl">
+                  <p className="text-xs font-bold text-gray-400 uppercase mb-2">Blockchain Proof</p>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-[10px] text-gray-500">Transaction Hash</p>
+                      <p className="text-xs font-mono break-all text-blue-600 bg-blue-50 p-2 rounded mt-1">
+                        {selectedOrder.transaction.blockHash || 'Not recorded on chain yet'}
+                      </p>
+                    </div>
+                    {selectedOrder.transaction.providerReference && (
+                      <div>
+                        <p className="text-[10px] text-gray-500">Provider Reference (Airtel)</p>
+                        <p className="text-xs font-mono text-gray-900">{selectedOrder.transaction.providerReference}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center text-sm p-2">
+                  <span className="text-gray-500">Payment Channel</span>
+                  <span className="font-bold text-gray-900 capitalize">{selectedOrder.transaction.provider?.replace('_', ' ') || 'Internal'}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm p-2">
+                  <span className="text-gray-500">Timestamp</span>
+                  <span className="text-gray-900">{new Date(selectedOrder.transaction.timestamp).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="px-6 py-2 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

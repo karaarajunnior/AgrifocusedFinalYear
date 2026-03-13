@@ -11,13 +11,16 @@ import {
   Link2,
   Bell,
   Globe,
-  FileText
+  FileText,
+  ShoppingBag,
+  PlusCircle,
+  Trash2
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
-import { saveToCache, getFromCache, isOffline } from '../utils/offlineCache';
+import { saveToCache, getFromCache } from '../utils/offlineCache';
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import OfflineBadge from '../components/OfflineBadge';
 
@@ -115,10 +118,26 @@ interface ExportApplication {
     email: string;
   };
   documents: Array<{
-    id: string;
-    fileName: string;
-    fileUrl: string;
+    name: string;
+    path: string;
+    type: string;
   }>;
+}
+
+interface AdminAgroInput {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  unit: string;
+  category: string;
+  shop: { name: string; location: string };
+}
+
+interface AgroShop {
+  id: string;
+  name: string;
+  location: string;
 }
 
 function AdminDashboard() {
@@ -133,6 +152,18 @@ function AdminDashboard() {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [exportApps, setExportApps] = useState<ExportApplication[]>([]);
   const [exportLoading, setExportLoading] = useState(false);
+  const [agroInputs, setAgroInputs] = useState<AdminAgroInput[]>([]);
+  const [agroShops, setAgroShops] = useState<AgroShop[]>([]);
+  const [agroLoading, setAgroLoading] = useState(false);
+  const [showAddInputModal, setShowAddInputModal] = useState(false);
+  const [newInput, setNewInput] = useState({
+    name: '',
+    description: '',
+    price: '',
+    unit: 'kg',
+    category: 'Fertilizer',
+    shopId: ''
+  });
   const [cacheTime, setCacheTime] = useState<string | undefined>();
 
   const { isOnline } = useOfflineSync(() => {
@@ -146,6 +177,7 @@ function AdminDashboard() {
     fetchPendingUsers();
     fetchNotificationStats();
     fetchExportApplications();
+    fetchAdminAgroData();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -162,7 +194,7 @@ function AdminDashboard() {
           setDashboardData(cached.data);
           setCacheTime(cached.timestamp);
         }
-        toast.error('Offline: Showing cached data', { icon: '📡' });
+        toast.error('Offline: Showing cached data', { icon: 'ðŸ“¡' });
       } else {
         toast.error('Failed to load dashboard data');
       }
@@ -196,9 +228,62 @@ function AdminDashboard() {
     }
   };
 
+  const fetchAdminAgroData = async () => {
+    setAgroLoading(true);
+    try {
+      const [inputsRes, shopsRes] = await Promise.all([
+        api.get('/inputs/admin/list'),
+        api.get('/inputs/admin/shops')
+      ]);
+      setAgroInputs(inputsRes.data.inputs);
+      setAgroShops(shopsRes.data.shops);
+      if (shopsRes.data.shops.length > 0 && !newInput.shopId) {
+        setNewInput(prev => ({ ...prev, shopId: shopsRes.data.shops[0].id }));
+      }
+    } catch (e) {
+      console.error('Failed to fetch admin agro data');
+    } finally {
+      setAgroLoading(false);
+    }
+  };
+
+  const handleCreateAgroInput = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/inputs/admin/create', newInput);
+      toast.success('Agro-input created!');
+      setShowAddInputModal(false);
+      setNewInput({
+        name: '',
+        description: '',
+        price: '',
+        unit: 'kg',
+        category: 'Fertilizer',
+        shopId: agroShops[0]?.id || ''
+      });
+      fetchAdminAgroData();
+    } catch (e) {
+      toast.error('Failed to create agro-input');
+    }
+  };
+
+  const handleDeleteAgroInput = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this item?')) return;
+    try {
+      await api.delete(`/inputs/admin/${id}`);
+      toast.success('Deleted successfully');
+      fetchAdminAgroData();
+    } catch (e) {
+      toast.error('Failed to delete');
+    }
+  };
+
   const handleReviewExport = async (id: string, status: 'APPROVED' | 'REJECTED', reason?: string) => {
     try {
-      await api.post(`/export/admin/review/${id}`, { status, rejectionReason: reason });
+      const payload: any = { status };
+      if (reason) payload.rejectionReason = reason;
+
+      await api.patch(`/export/admin/review/${id}`, payload);
       toast.success(`Application ${status.toLowerCase()}ed`);
       fetchExportApplications();
       fetchDashboardData();
@@ -293,7 +378,7 @@ function AdminDashboard() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                Admin Dashboard 👨‍💼
+                Admin Dashboard ðŸ‘¨â€ðŸ’¼
               </h1>
               <p className="text-gray-600 mt-2">
                 Monitor and manage the DAFIS platform
@@ -378,7 +463,8 @@ function AdminDashboard() {
                 { id: 'notifications', name: 'Notifications', icon: Bell },
                 { id: 'products', name: 'Products', icon: Package },
                 { id: 'activity', name: 'Activity', icon: Activity },
-                { id: 'blockchain', name: 'Blockchain', icon: Link2 }
+                { id: 'blockchain', name: 'Blockchain', icon: Link2 },
+                { id: 'agro', name: 'Agro-Inputs', icon: ShoppingBag }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -488,7 +574,7 @@ function AdminDashboard() {
                     className="px-3 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200"
                     disabled={approvalsLoading}
                   >
-                    {approvalsLoading ? 'Refreshing…' : 'Refresh'}
+                    {approvalsLoading ? 'Refreshingâ€¦' : 'Refresh'}
                   </button>
                 </div>
 
@@ -552,7 +638,7 @@ function AdminDashboard() {
                     className="px-3 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200"
                     disabled={notificationsLoading}
                   >
-                    {notificationsLoading ? 'Refreshing…' : 'Refresh'}
+                    {notificationsLoading ? 'Refreshingâ€¦' : 'Refresh'}
                   </button>
                 </div>
 
@@ -607,8 +693,8 @@ function AdminDashboard() {
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{f.type}</td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{f.channel}</td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{f.toMasked || '—'}</td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-600">{f.error || '—'}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{f.toMasked || 'â€”'}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-600">{f.error || 'â€”'}</td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(f.createdAt).toLocaleString()}</td>
                                 </tr>
                               ))}
@@ -690,7 +776,7 @@ function AdminDashboard() {
                     className="px-3 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200"
                     disabled={exportLoading}
                   >
-                    {exportLoading ? 'Refreshing…' : 'Refresh'}
+                    {exportLoading ? 'Refreshingâ€¦' : 'Refresh'}
                   </button>
                 </div>
 
@@ -729,10 +815,10 @@ function AdminDashboard() {
                             <div className="p-4 bg-gray-50 rounded-lg md:col-span-1">
                               <p className="text-xs font-bold text-gray-400 uppercase mb-1">Supporting Docs</p>
                               <div className="flex flex-wrap gap-2">
-                                {app.documents.map((doc) => (
+                                {app.documents.map((doc: any, idx: number) => (
                                   <a
-                                    key={doc.id}
-                                    href={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/uploads/${doc.fileUrl}`}
+                                    key={idx}
+                                    href={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/uploads/documents/${doc.path ? doc.path.split(/[\\/]/).pop() : ''}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center px-2 py-1 bg-white border rounded text-xs font-medium text-blue-600 hover:bg-blue-50"
@@ -807,14 +893,14 @@ function AdminDashboard() {
                               <div className="text-xs text-gray-500">{tx.order.product.category}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">₹{tx.amount.toLocaleString()}</div>
+                              <div className="text-sm text-gray-900">â‚¹{tx.amount.toLocaleString()}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{tx.blockNumber ?? '—'}</div>
+                              <div className="text-sm text-gray-900">{tx.blockNumber ?? 'â€”'}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-xs text-gray-600">
-                                {tx.blockHash ? `${tx.blockHash.slice(0, 12)}...` : '—'}
+                                {tx.blockHash ? `${tx.blockHash.slice(0, 12)}...` : 'â€”'}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -824,6 +910,73 @@ function AdminDashboard() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </div>
+            )}
+            {activeTab === 'agro' && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xl font-bold text-gray-900">Agro-Store Inputs</h3>
+                  <button
+                    onClick={() => setShowAddInputModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition shadow-lg shadow-green-600/20"
+                  >
+                    <PlusCircle className="h-5 w-5" /> Add New Input
+                  </button>
+                </div>
+
+                {agroLoading ? (
+                  <div className="py-12 flex justify-center">
+                    <LoadingSpinner />
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Item</th>
+                          <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Category</th>
+                          <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Price</th>
+                          <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Shop</th>
+                          <th className="px-6 py-4 text-right text-xs font-black text-gray-500 uppercase tracking-widest">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 bg-white">
+                        {agroInputs.map((input) => (
+                          <tr key={input.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="text-sm font-bold text-gray-900">{input.name}</div>
+                              <div className="text-xs text-gray-500 truncate max-w-[200px]">{input.description}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-[10px] font-black uppercase">
+                                {input.category}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm font-black text-green-600">
+                              UGX {input.price.toLocaleString()}
+                              <span className="text-[10px] text-gray-400 font-bold ml-1">/{input.unit}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm font-medium text-gray-900">{input.shop.name}</div>
+                              <div className="text-xs text-gray-500">{input.shop.location}</div>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <button
+                                onClick={() => handleDeleteAgroInput(input.id)}
+                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="h-5 w-5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {agroInputs.length === 0 && (
+                      <div className="py-20 text-center text-gray-400 font-medium">No agro-inputs found. Add one to get started.</div>
+                    )}
                   </div>
                 )}
               </div>
@@ -854,7 +1007,7 @@ function AdminDashboard() {
                 </div>
                 <h3 className="text-lg font-medium text-gray-900">Performance</h3>
                 <p className="text-sm text-gray-700">
-                  API {apiLatencyMs !== null ? `${apiLatencyMs}ms` : '—'} • uptime {apiUptimeSec !== null ? `${apiUptimeSec}s` : '—'}
+                  API {apiLatencyMs !== null ? `${apiLatencyMs}ms` : 'â€”'} â€¢ uptime {apiUptimeSec !== null ? `${apiUptimeSec}s` : 'â€”'}
                 </p>
               </div>
 
@@ -880,6 +1033,106 @@ function AdminDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Add Input Modal */}
+        {showAddInputModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+              <div className="bg-green-600 px-8 py-6 text-white">
+                <h3 className="text-2xl font-black">Add Agro Input</h3>
+                <p className="text-green-100 text-sm mt-1">List a new product in the Agro-Input store.</p>
+              </div>
+
+              <form onSubmit={handleCreateAgroInput} className="p-8 space-y-5">
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="col-span-2">
+                    <label className="block text-xs font-black text-gray-500 uppercase mb-2">Item Name</label>
+                    <input
+                      required
+                      type="text"
+                      className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-green-500 transition-all outline-none"
+                      placeholder="e.g. NPK Fertilizer"
+                      value={newInput.name}
+                      onChange={e => setNewInput({ ...newInput, name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-gray-500 uppercase mb-2">Category</label>
+                    <select
+                      className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-green-500 transition-all outline-none appearance-none bg-white font-bold"
+                      value={newInput.category}
+                      onChange={e => setNewInput({ ...newInput, category: e.target.value })}
+                    >
+                      <option>Fertilizer</option>
+                      <option>Seedling</option>
+                      <option>Tools</option>
+                      <option>Pesticide</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-gray-500 uppercase mb-2">Unit</label>
+                    <input
+                      required
+                      type="text"
+                      className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-green-500 transition-all outline-none"
+                      placeholder="e.g. 50kg bag"
+                      value={newInput.unit}
+                      onChange={e => setNewInput({ ...newInput, unit: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-gray-500 uppercase mb-2">Price (UGX)</label>
+                    <input
+                      required
+                      type="number"
+                      className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-green-500 transition-all outline-none"
+                      value={newInput.price}
+                      onChange={e => setNewInput({ ...newInput, price: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-gray-500 uppercase mb-2">Assign to Shop</label>
+                    <select
+                      required
+                      className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-green-500 transition-all outline-none appearance-none bg-white font-bold text-green-700"
+                      value={newInput.shopId}
+                      onChange={e => setNewInput({ ...newInput, shopId: e.target.value })}
+                    >
+                      {agroShops.map(s => (
+                        <option key={s.id} value={s.id}>{s.name} ({s.location})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-black text-gray-500 uppercase mb-2">Description</label>
+                    <textarea
+                      className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-green-500 transition-all outline-none min-h-[100px]"
+                      placeholder="Nutrient details, usage instructions..."
+                      value={newInput.description}
+                      onChange={e => setNewInput({ ...newInput, description: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddInputModal(false)}
+                    className="flex-1 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-[2] py-4 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-700 transition shadow-lg shadow-green-600/30"
+                  >
+                    Create Item
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -44,7 +44,11 @@ interface ProfitProof {
     mathProof: string;
 }
 
-function ProfitMaximizer() {
+interface ProfitMaximizerProps {
+    onSellDirect?: () => void;
+}
+
+function ProfitMaximizer({ onSellDirect }: ProfitMaximizerProps) {
     const [data, setData] = useState<ProfitProof | null>(null);
     const [loading, setLoading] = useState(true);
     const [qty, setQty] = useState(500);
@@ -199,8 +203,11 @@ function ProfitMaximizer() {
                         <h4 className="text-lg font-bold">Ready to maximize?</h4>
                         <p className="text-green-100 text-sm">Join the 5,000+ farmers already earning fair prices.</p>
                     </div>
-                    <button className="px-6 py-2 bg-white text-green-900 rounded-lg font-bold hover:bg-green-50 transition-colors flex items-center gap-2">
-                        Sell Direct <ChevronRight className="h-4 w-4" />
+                    <button 
+                        onClick={onSellDirect}
+                        className="group px-6 py-2 bg-white text-green-900 rounded-lg font-bold hover:bg-green-50 transition-colors flex items-center gap-2"
+                    >
+                        Sell Direct <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
                     </button>
                 </div>
             </div>

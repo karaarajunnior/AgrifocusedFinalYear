@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,241 +8,235 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  passwordChangedAt DateTime @default(now())
-  role      Role     @default(FARMER)
-  phone     String?
-  location  String?
-  address   String?
-  country   String?  @db.VarChar(64)
-  walletAddress String? @db.VarChar(64)
-  verified  Boolean  @default(false)
-  isExportVerified Boolean @default(false)
-  mfaEnabled     Boolean @default(false)
-  mfaSecret      String? @db.Text
-  mfaTempSecret  String? @db.Text
-  autoFulfillOnPayment Boolean @default(false)
-  notifySms      Boolean @default(true)
-  notifyWhatsapp Boolean @default(true)
-  notifyChat     Boolean @default(true)
-  notifyPayment  Boolean @default(true)
-  notifyOrder    Boolean @default(true)
-  avatar    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  products  Product[]
-  orders    Order[]         @relation("BuyerOrders")
-  sales     Order[]         @relation("FarmerSales")
-  reviews   Review[]
-  sentMessages     Message[] @relation("MessageSender")
-  receivedMessages Message[] @relation("MessageReceiver")
-  analytics UserAnalytics[]
-  documents Document[]
-  deviceTokens DeviceToken[]
-  notificationLogs NotificationLog[]
-  refreshTokens RefreshToken[]
-  auditLogs AuditLog[] @relation("AuditLogActor")
-  generatedDeliveryProofs DeliveryProof[] @relation("DeliveryProofGeneratedBy")
-  confirmedDeliveryProofs DeliveryProof[] @relation("DeliveryProofConfirmedBy")
-  createdCoops CooperativeGroup[] @relation("CoopCreatedBy")
-  coopMemberships CooperativeMember[]
-  postedSchedules  CollectionSchedule[] @relation("SchedulePostedBy")
-  collectionRequests CollectionRequest[] @relation("FarmerCollectionRequests")
-  exportApplications ExportApplication[]
-  
-  // Ecosystem Expansion Relations
-  agroInputs       AgroInput[]        @relation("ShopInputs")
-  credits          InputCredit[]      @relation("FarmerCredits")
-  givenCredits     InputCredit[]      @relation("ShopCredits")
-  forwardContracts ForwardContract[]  @relation("ContractFarmer")
-  buyingContracts  ForwardContract[]  @relation("ContractBuyer")
-  gradingRequests  GradingRequest[]
-  traceRecords     TraceabilityRecord[]
+  id                      String               @id @default(cuid())
+  name                    String
+  email                   String               @unique
+  password                String
+  role                    Role                 @default(FARMER)
+  phone                   String?
+  location                String?
+  address                 String?
+  verified                Boolean              @default(false)
+  avatar                  String?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  autoFulfillOnPayment    Boolean              @default(false)
+  country                 String?              @db.VarChar(64)
+  mfaEnabled              Boolean              @default(false)
+  mfaSecret               String?              @db.Text
+  mfaTempSecret           String?              @db.Text
+  notifyChat              Boolean              @default(true)
+  notifyOrder             Boolean              @default(true)
+  notifyPayment           Boolean              @default(true)
+  notifySms               Boolean              @default(true)
+  notifyWhatsapp          Boolean              @default(true)
+  passwordChangedAt       DateTime             @default(now())
+  walletAddress           String?              @db.VarChar(64)
+  isExportVerified        Boolean              @default(false)
+  agroInputs              AgroInput[]          @relation("ShopInputs")
+  auditLogs               AuditLog[]           @relation("AuditLogActor")
+  collectionRequests      CollectionRequest[]  @relation("FarmerCollectionRequests")
+  postedSchedules         CollectionSchedule[] @relation("SchedulePostedBy")
+  createdCoops            CooperativeGroup[]   @relation("CoopCreatedBy")
+  coopMemberships         CooperativeMember[]
+  confirmedDeliveryProofs DeliveryProof[]      @relation("DeliveryProofConfirmedBy")
+  generatedDeliveryProofs DeliveryProof[]      @relation("DeliveryProofGeneratedBy")
+  deviceTokens            DeviceToken[]
+  documents               Document[]
+  exportApplications      ExportApplication[]
+  buyingContracts         ForwardContract[]    @relation("ContractBuyer")
+  forwardContracts        ForwardContract[]    @relation("ContractFarmer")
+  gradingRequests         GradingRequest[]
+  credits                 InputCredit[]        @relation("FarmerCredits")
+  givenCredits            InputCredit[]        @relation("ShopCredits")
+  purchases               InputPurchase[]      @relation("FarmerPurchases")
+  givenSales              InputPurchase[]      @relation("ShopSales")
+  receivedMessages        Message[]            @relation("MessageReceiver")
+  sentMessages            Message[]            @relation("MessageSender")
+  notificationLogs        NotificationLog[]
+  orders                  Order[]              @relation("BuyerOrders")
+  sales                   Order[]              @relation("FarmerSales")
+  products                Product[]
+  refreshTokens           RefreshToken[]
+  reviews                 Review[]
+  traceRecords            TraceabilityRecord[]
+  analytics               UserAnalytics[]
 
   @@map("users")
 }
 
 model Product {
-  id          String    @id @default(cuid())
-  name        String
-  description String?   @db.Text
-  category    Category
-  price       Float
-  quantity    Int
-  unit        String    @default("kg")
-  harvestDate DateTime?
-  expiryDate  DateTime?
-  location    String
-  country     String?   @db.VarChar(64)
-  images      String?   @db.Text // JSON array of image URLs
-
-  customFields String?  @db.LongText // JSON object of dynamic form fields
-  organic     Boolean   @default(false)
-  available   Boolean   @default(true)
-  listedOnChain Boolean @default(false)
-  chainProductId Int?
-  chainTxHash    String? @db.VarChar(128)
+  id               String         @id @default(cuid())
+  name             String
+  description      String?        @db.Text
+  category         Category
+  price            Float
+  quantity         Int
+  unit             String         @default("kg")
+  harvestDate      DateTime?
+  expiryDate       DateTime?
+  location         String
+  images           String?        @db.Text
+  organic          Boolean        @default(false)
+  available        Boolean        @default(true)
+  farmerId         String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
   chainBlockNumber Int?
-  chainListedAt  DateTime?
-  farmerId    String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  chainListedAt    DateTime?
+  chainProductId   Int?
+  chainTxHash      String?        @db.VarChar(128)
+  country          String?        @db.VarChar(64)
+  listedOnChain    Boolean        @default(false)
+  customFields     String?        @db.LongText
+  orders           Order[]
+  priceHistory     PriceHistory[]
+  batches          ProductBatch[]
+  farmer           User           @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  reviews          Review[]
+  transactions     Transaction[]
 
-  // Relations
-  farmer       User           @relation(fields: [farmerId], references: [id], onDelete: Cascade)
-  orders       Order[]
-  reviews      Review[]
-  priceHistory PriceHistory[]
-  transactions Transaction[]
-  batches      ProductBatch[]
-
+  @@index([farmerId], map: "products_farmerId_fkey")
   @@map("products")
 }
 
 model Order {
-  id           String      @id @default(cuid())
-  quantity     Int
-  totalPrice   Float
-  status       OrderStatus @default(PENDING)
-  deliveryDate DateTime?
-  notes        String?     @db.Text
+  id            String         @id @default(cuid())
+  quantity      Int
+  totalPrice    Float
+  status        OrderStatus    @default(PENDING)
+  deliveryDate  DateTime?
+  notes         String?        @db.Text
+  buyerId       String
+  farmerId      String
+  productId     String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   deliveryProof DeliveryProof?
-  buyerId      String
-  farmerId     String
-  productId    String
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  buyer         User           @relation("BuyerOrders", fields: [buyerId], references: [id])
+  farmer        User           @relation("FarmerSales", fields: [farmerId], references: [id])
+  product       Product        @relation(fields: [productId], references: [id])
+  review        Review?
+  transaction   Transaction?
 
-  // Relations
-  buyer       User         @relation("BuyerOrders", fields: [buyerId], references: [id])
-  farmer      User         @relation("FarmerSales", fields: [farmerId], references: [id])
-  product     Product      @relation(fields: [productId], references: [id])
-  transaction Transaction?
-  review      Review?
-
+  @@index([buyerId], map: "orders_buyerId_fkey")
+  @@index([farmerId], map: "orders_farmerId_fkey")
+  @@index([productId], map: "orders_productId_fkey")
   @@map("orders")
 }
 
 model DeliveryProof {
-  id               String   @id @default(cuid())
-  orderId           String   @unique
-  codeHash          String   @db.VarChar(64)
-  qrTokenHash       String?  @db.VarChar(64)
+  id                String    @id @default(cuid())
+  orderId           String    @unique
+  codeHash          String    @db.VarChar(64)
+  qrTokenHash       String?   @db.VarChar(64)
   generatedByUserId String
   confirmedByUserId String?
-  generatedAt       DateTime @default(now())
+  generatedAt       DateTime  @default(now())
   confirmedAt       DateTime?
-  gpsLocation       String?  @db.VarChar(128)
-  chainTxHash       String?  @db.VarChar(128)
+  gpsLocation       String?   @db.VarChar(128)
+  chainTxHash       String?   @db.VarChar(128)
   chainBlockNumber  Int?
-
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  generatedBy User @relation("DeliveryProofGeneratedBy", fields: [generatedByUserId], references: [id])
-  confirmedBy User? @relation("DeliveryProofConfirmedBy", fields: [confirmedByUserId], references: [id])
+  confirmedBy       User?     @relation("DeliveryProofConfirmedBy", fields: [confirmedByUserId], references: [id])
+  generatedBy       User      @relation("DeliveryProofGeneratedBy", fields: [generatedByUserId], references: [id])
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([generatedByUserId, generatedAt])
+  @@index([confirmedByUserId], map: "delivery_proofs_confirmedByUserId_fkey")
   @@map("delivery_proofs")
 }
 
 model Transaction {
-  id          String            @id @default(cuid())
-  orderId     String            @unique
-  amount      Float
-  status      TransactionStatus @default(PENDING)
-  provider         String?
-  providerReference String? @db.Text
-  currency         String?  @default("UGX")
-  payerMsisdn      String?  @db.Text
-  providerRaw      String?  @db.LongText
-  ledgerEntryId    String?  @db.VarChar(64)
-  blockHash   String?
-  blockNumber Int?
-  gasUsed     Float?
-  paymentProofOrderHash   String? @db.VarChar(66)
-  paymentProofDetailsHash String? @db.VarChar(66)
-  paymentProofTxHash      String? @db.VarChar(128)
+  id                      String            @id @default(cuid())
+  orderId                 String            @unique
+  amount                  Float
+  status                  TransactionStatus @default(PENDING)
+  blockHash               String?
+  blockNumber             Int?
+  gasUsed                 Float?
+  timestamp               DateTime          @default(now())
+  productId               String
+  currency                String?           @default("UGX")
+  ledgerEntryId           String?           @db.VarChar(64)
+  payerMsisdn             String?           @db.Text
   paymentProofBlockNumber Int?
+  paymentProofDetailsHash String?           @db.VarChar(66)
+  paymentProofOrderHash   String?           @db.VarChar(66)
   paymentProofRecordedAt  DateTime?
-  timestamp   DateTime          @default(now())
+  paymentProofTxHash      String?           @db.VarChar(128)
+  provider                String?
+  providerRaw             String?           @db.LongText
+  providerReference       String?           @db.Text
+  order                   Order             @relation(fields: [orderId], references: [id])
+  product                 Product           @relation(fields: [productId], references: [id])
 
-  // Relations
-  order     Order   @relation(fields: [orderId], references: [id])
-  product   Product @relation(fields: [productId], references: [id])
-  productId String
-
+  @@index([productId], map: "transactions_productId_fkey")
   @@map("transactions")
 }
 
 model CollectionSchedule {
-  id              String           @id @default(cuid())
+  id              String              @id @default(cuid())
   title           String
-  subcounty       String           @db.VarChar(120)
-  district        String           @default("Jinja") @db.VarChar(120)
+  subcounty       String              @db.VarChar(120)
+  district        String              @default("Jinja") @db.VarChar(120)
   collectionDate  DateTime
-  vehicleType     String           @default("truck") @db.VarChar(32)
-  maxCapacityKg   Int              @default(5000)
-  currentBookedKg Int              @default(0)
+  vehicleType     String              @default("truck") @db.VarChar(32)
+  maxCapacityKg   Int                 @default(5000)
+  currentBookedKg Int                 @default(0)
   pricePerKg      Float?
-  notes           String?          @db.Text
-  status          CollectionStatus @default(OPEN)
+  notes           String?             @db.Text
+  status          CollectionStatus    @default(OPEN)
   postedById      String
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-
-  postedBy User @relation("SchedulePostedBy", fields: [postedById], references: [id])
-  requests CollectionRequest[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  requests        CollectionRequest[]
+  postedBy        User                @relation("SchedulePostedBy", fields: [postedById], references: [id])
 
   @@index([subcounty, collectionDate])
   @@index([status, collectionDate])
+  @@index([postedById], map: "collection_schedules_postedById_fkey")
   @@map("collection_schedules")
 }
 
 model CollectionRequest {
-  id             String        @id @default(cuid())
+  id             String             @id @default(cuid())
   scheduleId     String
   farmerId       String
   quantityKg     Int
   productId      String?
-  pickupLocation String?       @db.VarChar(200)
-  status         RequestStatus @default(PENDING)
-  createdAt      DateTime      @default(now())
-
-  schedule CollectionSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  farmer   User @relation("FarmerCollectionRequests", fields: [farmerId], references: [id])
+  pickupLocation String?            @db.VarChar(200)
+  status         RequestStatus      @default(PENDING)
+  createdAt      DateTime           @default(now())
+  farmer         User               @relation("FarmerCollectionRequests", fields: [farmerId], references: [id])
+  schedule       CollectionSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
   @@unique([scheduleId, farmerId])
+  @@index([farmerId], map: "collection_requests_farmerId_fkey")
   @@map("collection_requests")
 }
 
 model CooperativeGroup {
-  id          String   @id @default(cuid())
-  name        String   @db.VarChar(80)
-  location    String?  @db.VarChar(120)
-  description String?  @db.Text
+  id          String              @id @default(cuid())
+  name        String              @db.VarChar(80)
+  location    String?             @db.VarChar(120)
+  description String?             @db.Text
   createdById String
-  createdAt   DateTime @default(now())
-
-  createdBy User @relation("CoopCreatedBy", fields: [createdById], references: [id])
-  members   CooperativeMember[]
+  createdAt   DateTime            @default(now())
+  createdBy   User                @relation("CoopCreatedBy", fields: [createdById], references: [id])
+  members     CooperativeMember[]
 
   @@index([createdById, createdAt])
   @@map("cooperative_groups")
 }
 
 model CooperativeMember {
-  id        String   @id @default(cuid())
-  groupId   String
-  userId    String
-  role      String   @default("MEMBER") @db.VarChar(16)
-  joinedAt  DateTime @default(now())
-
-  group CooperativeGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  user  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id       String           @id @default(cuid())
+  groupId  String
+  userId   String
+  role     String           @default("MEMBER") @db.VarChar(16)
+  joinedAt DateTime         @default(now())
+  group    CooperativeGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, userId])
   @@index([userId])
@@ -253,28 +244,26 @@ model CooperativeMember {
 }
 
 model ProductBatch {
-  id          String   @id @default(cuid())
+  id          String       @id @default(cuid())
   productId   String
-  batchCode   String   @db.VarChar(64)
+  batchCode   String       @db.VarChar(64)
   harvestedAt DateTime?
-  createdAt   DateTime @default(now())
-
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  events  TraceEvent[]
+  createdAt   DateTime     @default(now())
+  product     Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  events      TraceEvent[]
 
   @@index([productId, createdAt])
   @@map("product_batches")
 }
 
 model TraceEvent {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   batchId   String
-  type      String   @db.VarChar(32)
-  note      String?  @db.Text
-  location  String?  @db.VarChar(120)
-  createdAt DateTime @default(now())
-
-  batch ProductBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  type      String       @db.VarChar(32)
+  note      String?      @db.Text
+  location  String?      @db.VarChar(120)
+  createdAt DateTime     @default(now())
+  batch     ProductBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
 
   @@index([batchId, createdAt])
   @@map("trace_events")
@@ -296,20 +285,20 @@ model ClimateAlert {
 }
 
 model RefreshToken {
-  id        String   @id @default(cuid())
-  userId    String
-  tokenHash String   @unique @db.VarChar(128)
-  expiresAt DateTime
-  revokedAt DateTime?
+  id           String         @id @default(cuid())
+  userId       String
+  tokenHash    String         @unique @db.VarChar(128)
+  expiresAt    DateTime
+  revokedAt    DateTime?
   replacedById String?
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  replacedBy RefreshToken? @relation("RefreshTokenRotation", fields: [replacedById], references: [id])
-  replaces RefreshToken[] @relation("RefreshTokenRotation")
+  createdAt    DateTime       @default(now())
+  replacedBy   RefreshToken?  @relation("RefreshTokenRotation", fields: [replacedById], references: [id])
+  replaces     RefreshToken[] @relation("RefreshTokenRotation")
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
+  @@index([replacedById], map: "refresh_tokens_replacedById_fkey")
   @@map("refresh_tokens")
 }
 
@@ -323,8 +312,7 @@ model AuditLog {
   userAgent   String?  @db.Text
   metadata    String?  @db.LongText
   createdAt   DateTime @default(now())
-
-  actor User? @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actor       User?    @relation("AuditLogActor", fields: [actorUserId], references: [id])
 
   @@index([actorUserId, createdAt])
   @@index([action, createdAt])
@@ -332,48 +320,48 @@ model AuditLog {
 }
 
 model LedgerAccount {
-  id        String   @id @default(cuid())
-  code      String   @unique @db.VarChar(32)
+  id        String            @id @default(cuid())
+  code      String            @unique @db.VarChar(32)
   name      String
   type      LedgerAccountType
   parentId  String?
   userId    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  lines     JournalLine[]
+  parent    LedgerAccount?    @relation("LedgerAccountParent", fields: [parentId], references: [id])
+  children  LedgerAccount[]   @relation("LedgerAccountParent")
 
-  parent LedgerAccount? @relation("LedgerAccountParent", fields: [parentId], references: [id])
-  children LedgerAccount[] @relation("LedgerAccountParent")
-  lines JournalLine[]
-
+  @@index([parentId], map: "ledger_accounts_parentId_fkey")
   @@map("ledger_accounts")
 }
 
 model JournalEntry {
-  id            String   @id @default(cuid())
+  id            String        @id @default(cuid())
   referenceType String
   referenceId   String
   orderId       String?
-  memo          String?  @db.Text
-  currency      String   @default("UGX")
-  createdAt     DateTime @default(now())
-
-  lines JournalLine[]
+  memo          String?       @db.Text
+  currency      String        @default("UGX")
+  createdAt     DateTime      @default(now())
+  lines         JournalLine[]
 
   @@unique([referenceType, referenceId])
   @@map("journal_entries")
 }
 
 model JournalLine {
-  id        String @id @default(cuid())
+  id        String        @id @default(cuid())
   entryId   String
   accountId String
-  debit     Float  @default(0)
-  credit    Float  @default(0)
-  memo      String? @db.Text
+  debit     Float         @default(0)
+  credit    Float         @default(0)
+  memo      String?       @db.Text
+  account   LedgerAccount @relation(fields: [accountId], references: [id])
+  entry     JournalEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
-  entry   JournalEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  account LedgerAccount @relation(fields: [accountId], references: [id])
-
+  @@index([accountId], map: "journal_lines_accountId_fkey")
+  @@index([entryId], map: "journal_lines_entryId_fkey")
   @@map("journal_lines")
 }
 
@@ -385,42 +373,44 @@ model Review {
   productId String
   orderId   String   @unique
   createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
-  user    User    @relation(fields: [userId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
-  order   Order   @relation(fields: [orderId], references: [id])
-
+  @@index([productId], map: "reviews_productId_fkey")
+  @@index([userId], map: "reviews_userId_fkey")
   @@map("reviews")
 }
 
 model Message {
   id         String   @id @default(cuid())
   content    String   @db.Text
-  audioUrl   String?  @db.Text
   senderId   String
   receiverId String
   read       Boolean  @default(false)
   createdAt  DateTime @default(now())
+  audioUrl   String?  @db.Text
+  receiver   User     @relation("MessageReceiver", fields: [receiverId], references: [id])
+  sender     User     @relation("MessageSender", fields: [senderId], references: [id])
 
-  sender   User @relation("MessageSender", fields: [senderId], references: [id])
-  receiver User @relation("MessageReceiver", fields: [receiverId], references: [id])
-
+  @@index([receiverId], map: "messages_receiverId_fkey")
+  @@index([senderId], map: "messages_senderId_fkey")
   @@map("messages")
 }
 
 model Document {
-  id           String   @id @default(cuid())
-  userId       String
-  originalName String
-  mimeType     String
-  sizeBytes    Int
-  storagePath  String
-  extractedText String? @db.LongText
-  aiSummary     String? @db.LongText
-  createdAt    DateTime @default(now())
+  id            String   @id @default(cuid())
+  userId        String
+  originalName  String
+  mimeType      String
+  sizeBytes     Int
+  storagePath   String
+  extractedText String?  @db.LongText
+  aiSummary     String?  @db.LongText
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  @@index([userId], map: "documents_userId_fkey")
   @@map("documents")
 }
 
@@ -431,28 +421,28 @@ model DeviceToken {
   platform   String?
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  @@index([userId], map: "device_tokens_userId_fkey")
   @@map("device_tokens")
 }
 
 model NotificationLog {
-  id        String   @id @default(cuid())
-  userId    String
-  type      String
-  channel   String
-  to        String   @db.VarChar(255)
-  body      String?  @db.Text
-  provider  String   @default("internal")
-  providerSid String? @db.VarChar(64)
-  status    String   @default("queued")
-  error     String?  @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  userId      String
+  type        String
+  channel     String
+  to          String   @db.VarChar(255)
+  body        String?  @db.Text
+  provider    String   @default("internal")
+  providerSid String?  @db.VarChar(64)
+  status      String   @default("queued")
+  error       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  @@index([userId], map: "notification_logs_userId_fkey")
   @@map("notification_logs")
 }
 
@@ -480,9 +470,9 @@ model PriceHistory {
   productId String
   price     Float
   date      DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id])
 
-  product Product @relation(fields: [productId], references: [id])
-
+  @@index([productId], map: "price_history_productId_fkey")
   @@map("price_history")
 }
 
@@ -492,54 +482,57 @@ model UserAnalytics {
   event     String
   metadata  String?  @db.Text
   timestamp DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 
-  user User @relation(fields: [userId], references: [id])
-
+  @@index([userId], map: "user_analytics_userId_fkey")
   @@map("user_analytics")
 }
 
 model ExportApplication {
-  id                String            @id @default(cuid())
-  userId            String
-  user              User              @relation(fields: [userId], references: [id])
-  businessName      String
-  tinNumber         String
-  permitNumber      String?
-  status            ExportStatus      @default(PENDING)
-  documents         Json?             // Array of {name, path, type}
-  rejectionReason   String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  id              String       @id @default(cuid())
+  userId          String
+  businessName    String
+  tinNumber       String
+  permitNumber    String?
+  status          ExportStatus @default(PENDING)
+  documents       Json?
+  rejectionReason String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  user            User         @relation(fields: [userId], references: [id])
 
+  @@index([userId], map: "export_applications_userId_fkey")
   @@map("export_applications")
 }
 
 model MarketPrice {
-  id            String      @id @default(cuid())
-  commodity     String      // e.g. "Arabic Coffee", "Robusta"
-  region        String      // e.g. "Central", "Western", "Eastern"
-  marketType    MarketType  @default(LOCAL)
-  pricePerKg    Float
-  currency      String      @default("UGX")
-  timestamp     DateTime    @default(now())
+  id         String     @id @default(cuid())
+  commodity  String
+  region     String
+  marketType MarketType @default(LOCAL)
+  pricePerKg Float
+  currency   String     @default("UGX")
+  timestamp  DateTime   @default(now())
 
   @@map("market_prices")
 }
 
 model AgroInput {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   name        String
-  description String?  @db.Text
+  description String?       @db.Text
   price       Float
-  unit        String   @default("item")
-  category    String   // Fertilizer, Tool, Seedling, Pesticide
-  inStock     Boolean  @default(true)
+  unit        String        @default("item")
+  category    String
+  inStock     Boolean       @default(true)
   shopId      String
-  shop        User     @relation("ShopInputs", fields: [shopId], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  shop        User          @relation("ShopInputs", fields: [shopId], references: [id])
   credits     InputCredit[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  purchases   InputPurchase[]
 
+  @@index([shopId], map: "agro_inputs_shopId_fkey")
   @@map("agro_inputs")
 }
 
@@ -552,75 +545,97 @@ model InputCredit {
   totalAmount      Float
   status           CreditStatus @default(PENDING)
   repaymentStatus  Boolean      @default(false)
-  deductionPercent Float        @default(100) // Percent of market sale to deduct
+  deductionPercent Float        @default(100)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+  agroInput        AgroInput    @relation(fields: [agroInputId], references: [id])
+  farmer           User         @relation("FarmerCredits", fields: [farmerId], references: [id])
+  shop             User         @relation("ShopCredits", fields: [shopId], references: [id])
 
-  farmer    User      @relation("FarmerCredits", fields: [farmerId], references: [id])
-  shop      User      @relation("ShopCredits", fields: [shopId], references: [id])
-  agroInput AgroInput @relation(fields: [agroInputId], references: [id])
-
+  @@index([agroInputId], map: "input_credits_agroInputId_fkey")
+  @@index([farmerId], map: "input_credits_farmerId_fkey")
+  @@index([shopId], map: "input_credits_shopId_fkey")
   @@map("input_credits")
 }
 
 model TraceabilityRecord {
-  id              String   @id @default(cuid())
-  productId       String   @unique
-  batchNumber     String   @unique
-  altitude        Int?     // Farm altitude in meters
-  variety         String?  // e.g. SL28, SL14, Ruiru 11
-  processingMethod String? // e.g. Washed, Natural, Honey
-  roastProfile    String?
-  cuppingScore    Float?
-  farmerId        String
-  story           String?  @db.LongText
-  mapLocation     String?  // lat,lng
-  qrCodeUrl       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String   @id @default(cuid())
+  productId        String   @unique
+  batchNumber      String   @unique
+  altitude         Int?
+  variety          String?
+  processingMethod String?
+  roastProfile     String?
+  cuppingScore     Float?
+  farmerId         String
+  story            String?  @db.LongText
+  mapLocation      String?
+  qrCodeUrl        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  farmer           User     @relation(fields: [farmerId], references: [id])
 
-  farmer  User @relation(fields: [farmerId], references: [id])
-  
+  @@index([farmerId], map: "traceability_records_farmerId_fkey")
   @@map("traceability_records")
 }
 
 model ForwardContract {
-  id              String         @id @default(cuid())
-  farmerId        String
-  buyerId         String
-  commodity       String
-  quantity        Int
-  pricePerUnit    Float
-  totalValuation  Float
-  deliveryMonth   String         // e.g. "Oct 2026"
-  status          ContractStatus @default(PROPOSED)
-  terms           String?        @db.Text
-  escrowDeposit   Float          @default(0)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id             String         @id @default(cuid())
+  farmerId       String
+  buyerId        String
+  commodity      String
+  quantity       Int
+  pricePerUnit   Float
+  totalValuation Float
+  deliveryMonth  String
+  status         ContractStatus @default(PROPOSED)
+  terms          String?        @db.Text
+  escrowDeposit  Float          @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  buyer          User           @relation("ContractBuyer", fields: [buyerId], references: [id])
+  farmer          User          @relation("ContractFarmer", fields: [farmerId], references: [id])
 
-  farmer User @relation("ContractFarmer", fields: [farmerId], references: [id])
-  buyer  User @relation("ContractBuyer", fields: [buyerId], references: [id])
-
+  @@index([buyerId], map: "forward_contracts_buyerId_fkey")
+  @@index([farmerId], map: "forward_contracts_farmerId_fkey")
   @@map("forward_contracts")
 }
 
+model InputPurchase {
+  id          String   @id @default(cuid())
+  farmerId    String
+  shopId      String
+  agroInputId String
+  quantity    Int
+  totalAmount Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  agroInput   AgroInput @relation(fields: [agroInputId], references: [id])
+  farmer      User      @relation("FarmerPurchases", fields: [farmerId], references: [id])
+  shop        User      @relation("ShopSales", fields: [shopId], references: [id])
+
+  @@index([agroInputId], map: "input_purchases_agroInputId_fkey")
+  @@index([farmerId], map: "input_purchases_farmerId_fkey")
+  @@index([shopId], map: "input_purchases_shopId_fkey")
+  @@map("input_purchases")
+}
+
 model GradingRequest {
-  id              String        @id @default(cuid())
-  userId          String
-  commodity       String
-  status          GradingStatus @default(PENDING)
-  grade           String?
-  aromaScore      Float?
-  flavorScore     Float?
-  bodyScore       Float?
-  notes           String?       @db.Text
-  certificateUrl  String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String        @id @default(cuid())
+  userId         String
+  commodity      String
+  status         GradingStatus @default(PENDING)
+  grade          String?
+  aromaScore     Float?
+  flavorScore    Float?
+  bodyScore      Float?
+  notes          String?       @db.Text
+  certificateUrl String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  user           User          @relation(fields: [userId], references: [id])
 
-  user User @relation(fields: [userId], references: [id])
-
+  @@index([userId], map: "grading_requests_userId_fkey")
   @@map("grading_requests")
 }
 

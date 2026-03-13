@@ -118,6 +118,19 @@ router.get("/admin/pending", authenticateToken, requireRole(["ADMIN"]), async (r
     }
 });
 
+// GET /export/admin/applications - List all applications for admin dashboard
+router.get("/admin/applications", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+    try {
+        const applications = await prisma.exportApplication.findMany({
+            include: { user: { select: { name: true, email: true, phone: true } } },
+            orderBy: { createdAt: "desc" },
+        });
+        res.json({ applications });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch applications" });
+    }
+});
+
 // PATCH /export/admin/review/:id - Approve or reject application
 router.patch(
     "/admin/review/:id",

@@ -78,6 +78,19 @@ function AgroStore() {
         }
     };
 
+    const handleCashBuy = async (inputId: string, quantity: number = 1) => {
+        try {
+            setApplying(inputId); // Reusing applying state for simplicity
+            await api.post('/inputs/buy', { agroInputId: inputId, quantity });
+            toast.success('Purchase successful! Cash buy completed.');
+            fetchData();
+        } catch (e) {
+            toast.error('Failed to complete purchase');
+        } finally {
+            setApplying(null);
+        }
+    };
+
     if (loading) return <LoadingSpinner size="lg" />;
 
     return (
@@ -182,8 +195,12 @@ function AgroStore() {
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3">
-                                        <button className="px-4 py-2.5 bg-gray-100 text-gray-900 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors">
-                                            Cash Buy
+                                        <button
+                                            onClick={() => handleCashBuy(input.id)}
+                                            disabled={applying === input.id}
+                                            className="px-4 py-2.5 bg-gray-100 text-gray-900 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors disabled:opacity-50"
+                                        >
+                                            {applying === input.id ? 'Processing...' : 'Cash Buy'}
                                         </button>
                                         <button
                                             onClick={() => handleApplyCredit(input.id)}
