@@ -5,7 +5,7 @@ services:
     plan: free
     region: frankfurt # You can change this to a region closer to you (e.g., oregon, ohio)
     branch: master
-    buildCommand: "npm install && npx prisma generate && npx prisma migrate deploy"
+    buildCommand: "npm install && npx prisma generate && npx prisma db push --accept-data-loss"
     startCommand: "npm start"
     envVars:
       - key: NODE_ENV
