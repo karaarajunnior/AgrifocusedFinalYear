@@ -9,6 +9,7 @@
 		"vercel-build": "vite build",
 		"lint": "eslint .",
 		"preview": "vite preview",
+		"start": "node server/index.js",
 		"server": "nodemon server/index.js",
 		"docs:screenshots": "node scripts/generate-mock-screenshots.mjs",
 		"db:migrate": "npx prisma migrate dev",

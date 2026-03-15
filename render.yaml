@@ -6,7 +6,7 @@ services:
     region: frankfurt # You can change this to a region closer to you (e.g., oregon, ohio)
     branch: master
     buildCommand: "npm install && npx prisma generate"
-    startCommand: "npm run server"
+    startCommand: "npm start"
     envVars:
       - key: NODE_ENV
         value: production
