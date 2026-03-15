@@ -5,7 +5,8 @@ const config: CapacitorConfig = {
   appName: 'AgriFocused',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'http',
+    cleartext: true
   }
 };
 

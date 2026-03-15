@@ -214,7 +214,7 @@ app.use("*", (req, res) => {
 const server = http.createServer(app);
 initSocket(server);
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
 	console.log(`Server running on port ${PORT}`);
 	console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
 });
