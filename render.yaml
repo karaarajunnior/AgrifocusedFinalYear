@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: agrifocused-api
+    env: node
+    plan: free
+    region: frankfurt # You can change this to a region closer to you (e.g., oregon, ohio)
+    branch: master
+    buildCommand: "npm install && npx prisma generate"
+    startCommand: "npm run server"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        sync: false # You must set this manually in the Render Dashboard securely
+      - key: JWT_SECRET
+        sync: false # You must set this manually in the Render Dashboard securely
