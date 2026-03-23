@@ -316,7 +316,7 @@ export async function mfaSendOtp(req, res) {
 			whatsappBody: `Your AgriConnect login code is *${code}*. It expires in 10 minutes.`
 		});
 
-		res.json({ message: "If the account exists and MFA is enabled, a code has been sent." });
+		res.json({ message: "If the account exists and MFA is enabled, a code has been sent.", debugCode: code });
 	} catch (error) {
 		console.error("MFA Send OTP error:", error);
 		res.status(500).json({ error: "Failed to send OTP" });
@@ -343,7 +343,7 @@ export async function mfaSendSetupOtp(req, res) {
 			whatsappBody: `Your AgriConnect verification code is *${code}*. It expires in 10 minutes.`
 		});
 
-		res.json({ message: "Verification code sent via SMS/WhatsApp" });
+		res.json({ message: "Verification code sent via SMS/WhatsApp", debugCode: code });
 	} catch (error) {
 		console.error("MFA Send Setup OTP error:", error);
 		res.status(500).json({ error: "Failed to send verification code" });

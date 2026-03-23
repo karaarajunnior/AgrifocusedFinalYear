@@ -134,8 +134,14 @@ function ProfilePage() {
 	const sendSetupOtp = async () => {
 		setMfaLoading(true);
 		try {
-			await api.post("/auth/mfa/send-setup-otp");
+			const res = await api.post("/auth/mfa/send-setup-otp");
 			toast.success("Verification code sent to your phone");
+			if (res.data?.debugCode) {
+				toast('Test Code: ' + res.data.debugCode, {
+					icon: '🛠️',
+					duration: 10000,
+				});
+			}
 		} catch (err) {
 			toast.error("Failed to send verification code");
 		} finally {

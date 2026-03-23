@@ -39,8 +39,14 @@ function LoginPage() {
     }
     try {
       setLoading(true);
-      await api.post('/auth/mfa/send-otp', { email: formData.email });
+      const res = await api.post('/auth/mfa/send-otp', { email: formData.email });
       toast.success('MFA code sent to your phone via SMS/WhatsApp');
+      if (res.data?.debugCode) {
+        toast('Test Code: ' + res.data.debugCode, {
+          icon: '🛠️',
+          duration: 10000,
+        });
+      }
     } catch (e) {
       toast.error('Failed to request an SMS code');
     } finally {

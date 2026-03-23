@@ -1,6 +1,7 @@
 import prisma from "../db/prisma.js";
 import nodemailer from "nodemailer";
 import { emitToUser } from "../realtime.js";
+import twilio from "twilio";
 
 /**
  * DAFIS Notification Service
@@ -141,11 +142,26 @@ export async function notifyUser({ userId, type, smsBody, whatsappBody }) {
 
 	// 3. Log simulated external notifications (for developers/users to see it worked)
 	if (user.notifySms || user.notifyWhatsapp) {
-		console.log(`\n--- SIMULATED EXTERNAL NOTIFICATION ---`);
+		console.log(`\n--- TWILIO EXTERNAL NOTIFICATION ---`);
 		console.log(`To: ${user.phone || 'N/A'}`);
 		console.log(`Channels: ${[user.notifySms ? 'SMS' : null, user.notifyWhatsapp ? 'WhatsApp' : null].filter(Boolean).join(', ')}`);
 		console.log(`Message: ${messageBody}`);
 		console.log(`----------------------------------------\n`);
+
+		// Actually send the SMS if Twilio is configured and the user has a phone number
+		if (user.phone && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+			try {
+				const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+				await client.messages.create({
+					body: messageBody,
+					from: process.env.TWILIO_SMS_FROM,
+					to: user.phone.startsWith('+') ? user.phone : `+${user.phone}` // Twilio requires E.164
+				});
+				console.log("-> Real Twilio SMS dispatched successfully!");
+			} catch (err) {
+				console.error("-> Failed to send Real Twilio SMS:", err?.message || err);
+			}
+		}
 	}
 
 	// 2. Try email as fallback (if user has email and SMTP is configured)
