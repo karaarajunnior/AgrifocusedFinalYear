@@ -5,7 +5,7 @@ import api from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { toast } from "react-hot-toast";
-import { Mic } from "lucide-react";
+import { Mic, MessageCircle } from "lucide-react";
 
 type UserSummary = {
 	id: string;
@@ -249,7 +249,25 @@ function ChatPage() {
 
 					<div className="bg-white rounded-lg shadow p-4 lg:col-span-2">
 						{!activeUserId ? (
-							<p className="text-sm text-gray-500">Select a conversation.</p>
+							<div className="flex flex-col items-center justify-center h-64 text-center">
+								<div className="bg-green-50 p-4 rounded-full mb-4">
+									<MessageCircle className="h-8 w-8 text-green-600" />
+								</div>
+								<h3 className="text-lg font-medium text-gray-900">Your Messages</h3>
+								<p className="text-gray-500 mt-2 max-w-sm">
+									{conversations.length === 0
+										? "You don't have any active conversations yet. Visit the Products page to find a farmer you'd like to contact."
+										: "Select a conversation from the sidebar to start chatting."}
+								</p>
+								{conversations.length === 0 && (
+									<a
+										href="/products"
+										className="mt-6 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
+									>
+										Browse Products
+									</a>
+								)}
+							</div>
 						) : (
 							<>
 								<div className="h-[55vh] overflow-y-auto border border-gray-100 rounded-lg p-3 space-y-3">
