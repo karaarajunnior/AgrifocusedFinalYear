@@ -19,12 +19,13 @@ function RegisterPage() {
 		email: "",
 		password: "",
 		confirmPassword: "",
-		role: "FARMER" as "FARMER" | "BUYER",
+		role: "FARMER" as "FARMER" | "BUYER" | "ADMIN",
 		phone: "",
 		location: "",
 		address: "",
 	});
 	const [showPassword, setShowPassword] = useState(false);
+	const [countryCode, setCountryCode] = useState("+256");
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [errors, setErrors] = useState<Record<string, string>>({});
@@ -50,7 +51,8 @@ function RegisterPage() {
 			newErrors.confirmPassword = "Passwords do not match";
 		}
 
-		if (formData.phone && !/^\+?[\d\s-()]+$/.test(formData.phone)) {
+		const fullPhone = formData.phone ? `${countryCode}${formData.phone}` : "";
+		if (fullPhone && !/^\+?[\d\s-()]+$/.test(fullPhone)) {
 			newErrors.phone = "Please enter a valid phone number";
 		}
 
@@ -72,7 +74,7 @@ function RegisterPage() {
 			email: formData.email,
 			password: formData.password,
 			role: formData.role,
-			phone: formData.phone || undefined,
+			phone: formData.phone ? `${countryCode}${formData.phone}` : undefined,
 			location: formData.location || undefined,
 			address: formData.address || undefined,
 		});
@@ -125,7 +127,7 @@ function RegisterPage() {
 							<label className="block text-sm font-medium text-gray-700 mb-2">
 								I am a
 							</label>
-							<div className="grid grid-cols-2 gap-3">
+							<div className="grid grid-cols-3 gap-3">
 								<button
 									type="button"
 									onClick={() => setFormData({ ...formData, role: "FARMER" })}
@@ -145,6 +147,16 @@ function RegisterPage() {
 											: "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
 									}`}>
 									🛒 Buyer
+								</button>
+								<button
+									type="button"
+									onClick={() => setFormData({ ...formData, role: "ADMIN" })}
+									className={`p-3 text-sm font-medium rounded-lg border-2 transition-colors ${
+										formData.role === "ADMIN"
+											? "border-green-500 bg-green-50 text-green-700"
+											: "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+									}`}>
+									🛡️ Admin
 								</button>
 							</div>
 						</div>
@@ -296,21 +308,39 @@ function RegisterPage() {
 								className="block text-sm font-medium text-gray-700">
 								Phone Number
 							</label>
-							<div className="mt-1 relative">
-								<div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-									<Phone className="h-5 w-5 text-gray-400" />
+							<div className="mt-1 relative flex rounded-md shadow-sm">
+								<div className="relative flex-none">
+									<select
+										id="countryCode"
+										name="countryCode"
+										value={countryCode}
+										onChange={(e) => setCountryCode(e.target.value)}
+										className="h-full py-0 pl-3 pr-7 border border-r-0 border-gray-300 bg-gray-50 text-gray-700 rounded-l-md focus:ring-green-500 focus:border-green-500 sm:text-sm"
+									>
+										<option value="+256">UG (+256)</option>
+										<option value="+254">KE (+254)</option>
+										<option value="+250">RW (+250)</option>
+										<option value="+255">TZ (+255)</option>
+										<option value="+211">SS (+211)</option>
+										<option value="+243">CD (+243)</option>
+									</select>
 								</div>
-								<input
-									id="phone"
-									name="phone"
-									type="tel"
-									value={formData.phone}
-									onChange={handleChange}
-									className={`appearance-none relative block w-full pl-10 pr-3 py-3 border placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm ${
-										errors.phone ? "border-red-300" : "border-gray-300"
-									}`}
-									placeholder="Enter your phone number"
-								/>
+								<div className="relative flex-grow">
+									<div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+										<Phone className="h-5 w-5 text-gray-400" />
+									</div>
+									<input
+										id="phone"
+										name="phone"
+										type="tel"
+										value={formData.phone}
+										onChange={handleChange}
+										className={`appearance-none block w-full pl-10 pr-3 py-3 border placeholder-gray-500 text-gray-900 rounded-r-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm ${
+											errors.phone ? "border-red-300" : "border-gray-300 border-l-0"
+										}`}
+										placeholder="e.g. 700 123 456"
+									/>
+								</div>
 							</div>
 							{errors.phone && (
 								<p className="mt-1 text-sm text-red-600">{errors.phone}</p>

@@ -248,3 +248,25 @@ export async function setUserVerified(req, res) {
 	}
 }
 
+export async function uploadAvatar(req, res) {
+	try {
+		if (!req.file) {
+			return res.status(400).json({ error: "No image file provided" });
+		}
+
+		// Update database
+		const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+		
+		const user = await prisma.user.update({
+			where: { id: req.user.id },
+			data: { avatar: avatarUrl },
+			select: { id: true, avatar: true },
+		});
+
+		res.json({ message: "Avatar updated successfully", user });
+	} catch (error) {
+		console.error("Upload avatar error:", error);
+		res.status(500).json({ error: "Failed to upload avatar" });
+	}
+}
+

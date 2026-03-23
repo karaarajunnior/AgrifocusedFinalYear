@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import api from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
@@ -35,6 +36,9 @@ function ChatPage() {
 	const [text, setText] = useState("");
 	const [listening, setListening] = useState(false);
 
+	const [searchParams] = useSearchParams();
+	const initialUserId = searchParams.get("userId");
+
 	const socketUrl = useMemo(() => {
 		// Use same host as API; works for local + mobile webview (proxy as needed)
 		const apiUrl =
@@ -48,8 +52,22 @@ function ChatPage() {
 			try {
 				const res = await api.get("/chat/conversations");
 				if (!mounted) return;
-				setConversations(res.data.conversations || []);
-				setActiveUserId(res.data.conversations?.[0]?.id || null);
+				
+				let fetchedConvs = res.data.conversations || [];
+
+				if (initialUserId && !fetchedConvs.find((c: any) => c.id === initialUserId)) {
+					try {
+						const userRes = await api.get(`/users/${initialUserId}`);
+						if (userRes.data?.user) {
+							fetchedConvs = [userRes.data.user, ...fetchedConvs];
+						}
+					} catch (e) {
+						console.error("Failed to fetch initial user", e);
+					}
+				}
+
+				setConversations(fetchedConvs);
+				setActiveUserId(initialUserId || fetchedConvs[0]?.id || null);
 			} catch (e) {
 				console.error(e);
 				toast.error("Failed to load chats");
@@ -60,7 +78,7 @@ function ChatPage() {
 		return () => {
 			mounted = false;
 		};
-	}, []);
+	}, [initialUserId]);
 
 	useEffect(() => {
 		if (!activeUserId) return;
@@ -153,17 +171,14 @@ function ChatPage() {
 
 	const startVoiceInput = () => {
 		// Web Speech API (best-effort; works in Chrome/Android)
-		const AnyWindow = window as unknown as {
-			SpeechRecognition?: new () => SpeechRecognition;
-			webkitSpeechRecognition?: new () => SpeechRecognition;
-		};
-		const SpeechRecognition = AnyWindow.SpeechRecognition || AnyWindow.webkitSpeechRecognition;
-		if (!SpeechRecognition) {
+		const AnyWindow = window as any;
+		const WebSpeech = AnyWindow.SpeechRecognition || AnyWindow.webkitSpeechRecognition;
+		if (!WebSpeech) {
 			toast.error("Voice input not supported on this device");
 			return;
 		}
 
-		const rec = new SpeechRecognition();
+		const rec = new WebSpeech();
 		rec.lang = "en-US";
 		rec.interimResults = false;
 		rec.maxAlternatives = 1;

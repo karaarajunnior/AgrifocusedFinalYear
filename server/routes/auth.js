@@ -9,6 +9,8 @@ import {
 	mfaDisable,
 	mfaSetup,
 	mfaVerify,
+	mfaSendOtp,
+	mfaSendSetupOtp,
 	refresh,
 	register,
 } from "../controllers/authController.js";
@@ -70,6 +72,17 @@ router.post(
 
 // MFA setup (generate secret + QR). Does NOT enable until verified.
 router.post("/mfa/setup", authenticateToken, mfaSetup);
+
+// Request SMS OTP code for login
+router.post(
+	"/mfa/send-otp",
+	loginLimiter,
+	[body("email").isEmail().normalizeEmail()],
+	mfaSendOtp
+);
+
+// Request SMS OTP code for setup/disable
+router.post("/mfa/send-setup-otp", authenticateToken, mfaSendSetupOtp);
 
 // MFA verify/setup complete
 router.post(

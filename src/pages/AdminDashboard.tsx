@@ -147,6 +147,7 @@ function AdminDashboard() {
   const [apiLatencyMs, setApiLatencyMs] = useState<number | null>(null);
   const [apiUptimeSec, setApiUptimeSec] = useState<number | null>(null);
   const [pendingUsers, setPendingUsers] = useState<Array<{ id: string; name: string; email: string; role: string; createdAt: string }>>([]);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [approvalsLoading, setApprovalsLoading] = useState(false);
   const [notificationStats, setNotificationStats] = useState<NotificationStats | null>(null);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -311,6 +312,22 @@ function AdminDashboard() {
     }
   };
 
+  const approveSelectedUsers = async () => {
+    if (selectedUsers.length === 0) return;
+    setApprovalsLoading(true);
+    try {
+      await Promise.all(selectedUsers.map(id => api.patch(`/users/${id}/verify`, { verified: true })));
+      toast.success(`${selectedUsers.length} users approved`);
+      setSelectedUsers([]);
+      fetchDashboardData();
+      fetchPendingUsers();
+    } catch (e) {
+      toast.error('Failed to approve some users');
+    } finally {
+      setApprovalsLoading(false);
+    }
+  };
+
   const fetchNotificationStats = async () => {
     setNotificationsLoading(true);
     try {
@@ -457,6 +474,7 @@ function AdminDashboard() {
             <nav className="flex space-x-8 px-6">
               {[
                 { id: 'overview', name: 'Overview', icon: BarChart3 },
+                { id: 'financials', name: 'Financials', icon: FileText },
                 { id: 'users', name: 'Users', icon: Users },
                 { id: 'approvals', name: 'Approvals', icon: Shield },
                 { id: 'exports', name: 'Exports', icon: Globe },
@@ -521,6 +539,72 @@ function AdminDashboard() {
               </div>
             )}
 
+            {activeTab === 'financials' && (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900">Financial Statements</h3>
+                  <button
+                    onClick={() => window.print()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 flex items-center transition-colors shadow-sm"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Download Statement
+                  </button>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border p-8 print:shadow-none print:border-none">
+                  <div className="text-center mb-8 border-b pb-6">
+                    <h2 className="text-2xl font-bold text-gray-900 uppercase tracking-widest mb-1">DAFIS Platform</h2>
+                    <p className="text-gray-500">Consolidated Financial Statement</p>
+                    <p className="text-sm text-gray-400 mt-2">Generated: {new Date().toLocaleDateString()}</p>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Revenue Overview</h4>
+                      <div className="flex justify-between items-center py-3 border-b">
+                        <span className="text-gray-700">Gross Merchandise Volume (GMV)</span>
+                        <span className="font-semibold">UGX {dashboardData.overview.totalRevenue.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-3 border-b">
+                        <span className="text-gray-700">Platform Fees (Estimated 2.5%)</span>
+                        <span className="font-semibold text-green-600">UGX {(dashboardData.overview.totalRevenue * 0.025).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-3 border-b">
+                        <span className="text-gray-700">Farmer Disbursements</span>
+                        <span className="font-semibold text-gray-900">UGX {(dashboardData.overview.totalRevenue * 0.975).toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 mt-8">Transaction Metrics</h4>
+                      <div className="flex justify-between items-center py-3 border-b">
+                        <span className="text-gray-700">Total Successful Transactions</span>
+                        <span className="font-semibold">{dashboardData.overview.totalTransactions}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-3 border-b">
+                        <span className="text-gray-700">Failed Transactions</span>
+                        <span className="font-semibold text-red-600">{dashboardData.overview.failedTransactions || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-3 border-b">
+                        <span className="text-gray-700">Average Order Value</span>
+                        <span className="font-semibold">
+                          UGX {dashboardData.overview.totalOrders > 0 
+                                ? Math.round(dashboardData.overview.totalRevenue / dashboardData.overview.totalOrders).toLocaleString() 
+                                : 0}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-12 pt-6 border-t text-center text-xs text-gray-400">
+                    <p>This document is generated automatically by the DAFIS system.</p>
+                    <p>Not rendering for tax purposes without an official seal.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'users' && (
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Farmers by Revenue</h3>
@@ -568,7 +652,18 @@ function AdminDashboard() {
             {activeTab === 'approvals' && (
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Pending approvals</h3>
+                  <div className="flex items-center space-x-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Pending approvals</h3>
+                    {selectedUsers.length > 0 && (
+                      <button
+                        onClick={approveSelectedUsers}
+                        disabled={approvalsLoading}
+                        className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors"
+                      >
+                        Approve Selected ({selectedUsers.length})
+                      </button>
+                    )}
+                  </div>
                   <button
                     onClick={fetchPendingUsers}
                     className="px-3 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200"
@@ -585,6 +680,20 @@ function AdminDashboard() {
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
+                          <th className="px-6 py-3 text-left w-10">
+                            <input
+                              type="checkbox"
+                              className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                              checked={selectedUsers.length === pendingUsers.length && pendingUsers.length > 0}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedUsers(pendingUsers.map(u => u.id));
+                                } else {
+                                  setSelectedUsers([]);
+                                }
+                              }}
+                            />
+                          </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             User
                           </th>
@@ -601,7 +710,21 @@ function AdminDashboard() {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {pendingUsers.map((u) => (
-                          <tr key={u.id}>
+                          <tr key={u.id} className={selectedUsers.includes(u.id) ? "bg-green-50" : ""}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                checked={selectedUsers.includes(u.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedUsers([...selectedUsers, u.id]);
+                                  } else {
+                                    setSelectedUsers(selectedUsers.filter(id => id !== u.id));
+                                  }
+                                }}
+                              />
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">{u.name}</div>
                               <div className="text-xs text-gray-500">{u.email}</div>

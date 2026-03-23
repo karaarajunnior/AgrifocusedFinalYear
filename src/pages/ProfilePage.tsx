@@ -63,6 +63,24 @@ function ProfilePage() {
 		setIsEditing(false);
 	};
 
+	const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		const formData = new FormData();
+		formData.append("avatar", file);
+
+		try {
+			await api.post("/users/profile/avatar", formData, {
+				headers: { "Content-Type": "multipart/form-data" },
+			});
+			toast.success("Profile photo updated");
+			refreshUser();
+		} catch (error) {
+			toast.error("Failed to upload photo");
+		}
+	};
+
 	const handleChangePassword = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (pwForm.newPassword !== pwForm.confirmNewPassword) {
@@ -108,6 +126,18 @@ function ProfilePage() {
 				}
 			}
 			toast.error(message);
+		} finally {
+			setMfaLoading(false);
+		}
+	};
+
+	const sendSetupOtp = async () => {
+		setMfaLoading(true);
+		try {
+			await api.post("/auth/mfa/send-setup-otp");
+			toast.success("Verification code sent to your phone");
+		} catch (err) {
+			toast.error("Failed to send verification code");
 		} finally {
 			setMfaLoading(false);
 		}
@@ -230,8 +260,32 @@ function ProfilePage() {
 					<div className="p-6">
 						<div className="flex items-start space-x-6 mb-8">
 							{/* Avatar */}
-							<div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center">
-								<User className="h-12 w-12 text-green-600" />
+							<div className="relative w-24 h-24 bg-green-100 rounded-full flex items-center justify-center shrink-0 overflow-hidden group border-2 border-transparent hover:border-green-500 transition-all">
+								{user.avatar ? (
+									<img
+										src={`${import.meta.env.VITE_API_URL || "http://localhost:5000"}${user.avatar}`}
+										alt="Profile"
+										className="w-full h-full object-cover"
+										onError={(e) => {
+											const target = e.target as HTMLImageElement;
+											target.onerror = null;
+											target.style.display = 'none';
+											target.parentElement?.classList.add('bg-green-100');
+										}}
+									/>
+								) : (
+									<User className="h-12 w-12 text-green-600" />
+								)}
+
+								<label className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center cursor-pointer transition-all">
+									<span className="text-xs text-white font-medium">Upload</span>
+									<input
+										type="file"
+										accept="image/jpeg,image/png,image/webp"
+										className="hidden"
+										onChange={handleAvatarUpload}
+									/>
+								</label>
 							</div>
 
 							{/* Basic Info */}
@@ -506,11 +560,21 @@ function ProfilePage() {
 											className="w-full px-3 py-2 border border-gray-300 rounded-lg"
 											placeholder="MFA code"
 										/>
+										<div className="flex justify-between items-center mb-1">
+											<button
+												type="button"
+												onClick={sendSetupOtp}
+												disabled={mfaLoading}
+												className="text-sm text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50"
+											>
+												Send code via SMS
+											</button>
+										</div>
 										<button
 											type="button"
 											onClick={disableMfa}
 											disabled={mfaLoading}
-											className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
+											className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 mt-3">
 											{mfaLoading ? "Working..." : "Disable MFA"}
 										</button>
 									</div>
@@ -541,7 +605,7 @@ function ProfilePage() {
 														value={mfaCode}
 														onChange={(e) => setMfaCode(e.target.value)}
 														className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
-														placeholder="Enter code to confirm"
+														placeholder="Enter app or SMS code"
 													/>
 													<button
 														type="button"
@@ -549,6 +613,17 @@ function ProfilePage() {
 														disabled={mfaLoading || !mfaCode}
 														className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
 														Verify
+													</button>
+												</div>
+												<div className="mt-3">
+													<p className="text-sm text-gray-500 mb-2">Can't use an authenticator app?</p>
+													<button
+														type="button"
+														onClick={sendSetupOtp}
+														disabled={mfaLoading}
+														className="text-sm text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50"
+													>
+														Send code via SMS
 													</button>
 												</div>
 											</div>

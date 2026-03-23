@@ -9,6 +9,7 @@ import {
 	revokeRefreshToken,
 } from "../services/tokenService.js";
 import { writeAuditLog } from "../services/auditLogService.js";
+import { notifyUser } from "../services/smsWhatsappService.js";
 
 export async function register(req, res) {
 	try {
@@ -22,6 +23,13 @@ export async function register(req, res) {
 		const existingUser = await prisma.user.findUnique({ where: { email } });
 		if (existingUser) {
 			return res.status(400).json({ error: "User already exists" });
+		}
+
+		if (role === "ADMIN") {
+			const existingAdmin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
+			if (existingAdmin) {
+				return res.status(400).json({ error: "An admin user already exists. Only one admin is allowed." });
+			}
 		}
 
 		const salt = await bcrypt.genSalt(12);
@@ -98,7 +106,21 @@ export async function login(req, res) {
 					mfaRequired: true,
 				});
 			}
-			const ok = verifyTotp({ secretBase32: user.mfaSecret, token: mfaCode });
+
+			let ok = false;
+			// 1. Try SMS OTP first
+			if (user.mfaOtp && user.mfaOtp === mfaCode && user.mfaOtpExpires && user.mfaOtpExpires > new Date()) {
+				ok = true;
+				// clear it to prevent reuse
+				await prisma.user.update({
+					where: { id: user.id },
+					data: { mfaOtp: null, mfaOtpExpires: null }
+				});
+			} else {
+				// 2. Fallback to Authenticator app
+				ok = verifyTotp({ secretBase32: user.mfaSecret, token: mfaCode });
+			}
+
 			if (!ok) return res.status(401).json({ error: "Invalid MFA code" });
 		}
 
@@ -209,8 +231,10 @@ export async function mfaVerify(req, res) {
 			return res.status(400).json({ error: "No MFA setup in progress" });
 		}
 
-		const ok = verifyTotp({ secretBase32: user.mfaTempSecret, token: req.body.code });
-		if (!ok) return res.status(400).json({ error: "Invalid MFA code" });
+		const okTotp = verifyTotp({ secretBase32: user.mfaTempSecret, token: req.body.code });
+		const okOtp = user.mfaOtp && user.mfaOtp === req.body.code && user.mfaOtpExpires && user.mfaOtpExpires > new Date();
+
+		if (!okTotp && !okOtp) return res.status(400).json({ error: "Invalid MFA code" });
 
 		await prisma.user.update({
 			where: { id: req.user.id },
@@ -218,6 +242,8 @@ export async function mfaVerify(req, res) {
 				mfaEnabled: true,
 				mfaSecret: user.mfaTempSecret,
 				mfaTempSecret: null,
+				mfaOtp: null,
+				mfaOtpExpires: null,
 			},
 		});
 
@@ -242,17 +268,85 @@ export async function mfaDisable(req, res) {
 		if (!okPassword) return res.status(400).json({ error: "Invalid password" });
 
 		const okTotp = verifyTotp({ secretBase32: user.mfaSecret, token: req.body.code });
-		if (!okTotp) return res.status(400).json({ error: "Invalid MFA code" });
+		const okOtp = user.mfaOtp && user.mfaOtp === req.body.code && user.mfaOtpExpires && user.mfaOtpExpires > new Date();
+
+		if (!okTotp && !okOtp) return res.status(400).json({ error: "Invalid MFA code" });
 
 		await prisma.user.update({
 			where: { id: req.user.id },
-			data: { mfaEnabled: false, mfaSecret: null, mfaTempSecret: null },
+			data: { mfaEnabled: false, mfaSecret: null, mfaTempSecret: null, mfaOtp: null, mfaOtpExpires: null },
 		});
 
 		res.json({ message: "MFA disabled successfully" });
 	} catch (error) {
 		console.error("MFA disable error:", error);
 		res.status(500).json({ error: "Failed to disable MFA" });
+	}
+}
+
+export async function mfaSendOtp(req, res) {
+	try {
+		const errors = validationResult(req);
+		if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+		const { email } = req.body;
+		const user = await prisma.user.findUnique({ where: { email } });
+		
+		// ALWAYS return generic success message to prevent email enumeration,
+		// but internally skip sending if not MFA enabled.
+		if (!user || (!user.mfaEnabled && user.role !== "ADMIN")) {
+			return res.json({ message: "If the account exists and MFA is enabled, a code has been sent." });
+		}
+
+		// Generate 6-digit code
+		const code = Math.floor(100000 + Math.random() * 900000).toString();
+		const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+		// Save it
+		await prisma.user.update({
+			where: { id: user.id },
+			data: { mfaOtp: code, mfaOtpExpires: expires }
+		});
+
+		// Dispatch via existing centralized notification service
+		await notifyUser({
+			userId: user.id,
+			type: "auth",
+			smsBody: `Your AgriConnect login code is ${code}. It expires in 10 minutes.`,
+			whatsappBody: `Your AgriConnect login code is *${code}*. It expires in 10 minutes.`
+		});
+
+		res.json({ message: "If the account exists and MFA is enabled, a code has been sent." });
+	} catch (error) {
+		console.error("MFA Send OTP error:", error);
+		res.status(500).json({ error: "Failed to send OTP" });
+	}
+}
+
+export async function mfaSendSetupOtp(req, res) {
+	try {
+		const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+		if (!user) return res.status(404).json({ error: "User not found" });
+
+		const code = Math.floor(100000 + Math.random() * 900000).toString();
+		const expires = new Date(Date.now() + 10 * 60 * 1000);
+
+		await prisma.user.update({
+			where: { id: user.id },
+			data: { mfaOtp: code, mfaOtpExpires: expires }
+		});
+
+		await notifyUser({
+			userId: user.id,
+			type: "auth",
+			smsBody: `Your AgriConnect verification code is ${code}. It expires in 10 minutes.`,
+			whatsappBody: `Your AgriConnect verification code is *${code}*. It expires in 10 minutes.`
+		});
+
+		res.json({ message: "Verification code sent via SMS/WhatsApp" });
+	} catch (error) {
+		console.error("MFA Send Setup OTP error:", error);
+		res.status(500).json({ error: "Failed to send verification code" });
 	}
 }
 

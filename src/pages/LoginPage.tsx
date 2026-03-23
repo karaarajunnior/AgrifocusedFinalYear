@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, Leaf, Mail, Lock } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
+import api from '../services/api';
+import { toast } from 'react-hot-toast';
 
 function LoginPage() {
   const [formData, setFormData] = useState({
@@ -28,6 +30,22 @@ function LoginPage() {
     }
     
     setLoading(false);
+  };
+
+  const handleSendOtp = async () => {
+    if (!formData.email) {
+      toast.error('Please enter your email first');
+      return;
+    }
+    try {
+      setLoading(true);
+      await api.post('/auth/mfa/send-otp', { email: formData.email });
+      toast.success('MFA code sent to your phone via SMS/WhatsApp');
+    } catch (e) {
+      toast.error('Failed to request an SMS code');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,20 +126,32 @@ function LoginPage() {
             </div>
 
             {needsMfa && (
-              <div>
-                <label htmlFor="mfaCode" className="block text-sm font-medium text-gray-700">
-                  MFA code
-                </label>
-                <div className="mt-1 relative">
-                  <input
-                    id="mfaCode"
-                    name="mfaCode"
-                    inputMode="numeric"
-                    value={formData.mfaCode}
-                    onChange={handleChange}
-                    className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-                    placeholder="123456"
-                  />
+              <div className="space-y-3">
+                <div>
+                  <label htmlFor="mfaCode" className="block text-sm font-medium text-gray-700">
+                    MFA code (App or SMS)
+                  </label>
+                  <div className="mt-1 relative">
+                    <input
+                      id="mfaCode"
+                      name="mfaCode"
+                      inputMode="numeric"
+                      value={formData.mfaCode}
+                      onChange={handleChange}
+                      className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
+                      placeholder="123456"
+                    />
+                  </div>
+                </div>
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={loading}
+                    className="text-sm text-green-600 hover:text-green-700 font-medium disabled:opacity-50"
+                  >
+                    Send code via SMS
+                  </button>
                 </div>
               </div>
             )}
@@ -151,15 +181,6 @@ function LoginPage() {
           </div>
         </form>
 
-        
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <h3 className="text-sm font-medium text-blue-800 mb-2">Usage Credentials:</h3>
-          <div className="text-xs text-blue-700 space-y-1">
-            <p><strong>Farmer:</strong> hamza@gmail.com / 0a1b@#.com</p>
-            <p><strong>Buyer:</strong> mbazira@gmail.com / 0a1b@#.com</p>
-           
-          </div>
-        </div>
       </div>
     </div>
   );

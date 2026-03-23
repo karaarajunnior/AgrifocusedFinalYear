@@ -25,6 +25,8 @@ model User {
   mfaEnabled              Boolean              @default(false)
   mfaSecret               String?              @db.Text
   mfaTempSecret           String?              @db.Text
+  mfaOtp                  String?              @db.VarChar(10)
+  mfaOtpExpires           DateTime?
   notifyChat              Boolean              @default(true)
   notifyOrder             Boolean              @default(true)
   notifyPayment           Boolean              @default(true)

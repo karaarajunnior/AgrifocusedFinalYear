@@ -7,7 +7,43 @@ import {
 	listUsers,
 	setUserVerified,
 	updateUserProfile,
+	uploadAvatar,
 } from "../controllers/usersController.js";
+import multer from "multer";
+import path from "path";
+import fs from "fs/promises";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const avatarUploadsDir = path.join(__dirname, "..", "uploads", "avatars");
+
+const avatarStorage = multer.diskStorage({
+	destination: async (req, file, cb) => {
+		try {
+			await fs.mkdir(avatarUploadsDir, { recursive: true });
+			cb(null, avatarUploadsDir);
+		} catch (e) {
+			cb(e);
+		}
+	},
+	filename: (req, file, cb) => {
+		const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+		cb(null, `${req.user.id}_${Date.now()}_${safe}`);
+	},
+});
+
+const uploadAvatarMw = multer({
+	storage: avatarStorage,
+	limits: { fileSize: 5 * 1024 * 1024 },
+	fileFilter: (req, file, cb) => {
+		const allowed = new Set(["image/jpeg", "image/png", "image/webp"]);
+		if (!allowed.has(file.mimetype)) {
+			return cb(new Error("Only JPG, PNG, WEBP images are allowed"));
+		}
+		cb(null, true);
+	},
+});
 
 const router = express.Router();
 
@@ -33,6 +69,9 @@ router.put(
 	],
 	updateUserProfile,
 );
+
+// Upload profile avatar
+router.post("/profile/avatar", authenticateToken, uploadAvatarMw.single("avatar"), uploadAvatar);
 
 // Change password
 router.put(

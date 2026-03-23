@@ -4,6 +4,7 @@ import {
 	Routes,
 	Route,
 	Navigate,
+	Link,
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Toaster } from "react-hot-toast";
@@ -11,6 +12,7 @@ import { Toaster } from "react-hot-toast";
 // Components
 import Navbar from "./components/Navbar";
 import LoadingSpinner from "./components/LoadingSpinner";
+import SplashScreen from "./components/SplashScreen";
 
 // Pages
 import LandingPage from "./pages/LandingPage";
@@ -37,12 +39,24 @@ import GradingPage from "./pages/GradingPage";
 function AppContent() {
 	const { user, loading } = useAuth();
 	const [isInitialized, setIsInitialized] = useState(false);
+	const [showSplash, setShowSplash] = useState(true);
 
 	useEffect(() => {
 		if (!loading) {
 			setIsInitialized(true);
 		}
 	}, [loading]);
+
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setShowSplash(false);
+		}, 4000);
+		return () => clearTimeout(timer);
+	}, []);
+
+	if (showSplash) {
+		return <SplashScreen />;
+	}
 
 	if (!isInitialized) {
 		return (
@@ -92,7 +106,7 @@ function AppContent() {
 					<Route
 						path="/profile"
 						element={
-							<ProtectedRoute>
+							<ProtectedRoute requireMfa={false}>
 								<ProfilePage />
 							</ProtectedRoute>
 						}
@@ -197,7 +211,7 @@ function AppContent() {
 	);
 }
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children, requireMfa = true }: { children: React.ReactNode, requireMfa?: boolean }) {
 	const { user, loading } = useAuth();
 
 	if (loading) {
@@ -210,6 +224,27 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 	if (!user) {
 		return <Navigate to="/login" />;
+	}
+
+	if (requireMfa && user && !user.mfaEnabled) {
+		return (
+			<div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
+				<div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
+					<div className="flex justify-center mb-4 text-yellow-500">
+						<svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+						</svg>
+					</div>
+					<h2 className="text-2xl font-bold mb-2 text-gray-900">Two-Factor Auth Required</h2>
+					<p className="text-gray-600 mb-6">
+						For security purposes, 2FA is not optional. You must enable it in your profile before continuing to your dashboard.
+					</p>
+					<Link to="/profile" className="w-full inline-flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+						Go to Profile to Setup 2FA
+					</Link>
+				</div>
+			</div>
+		);
 	}
 
 	return <>{children}</>;

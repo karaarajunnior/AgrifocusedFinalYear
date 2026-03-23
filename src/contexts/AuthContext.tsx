@@ -48,7 +48,7 @@ interface RegisterData {
 	name: string;
 	email: string;
 	password: string;
-	role: "FARMER" | "BUYER";
+	role: "FARMER" | "BUYER" | "ADMIN";
 	phone?: string;
 	location?: string;
 	address?: string;
@@ -102,7 +102,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			localStorage.setItem("token", token);
 			setUser(user);
 
-			toast.success(`Welcome back, ${user.name}!`);
 			return { ok: true };
 		} catch (error: any) {
 			if (error.response?.data?.mfaRequired) {
@@ -124,7 +123,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			localStorage.setItem("token", token);
 			setUser(user);
 
-			toast.success(`Welcome to AgriConnect, ${user.name}!`);
 			return true;
 		} catch (error: any) {
 			const message = error.response?.data?.error || "Registration failed";

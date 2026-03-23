@@ -10,7 +10,8 @@ import {
 	Package,
 	DollarSign,
 	TrendingUp,
-	Star
+	Star,
+	FileText
 } from "lucide-react";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ProfitMaximizer from "../components/ProfitMaximizer";
@@ -29,10 +30,10 @@ import {
 	defaultProductFormDefinition,
 	type FormDefinition,
 } from "../utils/formDefinitions";
-import { saveToCache, getFromCache, isOffline } from "../utils/offlineCache";
+import { saveToCache, getFromCache } from "../utils/offlineCache";
 import { useOfflineSync } from "../hooks/useOfflineSync";
 import OfflineBadge from "../components/OfflineBadge";
-import { getOfflineProductQueue, getOfflineProductCount } from "../utils/offlineProductQueue";
+import { getOfflineProductCount } from "../utils/offlineProductQueue";
 
 interface Product {
 	id: string;
@@ -373,6 +374,41 @@ function FarmerDashboard() {
 								)) : (
 									<p className="text-xs text-gray-400 italic">No recent price data available.</p>
 								)}
+							</div>
+						</div>
+
+						<div className="bg-white rounded-2xl shadow-sm border p-6">
+							<div className="flex justify-between items-center mb-4">
+								<h4 className="font-bold text-gray-900 flex items-center gap-2">
+									<FileText className="h-4 w-4 text-blue-500" />
+									Financial Statement
+								</h4>
+								<button 
+									onClick={() => window.print()} 
+									className="text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+								>
+									Print PDF
+								</button>
+							</div>
+							
+							<div className="space-y-3 text-sm">
+								<div className="flex justify-between pb-2 border-b border-gray-100">
+									<span className="text-gray-500">Gross Sales Volume</span>
+									<span className="font-bold text-gray-900">UGX {(analytics?.overview.totalRevenue || 0).toLocaleString()}</span>
+								</div>
+								<div className="flex justify-between pb-2 border-b border-gray-100">
+									<span className="text-gray-500">Platform Fees (2.5%)</span>
+									<span className="font-bold text-red-600">- UGX {((analytics?.overview.totalRevenue || 0) * 0.025).toLocaleString()}</span>
+								</div>
+								<div className="flex justify-between pt-1">
+									<span className="font-bold text-gray-900">Net Estimated Payout</span>
+									<span className="font-black text-green-600">UGX {((analytics?.overview.totalRevenue || 0) * 0.975).toLocaleString()}</span>
+								</div>
+							</div>
+							
+							<div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-500 text-center">
+								Official DAFIS Generated Record.<br />
+								{new Date().toLocaleDateString()}
 							</div>
 						</div>
 					</div>

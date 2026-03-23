@@ -49,15 +49,10 @@ const requireRole = (roles) => {
 			return res.status(401).json({ error: "Authentication required" });
 		}
 
-		// Optional: enforce MFA for admins without affecting normal users
-		if (
-			req.user.role === "ADMIN" &&
-			roles.includes("ADMIN") &&
-			String(process.env.ENFORCE_ADMIN_MFA || "false").toLowerCase() === "true" &&
-			!req.user.mfaEnabled
-		) {
+		// Enforce mandatory MFA across all role-protected routes
+		if (!req.user.mfaEnabled) {
 			return res.status(403).json({
-				error: "Admin must enable MFA to access this resource",
+				error: "MFA must be enabled to access this resource",
 				mfaSetupRequired: true,
 			});
 		}

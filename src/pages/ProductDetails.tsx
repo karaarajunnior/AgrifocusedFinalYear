@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
@@ -13,7 +13,8 @@ import {
   Package,
   Leaf,
   Shield,
-  TrendingUp
+  TrendingUp,
+  MessageSquare
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import api from '../services/api';
@@ -297,7 +298,18 @@ function ProductDetails() {
 
             {/* Farmer Info */}
             <div className="bg-white rounded-lg shadow p-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Farmer Information</h3>
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-semibold text-gray-900">Farmer Information</h3>
+                {user && user.id !== product.farmer.id && (
+                  <button
+                    onClick={() => navigate(`/chat?userId=${product.farmer.id}`)}
+                    className="text-sm bg-green-50 text-green-700 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100 transition-colors flex items-center"
+                  >
+                    <MessageSquare className="h-4 w-4 mr-1.5" />
+                    Message Farmer
+                  </button>
+                )}
+              </div>
               <div className="flex items-start space-x-4">
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                   <User className="h-6 w-6 text-green-600" />
@@ -306,7 +318,9 @@ function ProductDetails() {
                   <div className="flex items-center">
                     <h4 className="font-medium text-gray-900">{product.farmer.name}</h4>
                     {product.farmer.verified && (
-                      <Shield className="h-4 w-4 text-blue-500 ml-2" title="Verified Farmer" />
+                      <span title="Verified Farmer">
+                        <Shield className="h-4 w-4 text-blue-500 ml-2" />
+                      </span>
                     )}
                   </div>
                   <p className="text-sm text-gray-600 flex items-center mt-1">
