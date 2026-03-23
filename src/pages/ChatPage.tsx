@@ -35,6 +35,7 @@ function ChatPage() {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [text, setText] = useState("");
 	const [listening, setListening] = useState(false);
+	const [socket, setSocket] = useState<Socket | null>(null);
 
 	const [searchParams] = useSearchParams();
 	const initialUserId = searchParams.get("userId");
@@ -94,18 +95,27 @@ function ChatPage() {
 	}, [activeUserId]);
 
 	useEffect(() => {
+		let mounted = true;
 		const token = localStorage.getItem("token");
 		if (!token) return;
 
 		const s: Socket = io(socketUrl, { auth: { token } });
+		setSocket(s);
 
 		s.on("connect_error", (err) => {
 			console.error("Socket error:", err?.message || err);
 		});
 
-		s.on("notify", (n) => {
+		s.on("notify", async (n) => {
 			if (n?.type === "message") {
 				toast("New message received");
+				// Refresh conversation list to show new people
+				try {
+					const res = await api.get("/chat/conversations");
+					if (mounted) setConversations(res.data.conversations || []);
+				} catch (e) {
+					console.error("Failed to refresh conversations", e);
+				}
 			}
 		});
 
@@ -130,6 +140,7 @@ function ChatPage() {
 		});
 
 		return () => {
+			mounted = false;
 			s.disconnect();
 		};
 	}, [socketUrl, activeUserId]);
@@ -145,11 +156,9 @@ function ChatPage() {
 		}
 
 		try {
-			// Use socket when available; fallback to REST
-			const token = localStorage.getItem("token");
-			if (token) {
-				const s: Socket = io(socketUrl, { auth: { token } });
-				s.emit(
+			// Use the actively maintained socket connection
+			if (socket && socket.connected) {
+				socket.emit(
 					"chat:send",
 					{ receiverId: activeUserId, content },
 					(resp: ChatSendAck) => {
@@ -158,9 +167,12 @@ function ChatPage() {
 						}
 					},
 				);
-				s.disconnect();
 			} else {
-				await api.post("/chat/messages", { receiverId: activeUserId, content });
+				const res = await api.post("/chat/messages", { receiverId: activeUserId, content });
+				// Manually update messages since we won't get the socket loopback
+				if (res.data?.chat) {
+					setMessages(prev => [...prev, res.data.chat]);
+				}
 			}
 			setText("");
 		} catch (e) {

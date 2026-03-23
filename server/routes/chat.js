@@ -3,6 +3,9 @@ import { body, param, query, validationResult } from "express-validator";
 import { authenticateToken } from "../middleware/auth.js";
 import { requireVerified } from "../middleware/verified.js";
 import { synthesizeToFile } from "../services/ttsService.js";
+import { emitToUser } from "../realtime.js";
+import { sendPushToUser } from "../services/pushService.js";
+import { notifyUser } from "../services/smsWhatsappService.js";
 import prisma from "../db/prisma.js";
 
 const router = express.Router();
@@ -122,9 +125,37 @@ router.post(
 				console.error("TTS failed:", e?.message || e);
 			}
 
+			const fullMsg = { ...msg, audioUrl };
+
+			// Broadcast in real-time if receiver is connected
+			emitToUser(receiverId, "chat:message", fullMsg);
+			emitToUser(receiverId, "notify", {
+				type: "message",
+				fromUserId: req.user.id,
+				messageId: msg.id,
+				createdAt: msg.createdAt,
+			});
+
+			// Optional: Push Notification
+			await sendPushToUser(receiverId, {
+				notification: {
+					title: "New message",
+					body: content.length > 120 ? `${content.slice(0, 117)}...` : content,
+				},
+				data: { type: "message", fromUserId: req.user.id, messageId: msg.id },
+			});
+
+			// SMS Notification
+			await notifyUser({
+				userId: receiverId,
+				type: "chat",
+				smsBody: `AgriConnect: New message received. Open the app to reply.`,
+				whatsappBody: `AgriConnect: New message received. Open the app to reply.`,
+			});
+
 			res.status(201).json({
 				message: "Message sent",
-				chat: { ...msg, audioUrl },
+				chat: fullMsg,
 			});
 		} catch (error) {
 			console.error("Send message error:", error);

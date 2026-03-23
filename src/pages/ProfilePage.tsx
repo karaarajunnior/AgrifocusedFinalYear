@@ -76,8 +76,8 @@ function ProfilePage() {
 			});
 			toast.success("Profile photo updated");
 			refreshUser();
-		} catch (error) {
-			toast.error("Failed to upload photo");
+		} catch (error: any) {
+			toast.error(error.response?.data?.error || "Failed to upload photo");
 		}
 	};
 
@@ -142,8 +142,8 @@ function ProfilePage() {
 					duration: 10000,
 				});
 			}
-		} catch (err) {
-			toast.error("Failed to send verification code");
+		} catch (err: any) {
+			toast.error(err.response?.data?.error || "Failed to send verification code");
 		} finally {
 			setMfaLoading(false);
 		}
@@ -199,6 +199,8 @@ function ProfilePage() {
 		try {
 			const ok = await updateProfile({ autoFulfillOnPayment: value });
 			if (ok) toast.success("Automation setting updated");
+		} catch (err: any) {
+			toast.error(err.response?.data?.error || "Failed to update automation setting");
 		} finally {
 			setAutomationLoading(false);
 		}

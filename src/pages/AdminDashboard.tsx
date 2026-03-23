@@ -263,8 +263,8 @@ function AdminDashboard() {
         shopId: agroShops[0]?.id || ''
       });
       fetchAdminAgroData();
-    } catch (e) {
-      toast.error('Failed to create agro-input');
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || 'Failed to create agro-input');
     }
   };
 
@@ -274,8 +274,8 @@ function AdminDashboard() {
       await api.delete(`/inputs/admin/${id}`);
       toast.success('Deleted successfully');
       fetchAdminAgroData();
-    } catch (e) {
-      toast.error('Failed to delete');
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || 'Failed to delete');
     }
   };
 
@@ -288,8 +288,8 @@ function AdminDashboard() {
       toast.success(`Application ${status.toLowerCase()}ed`);
       fetchExportApplications();
       fetchDashboardData();
-    } catch (e) {
-      toast.error('Failed to update application');
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || 'Failed to update application');
     }
   };
 

@@ -183,7 +183,8 @@ function FarmerDashboard() {
 				enqueueOfflineProductDraft(payload);
 				toast.success("Saved offline");
 			} else {
-				toast.error("Failed to add product");
+				const message = err.response?.data?.error || "Failed to add product";
+				toast.error(message);
 			}
 		} finally {
 			setSubmitting(false);
