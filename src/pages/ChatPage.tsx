@@ -47,9 +47,7 @@ function ChatPage() {
 	const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
 
 	const socketUrl = useMemo(() => {
-		// Use same host as API; works for local + mobile webview (proxy as needed)
-		const apiUrl =
-			import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+		const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 		return apiUrl.replace(/\/api\/?$/, "");
 	}, []);
 
@@ -115,7 +113,6 @@ function ChatPage() {
 		s.on("notify", async (n) => {
 			if (n?.type === "message") {
 				toast("New message received");
-				// Refresh conversation list to show new people
 				try {
 					const res = await api.get("/chat/conversations");
 					if (mounted) setConversations(res.data.conversations || []);
@@ -126,7 +123,6 @@ function ChatPage() {
 		});
 
 		s.on("chat:message", (msg: ChatMessage) => {
-			// Incoming message
 			if (
 				(activeUserId && msg.senderId === activeUserId) ||
 				(activeUserId && msg.receiverId === activeUserId)
@@ -136,7 +132,6 @@ function ChatPage() {
 		});
 
 		s.on("chat:message:sent", (msg: ChatMessage) => {
-			// Ack mirror for sent messages
 			if (
 				(activeUserId && msg.senderId === activeUserId) ||
 				(activeUserId && msg.receiverId === activeUserId)
@@ -151,10 +146,8 @@ function ChatPage() {
 		};
 	}, [socketUrl, activeUserId]);
 
-	// Auto-translate incoming messages
 	useEffect(() => {
 		if (targetLang === "english") return; 
-		// Check for un-translated messages
 		const lastMsg = messages[messages.length - 1];
 		if (lastMsg && !lastMsg.senderId.includes(user?.id || "---") && !translations[lastMsg.id]) {
 			translateMessage(lastMsg.id, lastMsg.content);
@@ -162,8 +155,7 @@ function ChatPage() {
 	}, [messages, targetLang]);
 
 	const send = async () => {
-		if (!user) return;
-		if (!activeUserId) return;
+		if (!user || !activeUserId) return;
 		const content = text.trim();
 		if (!content) return;
 		if (!user.verified) {
@@ -172,7 +164,6 @@ function ChatPage() {
 		}
 
 		try {
-			// Use the actively maintained socket connection
 			if (socket && socket.connected) {
 				socket.emit(
 					"chat:send",
@@ -185,7 +176,6 @@ function ChatPage() {
 				);
 			} else {
 				const res = await api.post("/chat/messages", { receiverId: activeUserId, content });
-				// Manually update messages since we won't get the socket loopback
 				if (res.data?.chat) {
 					setMessages(prev => [...prev, res.data.chat]);
 				}
@@ -198,7 +188,6 @@ function ChatPage() {
 	};
 
 	const startVoiceInput = () => {
-		// Web Speech API (best-effort; works in Chrome/Android)
 		const AnyWindow = window as any;
 		const WebSpeech = AnyWindow.SpeechRecognition || AnyWindow.webkitSpeechRecognition;
 		if (!WebSpeech) {
@@ -214,11 +203,8 @@ function ChatPage() {
 		rec.onstart = () => setListening(true);
 		rec.onend = () => setListening(false);
 		rec.onerror = () => setListening(false);
-		rec.onresult = (e: Event) => {
-			const maybe = e as unknown as {
-				results?: ArrayLike<ArrayLike<{ transcript?: unknown }>>;
-			};
-			const transcript = maybe?.results?.[0]?.[0]?.transcript;
+		rec.onresult = (e: any) => {
+			const transcript = e?.results?.[0]?.[0]?.transcript;
 			if (typeof transcript === "string" && transcript.trim()) {
 				setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
 			}
@@ -260,14 +246,10 @@ function ChatPage() {
 			setMediaRecorder(recorder);
 			setAudioChunks([]);
 
-			recorder.ondataavailable = (e) => {
+			recorder.ondataavailable = (e: any) => {
 				if (e.data.size > 0) {
 					setAudioChunks((prev) => [...prev, e.data]);
 				}
-			};
-
-			recorder.onstop = async () => {
-				// We'll handle sending in a separate step or automatically
 			};
 
 			recorder.start();
@@ -288,27 +270,16 @@ function ChatPage() {
 			try {
 				const formData = new FormData();
 				formData.append("file", audioBlob, `voice_${Date.now()}.webm`);
-				
-				// Re-use existing document/upload logic or direct upload
 				const uploadRes = await api.post("/documents/upload", formData, {
 					headers: { "Content-Type": "multipart/form-data" }
 				});
 
 				if (uploadRes.data?.path) {
 					const audioUrl = uploadRes.data.path;
-					// Send as chat message
 					if (socket && socket.connected) {
-						socket.emit("chat:send", { 
-							receiverId: activeUserId, 
-							content: "[Voice Message]", 
-							audioUrl 
-						});
+						socket.emit("chat:send", { receiverId: activeUserId, content: "[Voice Message]", audioUrl });
 					} else {
-						await api.post("/chat/messages", { 
-							receiverId: activeUserId, 
-							content: "[Voice Message]", 
-							audioUrl 
-						});
+						await api.post("/chat/messages", { receiverId: activeUserId, content: "[Voice Message]", audioUrl });
 					}
 					toast.success("Voice message sent");
 				}
@@ -317,7 +288,6 @@ function ChatPage() {
 				toast.error("Failed to send voice message");
 			}
 			
-			// Clean up
 			mediaRecorder.stream.getTracks().forEach(t => t.stop());
 			setMediaRecorder(null);
 			setAudioChunks([]);
@@ -358,9 +328,7 @@ function ChatPage() {
 						</h2>
 						<div className="space-y-2">
 							{conversations.length === 0 ? (
-								<p className="text-sm text-gray-500">
-									No conversations yet.
-								</p>
+								<p className="text-sm text-gray-500">No conversations yet.</p>
 							) : (
 								conversations.map((c) => (
 									<button
@@ -373,18 +341,14 @@ function ChatPage() {
 										}`}
 									>
 										<div className="flex items-center justify-between">
-											<div className="text-sm font-black text-slate-900 truncate">
-												{c.name}
-											</div>
+											<div className="text-sm font-black text-slate-900 truncate">{c.name}</div>
 											{c.verified && (
 												<div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center shrink-0 ml-2 shadow-sm">
 													<span className="text-[10px] text-white font-bold">✓</span>
 												</div>
 											)}
 										</div>
-										<div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-											{c.role}
-										</div>
+										<div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{c.role}</div>
 									</button>
 								))
 							)}
@@ -419,43 +383,19 @@ function ChatPage() {
 										const isMine = m.senderId === user?.id;
 										const translated = translations[m.id];
 										return (
-											<div
-												key={m.id}
-												className={`max-w-[85%] ${
-													isMine ? "ml-auto text-right" : "mr-auto"
-												}`}
-											>
-												<div
-													className={`inline-block px-3 py-2 rounded-lg relative group ${
-														isMine
-															? "bg-green-600 text-white"
-															: "bg-gray-100 text-gray-900"
-													}`}
-												>
-													<p className="text-sm whitespace-pre-wrap">
-														{translated || m.content}
-													</p>
-													
-													{/* Accessibility Tools Overlay/Footer */}
+											<div key={m.id} className={`max-w-[85%] ${isMine ? "ml-auto text-right" : "mr-auto"}`}>
+												<div className={`inline-block px-3 py-2 rounded-lg relative group ${isMine ? "bg-green-600 text-white" : "bg-gray-100 text-gray-900"}`}>
+													<p className="text-sm whitespace-pre-wrap">{translated || m.content}</p>
 													<div className={`flex items-center gap-2 mt-2 pt-1 border-t ${isMine ? "border-green-500 justify-end" : "border-gray-200"}`}>
-														<button 
-															onClick={() => readAloud(translated || m.content)}
-															className="p-1 hover:bg-black/10 rounded transition-colors"
-															title="Read aloud"
-														>
+														<button onClick={() => readAloud(translated || m.content)} className="p-1 hover:bg-black/10 rounded transition-colors" title="Read aloud">
 															<Volume2 className="h-3.5 w-3.5" />
 														</button>
 														{!isMine && (
-															<button 
-																onClick={() => translateMessage(m.id, m.content)}
-																className={`p-1 hover:bg-black/10 rounded transition-colors ${translated ? "text-blue-500" : ""}`}
-																title={`Translate to ${targetLang}`}
-															>
+															<button onClick={() => translateMessage(m.id, m.content)} className={`p-1 hover:bg-black/10 rounded transition-colors ${translated ? "text-blue-500" : ""}`} title={`Translate to ${targetLang}`}>
 																<Globe className="h-3.5 w-3.5" />
 															</button>
 														)}
 													</div>
-
 													{m.audioUrl && (
 														<div className="mt-2">
 															<audio controls src={m.audioUrl} className="w-full h-8" />
@@ -473,20 +413,14 @@ function ChatPage() {
 								<div className="mt-3 bg-gray-50 p-2 rounded-lg border border-gray-200 mb-2 flex items-center justify-between">
 									<div className="flex items-center gap-2">
 										<Globe className="h-4 w-4 text-gray-400" />
-										<select 
-											value={targetLang}
-											onChange={(e) => setTargetLang(e.target.value)}
-											className="text-xs bg-transparent border-none focus:ring-0 text-gray-600"
-										>
+										<select value={targetLang} onChange={(e) => setTargetLang(e.target.value)} className="text-xs bg-transparent border-none focus:ring-0 text-gray-600">
 											<option value="english">English (Default)</option>
 											<option value="luganda">Luganda (Central)</option>
 											<option value="runyankore">Runyankore (West)</option>
 											<option value="acholi">Acholi (North)</option>
 										</select>
 									</div>
-									<div className="text-[10px] text-gray-400 font-medium uppercase">
-										Accessibility Tools
-									</div>
+									<div className="text-[10px] text-gray-400 font-medium uppercase">Accessibility Tools</div>
 								</div>
 
 								<div className="flex gap-2">
@@ -502,28 +436,15 @@ function ChatPage() {
 											<button
 												type="button"
 												onClick={listening ? stopVoiceInput : startVoiceInput}
-												className={`px-5 py-5 rounded-2xl transition-all ${
-													listening
-														? "bg-rose-500 text-white shadow-lg shadow-rose-500/30 animate-pulse"
-														: "bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-												}`}
+												className={`px-5 py-5 rounded-2xl transition-all ${listening ? "bg-rose-500 text-white shadow-lg shadow-rose-500/30 animate-pulse" : "bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100"}`}
 												title="Speech to Text"
 											>
 												<Mic className="h-5 w-5" />
 											</button>
-											<button
-												type="button"
-												onClick={startRecording}
-												className="px-5 py-5 bg-slate-50 text-blue-400 hover:text-blue-600 hover:bg-slate-100 rounded-2xl transition-all"
-												title="Record Voice Note"
-											>
+											<button type="button" onClick={startRecording} className="px-5 py-5 bg-slate-50 text-blue-400 hover:text-blue-600 hover:bg-slate-100 rounded-2xl transition-all" title="Record Voice Note">
 												<Play className="h-5 w-5" />
 											</button>
-											<button
-												onClick={send}
-												disabled={!text.trim()}
-												className="px-8 py-5 bg-slate-900 text-white rounded-2xl hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/10 hover:shadow-emerald-500/20 transition-all"
-											>
+											<button onClick={send} disabled={!text.trim()} className="px-8 py-5 bg-slate-900 text-white rounded-2xl hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/10 hover:shadow-emerald-500/20 transition-all">
 												Transmit
 											</button>
 										</>
@@ -533,17 +454,10 @@ function ChatPage() {
 												<div className="h-2 w-2 bg-red-500 rounded-full animate-ping shrink-0" />
 												<span className="text-sm font-medium text-blue-700 truncate">Recording voice note...</span>
 											</div>
-											<button
-												onClick={cancelRecording}
-												className="p-2 text-gray-500 hover:text-red-600 transition-colors"
-												title="Cancel"
-											>
+											<button onClick={cancelRecording} className="p-2 text-gray-500 hover:text-red-600 transition-colors" title="Cancel">
 												<Trash2 className="h-5 w-5" />
 											</button>
-											<button
-												onClick={stopAndSendRecording}
-												className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium"
-											>
+											<button onClick={stopAndSendRecording} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium">
 												<Square className="h-4 w-4" />
 												Stop & Send
 											</button>
@@ -563,4 +477,3 @@ function ChatPage() {
 }
 
 export default ChatPage;
-
