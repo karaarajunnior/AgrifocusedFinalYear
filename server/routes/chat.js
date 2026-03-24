@@ -6,6 +6,7 @@ import { synthesizeToFile } from "../services/ttsService.js";
 import { emitToUser } from "../realtime.js";
 import { sendPushToUser } from "../services/pushService.js";
 import { notifyUser } from "../services/smsWhatsappService.js";
+import { translateLocal } from "../services/translationService.js";
 import prisma from "../db/prisma.js";
 
 const router = express.Router();
@@ -102,27 +103,30 @@ router.post(
 			const errors = validationResult(req);
 			if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-			const { receiverId, content } = req.body;
+			const { receiverId, content, audioUrl: clientAudioUrl } = req.body;
 
 			const msg = await prisma.message.create({
 				data: {
 					senderId: req.user.id,
 					receiverId,
 					content,
+					audioUrl: clientAudioUrl || null,
 				},
 			});
 
-			let audioUrl = null;
-			try {
-				audioUrl = await synthesizeToFile({ messageId: msg.id, text: content });
-				if (audioUrl) {
-					await prisma.message.update({
-						where: { id: msg.id },
-						data: { audioUrl },
-					});
+			let audioUrl = clientAudioUrl || null;
+			if (!audioUrl) {
+				try {
+					audioUrl = await synthesizeToFile({ messageId: msg.id, text: content });
+					if (audioUrl) {
+						await prisma.message.update({
+							where: { id: msg.id },
+							data: { audioUrl },
+						});
+					}
+				} catch (e) {
+					console.error("TTS failed:", e?.message || e);
 				}
-			} catch (e) {
-				console.error("TTS failed:", e?.message || e);
 			}
 
 			const fullMsg = { ...msg, audioUrl };
@@ -162,6 +166,25 @@ router.post(
 			res.status(500).json({ error: "Failed to send message" });
 		}
 	},
+);
+
+router.post(
+	"/translate",
+	authenticateToken,
+	[
+		body("text").isString().notEmpty(),
+		body("targetLang").isString().isIn(["luganda", "runyankore", "acholi"]),
+	],
+	async (req, res) => {
+		try {
+			const { text, targetLang } = req.body;
+			const translated = translateLocal(text, targetLang);
+			res.json({ translated });
+		} catch (error) {
+			console.error("Translation error:", error);
+			res.status(500).json({ error: "Translation failed" });
+		}
+	}
 );
 
 export default router;

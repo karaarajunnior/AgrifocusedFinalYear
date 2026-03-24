@@ -21,6 +21,7 @@ import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import TrustBadge from "../components/TrustBadge";
 import { useTrustScore } from "../hooks/useTrustScore";
+import { QRCodeSVG } from 'qrcode.react';
 
 interface ProductDetails {
   id: string;
@@ -71,6 +72,8 @@ function ProductDetails() {
   const [orderNotes, setOrderNotes] = useState('');
   const { trust: farmerTrust } = useTrustScore(product?.farmer?.id);
   const [trace, setTrace] = useState<{ batches: Array<{ id: string; batchCode: string; harvestedAt?: string | null; events: Array<{ id: string; type: string; note?: string | null; location?: string | null; createdAt: string }> }> } | null>(null);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -276,6 +279,15 @@ function ProductDetails() {
                     <div key={b.id} className="border border-gray-200 rounded-lg p-3">
                       <div className="flex items-center justify-between">
                         <div className="font-medium text-gray-900">Batch: {b.batchCode}</div>
+                        <button 
+                          onClick={() => {
+                            setSelectedBatchId(b.id);
+                            setShowQRModal(true);
+                          }}
+                          className="text-[10px] bg-green-600 text-white px-2 py-1 rounded font-bold uppercase tracking-wider hover:bg-green-700 transition-colors"
+                        >
+                          Generate QR
+                        </button>
                         <div className="text-xs text-gray-500">
                           {b.harvestedAt ? new Date(b.harvestedAt).toLocaleDateString() : "—"}
                         </div>
@@ -498,6 +510,41 @@ function ProductDetails() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Traceability Modal */}
+      {showQRModal && selectedBatchId && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-[60] backdrop-blur-sm">
+          <div className="bg-white rounded-[32px] max-w-sm w-full p-8 text-center shadow-2xl scale-in-center">
+            <div className="mb-6">
+              <div className="h-12 w-12 bg-green-100 rounded-2xl flex items-center justify-center text-green-600 mx-auto mb-4">
+                <Shield className="h-6 w-6" />
+              </div>
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight lowercase">traceability qr</h2>
+              <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mt-1">Scan to verify origin</p>
+            </div>
+            
+            <div className="bg-gray-50 p-6 rounded-[24px] mb-6 flex items-center justify-center border-2 border-dashed border-gray-200">
+              <QRCodeSVG 
+                value={`${window.location.origin}/trace/${selectedBatchId}`} 
+                size={200}
+                includeMargin={true}
+                level="H"
+              />
+            </div>
+
+            <p className="text-sm text-gray-600 mb-8 font-medium italic">
+              "This code links directly to the immutable DAFIS ledger for Batch #{trace?.batches.find(b => b.id === selectedBatchId)?.batchCode}"
+            </p>
+
+            <button
+              onClick={() => setShowQRModal(false)}
+              className="w-full py-4 bg-gray-900 text-white rounded-[20px] font-black text-sm tracking-widest uppercase hover:bg-black transition-all"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}

@@ -5,7 +5,7 @@ import api from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { toast } from "react-hot-toast";
-import { Mic, MessageCircle } from "lucide-react";
+import { Mic, MessageCircle, Volume2, Globe, Square, Play, Trash2 } from "lucide-react";
 
 type UserSummary = {
 	id: string;
@@ -39,6 +39,12 @@ function ChatPage() {
 
 	const [searchParams] = useSearchParams();
 	const initialUserId = searchParams.get("userId");
+
+	const [translations, setTranslations] = useState<{ [msgId: string]: string }>({});
+	const [targetLang, setTargetLang] = useState("luganda");
+	const [recording, setRecording] = useState(false);
+	const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+	const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
 
 	const socketUrl = useMemo(() => {
 		// Use same host as API; works for local + mobile webview (proxy as needed)
@@ -211,6 +217,116 @@ function ChatPage() {
 		rec.start();
 	};
 
+	const stopVoiceInput = () => {
+		setListening(false);
+	};
+
+	const readAloud = (text: string) => {
+		if (!window.speechSynthesis) {
+			toast.error("Text-to-speech not supported");
+			return;
+		}
+		const utterance = new SpeechSynthesisUtterance(text);
+		utterance.rate = 0.9;
+		window.speechSynthesis.speak(utterance);
+	};
+
+	const translateMessage = async (msgId: string, text: string) => {
+		try {
+			const res = await api.post("/chat/translate", { text, targetLang });
+			if (res.data?.translated) {
+				setTranslations((prev) => ({ ...prev, [msgId]: res.data.translated }));
+			}
+		} catch (e) {
+			console.error(e);
+			toast.error("Translation failed");
+		}
+	};
+
+	const startRecording = async () => {
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			const recorder = new MediaRecorder(stream);
+			setMediaRecorder(recorder);
+			setAudioChunks([]);
+
+			recorder.ondataavailable = (e) => {
+				if (e.data.size > 0) {
+					setAudioChunks((prev) => [...prev, e.data]);
+				}
+			};
+
+			recorder.onstop = async () => {
+				// We'll handle sending in a separate step or automatically
+			};
+
+			recorder.start();
+			setRecording(true);
+		} catch (err) {
+			console.error("Failed to start recording", err);
+			toast.error("Could not access microphone");
+		}
+	};
+
+	const stopAndSendRecording = async () => {
+		if (!mediaRecorder) return;
+
+		mediaRecorder.onstop = async () => {
+			const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+			if (audioBlob.size < 100) return;
+
+			try {
+				const formData = new FormData();
+				formData.append("file", audioBlob, `voice_${Date.now()}.webm`);
+				
+				// Re-use existing document/upload logic or direct upload
+				const uploadRes = await api.post("/documents/upload", formData, {
+					headers: { "Content-Type": "multipart/form-data" }
+				});
+
+				if (uploadRes.data?.path) {
+					const audioUrl = uploadRes.data.path;
+					// Send as chat message
+					if (socket && socket.connected) {
+						socket.emit("chat:send", { 
+							receiverId: activeUserId, 
+							content: "[Voice Message]", 
+							audioUrl 
+						});
+					} else {
+						await api.post("/chat/messages", { 
+							receiverId: activeUserId, 
+							content: "[Voice Message]", 
+							audioUrl 
+						});
+					}
+					toast.success("Voice message sent");
+				}
+			} catch (e) {
+				console.error(e);
+				toast.error("Failed to send voice message");
+			}
+			
+			// Clean up
+			mediaRecorder.stream.getTracks().forEach(t => t.stop());
+			setMediaRecorder(null);
+			setAudioChunks([]);
+			setRecording(false);
+		};
+
+		mediaRecorder.stop();
+	};
+
+	const cancelRecording = () => {
+		if (mediaRecorder) {
+			mediaRecorder.stop();
+			mediaRecorder.stream.getTracks().forEach(t => t.stop());
+		}
+		setMediaRecorder(null);
+		setAudioChunks([]);
+		setRecording(false);
+	};
+
 	if (loading) {
 		return (
 			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -285,6 +401,7 @@ function ChatPage() {
 								<div className="h-[55vh] overflow-y-auto border border-gray-100 rounded-lg p-3 space-y-3">
 									{messages.map((m) => {
 										const isMine = m.senderId === user?.id;
+										const translated = translations[m.id];
 										return (
 											<div
 												key={m.id}
@@ -293,55 +410,131 @@ function ChatPage() {
 												}`}
 											>
 												<div
-													className={`inline-block px-3 py-2 rounded-lg ${
+													className={`inline-block px-3 py-2 rounded-lg relative group ${
 														isMine
 															? "bg-green-600 text-white"
 															: "bg-gray-100 text-gray-900"
 													}`}
 												>
-													<p className="text-sm whitespace-pre-wrap">{m.content}</p>
+													<p className="text-sm whitespace-pre-wrap">
+														{translated || m.content}
+													</p>
+													
+													{/* Accessibility Tools Overlay/Footer */}
+													<div className={`flex items-center gap-2 mt-2 pt-1 border-t ${isMine ? "border-green-500 justify-end" : "border-gray-200"}`}>
+														<button 
+															onClick={() => readAloud(translated || m.content)}
+															className="p-1 hover:bg-black/10 rounded transition-colors"
+															title="Read aloud"
+														>
+															<Volume2 className="h-3.5 w-3.5" />
+														</button>
+														{!isMine && (
+															<button 
+																onClick={() => translateMessage(m.id, m.content)}
+																className={`p-1 hover:bg-black/10 rounded transition-colors ${translated ? "text-blue-500" : ""}`}
+																title={`Translate to ${targetLang}`}
+															>
+																<Globe className="h-3.5 w-3.5" />
+															</button>
+														)}
+													</div>
+
 													{m.audioUrl && (
 														<div className="mt-2">
-															<audio controls src={m.audioUrl} className="w-full" />
+															<audio controls src={m.audioUrl} className="w-full h-8" />
 														</div>
 													)}
 												</div>
-												<div className="text-xs text-gray-500 mt-1">
-													{new Date(m.createdAt).toLocaleString()}
+												<div className="text-[10px] text-gray-500 mt-1 uppercase tracking-wider">
+													{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 												</div>
 											</div>
 										);
 									})}
 								</div>
 
-								<div className="mt-3 flex gap-2">
-									<input
-										value={text}
-										onChange={(e) => setText(e.target.value)}
-										className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
-										placeholder="Type a message…"
-									/>
-									<button
-										type="button"
-										onClick={startVoiceInput}
-										className={`px-3 py-2 rounded-lg border ${
-											listening
-												? "border-green-600 bg-green-50 text-green-700"
-												: "border-gray-300 hover:bg-gray-50 text-gray-700"
-										}`}
-										title="Voice input"
-									>
-										<Mic className="h-4 w-4" />
-									</button>
-									<button
-										onClick={send}
-										className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-									>
-										Send
-									</button>
+								<div className="mt-3 bg-gray-50 p-2 rounded-lg border border-gray-200 mb-2 flex items-center justify-between">
+									<div className="flex items-center gap-2">
+										<Globe className="h-4 w-4 text-gray-400" />
+										<select 
+											value={targetLang}
+											onChange={(e) => setTargetLang(e.target.value)}
+											className="text-xs bg-transparent border-none focus:ring-0 text-gray-600"
+										>
+											<option value="luganda">Luganda (Central)</option>
+											<option value="runyankore">Runyankore (West)</option>
+											<option value="acholi">Acholi (North)</option>
+										</select>
+									</div>
+									<div className="text-[10px] text-gray-400 font-medium uppercase">
+										Accessibility Tools
+									</div>
 								</div>
-								<p className="text-xs text-gray-500 mt-2">
-									Receiver gets text + (if configured) a voice version automatically.
+
+								<div className="flex gap-2">
+									{!recording ? (
+										<>
+											<input
+												value={text}
+												onChange={(e) => setText(e.target.value)}
+												onKeyDown={(e) => e.key === 'Enter' && send()}
+												className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
+												placeholder="Type a message…"
+											/>
+											<button
+												type="button"
+												onClick={listening ? stopVoiceInput : startVoiceInput}
+												className={`px-3 py-2 rounded-lg border transition-all ${
+													listening
+														? "border-red-500 bg-red-50 text-red-600 animate-pulse"
+														: "border-gray-300 hover:bg-gray-50 text-gray-700"
+												}`}
+												title="Speech to Text"
+											>
+												<Mic className="h-4 w-4" />
+											</button>
+											<button
+												type="button"
+												onClick={startRecording}
+												className="px-3 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 text-blue-600"
+												title="Record Voice Note"
+											>
+												<Play className="h-4 w-4" />
+											</button>
+											<button
+												onClick={send}
+												disabled={!text.trim()}
+												className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+											>
+												Send
+											</button>
+										</>
+									) : (
+										<div className="flex-1 flex gap-2 items-center bg-blue-50 p-2 rounded-lg border border-blue-200">
+											<div className="flex-1 flex items-center gap-2 overflow-hidden">
+												<div className="h-2 w-2 bg-red-500 rounded-full animate-ping shrink-0" />
+												<span className="text-sm font-medium text-blue-700 truncate">Recording voice note...</span>
+											</div>
+											<button
+												onClick={cancelRecording}
+												className="p-2 text-gray-500 hover:text-red-600 transition-colors"
+												title="Cancel"
+											>
+												<Trash2 className="h-5 w-5" />
+											</button>
+											<button
+												onClick={stopAndSendRecording}
+												className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium"
+											>
+												<Square className="h-4 w-4" />
+												Stop & Send
+											</button>
+										</div>
+									)}
+								</div>
+								<p className="text-[10px] text-gray-400 mt-2 italic text-center">
+									Empowering farmers through local language translation and voice-first interaction.
 								</p>
 							</>
 						)}

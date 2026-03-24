@@ -1,6 +1,7 @@
 import express from "express";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import prisma from "../db/prisma.js";
+import { computeCreditScore } from "../services/creditScoreService.js";
 
 const router = express.Router();
 
@@ -173,6 +174,17 @@ router.get("/farmer", authenticateToken, requireRole(["FARMER"]), async (req, re
 	} catch (error) {
 		console.error("Farmer analytics error:", error);
 		res.status(500).json({ error: "Failed to fetch farmer analytics" });
+	}
+});
+
+// GET /analytics/credit-score - Farmer Financial Identity
+router.get("/credit-score", authenticateToken, requireRole(["FARMER"]), async (req, res) => {
+	try {
+		const scoreData = await computeCreditScore(req.user.id);
+		res.json(scoreData);
+	} catch (error) {
+		console.error("Credit score error:", error);
+		res.status(500).json({ error: "Failed to fetch credit score" });
 	}
 });
 

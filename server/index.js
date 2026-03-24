@@ -34,6 +34,7 @@ import exportRoutes from "./routes/export.js";
 import inputRoutes from "./routes/inputs.js";
 import contractRoutes from "./routes/contracts.js";
 import gradingRoutes from "./routes/grading.js";
+import ussdRoutes from "./routes/ussd.js";
 import cron from "node-cron";
 import { initSocket } from "./socket.js";
 import path from "path";
@@ -155,6 +156,7 @@ app.use("/api/export", exportRoutes);
 app.use("/api/inputs", inputRoutes);
 app.use("/api/contracts", contractRoutes);
 app.use("/api/grading", gradingRoutes);
+app.use("/api/ussd", ussdRoutes);
 
 // Optional scheduled refresh of web market data
 if (String(process.env.MARKET_DATA_CRON_ENABLED || "false").toLowerCase() === "true") {

@@ -11,8 +11,11 @@ import {
     CheckCircle2,
     ChevronRight,
     Search,
-    Zap
+    Zap,
+    Award,
+    ShieldCheck
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 interface AgroInput {
@@ -40,8 +43,10 @@ interface CreditRequest {
 }
 
 function AgroStore() {
+    const { user } = useAuth();
     const [inputs, setInputs] = useState<AgroInput[]>([]);
     const [credits, setCredits] = useState<CreditRequest[]>([]);
+    const [creditScore, setCreditScore] = useState<{ score: number; rating: string } | null>(null);
     const [loading, setLoading] = useState(true);
     const [category, setCategory] = useState('');
     const [applying, setApplying] = useState<string | null>(null);
@@ -52,12 +57,14 @@ function AgroStore() {
 
     const fetchData = async () => {
         try {
-            const [inputsRes, creditsRes] = await Promise.all([
+            const [inputsRes, creditsRes, creditScoreRes] = await Promise.all([
                 api.get('/inputs', { params: { category } }),
-                api.get('/inputs/my-credits')
+                api.get('/inputs/my-credits'),
+                user?.role === 'FARMER' ? api.get('/analytics/credit-score') : Promise.resolve({ data: null })
             ]);
             setInputs(inputsRes.data.inputs);
             setCredits(creditsRes.data.credits);
+            setCreditScore(creditScoreRes.data);
         } catch (e) {
             toast.error('Failed to load store data');
         } finally {
@@ -142,8 +149,28 @@ function AgroStore() {
                     </div>
 
                     <div className="bg-white rounded-2xl shadow-sm border p-6">
+                        <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 text-xs uppercase tracking-widest text-blue-600">
+                            <Award className="h-4 w-4" /> My Credit Badge
+                        </h3>
+                        {creditScore ? (
+                            <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
+                                <div className="text-2xl font-black text-blue-700">{creditScore.score}</div>
+                                <div className="text-[10px] font-black uppercase text-blue-500 tracking-wider font-mono">{creditScore.rating} Rating</div>
+                                <div className="mt-3 h-1.5 w-full bg-blue-100 rounded-full overflow-hidden">
+                                     <div 
+                                        className="h-full bg-blue-600 transition-all duration-1000" 
+                                        style={{ width: `${((creditScore.score - 300) / 550) * 100}%` }} 
+                                     />
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">Login as Farmer to see score</p>
+                        )}
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-sm border p-6">
                         <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <Clock className="h-4 w-4" /> Credit Status
+                            <Clock className="h-4 w-4" /> Recent Applications
                         </h3>
                         {credits.length === 0 ? (
                             <p className="text-gray-400 text-sm">No active credit requests.</p>
@@ -204,10 +231,21 @@ function AgroStore() {
                                         </button>
                                         <button
                                             onClick={() => handleApplyCredit(input.id)}
-                                            disabled={applying === input.id}
-                                            className="px-4 py-2.5 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 disabled:opacity-50"
+                                            disabled={applying === input.id || (creditScore && creditScore.score < 500)}
+                                            className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg flex flex-col items-center justify-center gap-0.5 disabled:opacity-50 ${
+                                                creditScore && creditScore.score < 500 
+                                                ? 'bg-gray-200 text-gray-500 shadow-none cursor-not-allowed' 
+                                                : 'bg-green-600 text-white hover:bg-green-700 shadow-green-600/20'
+                                            }`}
                                         >
-                                            {applying === input.id ? 'Applying...' : 'Get on Credit'}
+                                            {applying === input.id ? 'Applying...' : (
+                                                <>
+                                                    <span>Get on Credit</span>
+                                                    {creditScore && creditScore.score < 500 && (
+                                                        <span className="text-[8px] uppercase tracking-tighter opacity-70">Score too low</span>
+                                                    )}
+                                                </>
+                                            )}
                                         </button>
                                     </div>
                                 </div>

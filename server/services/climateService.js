@@ -88,8 +88,8 @@ export async function getClimateAlerts({ location }) {
 			asAlert({
 				location: loc,
 				severity: "info",
-				title: "No major alerts",
-				body: "No major weather risks detected for the next 24 hours.",
+				title: "Ideal Conditions",
+				body: "Weather is clear and stable. Excellent environment for field maintenance, drying, or processing harvested coffee.",
 			}),
 		);
 	}

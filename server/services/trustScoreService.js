@@ -19,6 +19,14 @@ export async function computeTrustScore({ userId }) {
 	const now = Date.now();
 	const ageDays = Math.max(0, Math.floor((now - new Date(user.createdAt).getTime()) / (24 * 60 * 60 * 1000)));
 
+	// NEW: Historical consistency (check if active every month)
+	const ordersLast90Days = await prisma.order.count({
+		where: {
+			OR: [{ buyerId: userId }, { farmerId: userId }],
+			createdAt: { gte: new Date(now - 90 * 24 * 60 * 60 * 1000) }
+		}
+	});
+
 	// Activity signals
 	const [deliveredAsBuyer, cancelledAsBuyer, deliveredAsFarmer, cancelledAsFarmer, avgRatingAgg] =
 		await Promise.all([
@@ -49,6 +57,11 @@ export async function computeTrustScore({ userId }) {
 	if (ageBonus > 0) reasons.push(`Account age +${ageBonus}`);
 	score += ageBonus;
 
+	if (ordersLast90Days >= 5) {
+		score += 5;
+		reasons.push("Consistently active (90d)");
+	}
+
 	// Buyer reliability: deliveries vs cancellations
 	if (user.role === "BUYER") {
 		const good = Math.min(20, deliveredAsBuyer * 2);
@@ -70,6 +83,18 @@ export async function computeTrustScore({ userId }) {
 			score += rBonus;
 			reasons.push(`Avg rating: ${avgRating.toFixed(1)}★`);
 		}
+		
+		// Volume Reliability: If they have delivered > 1000kg total
+		const totalVolume = await prisma.order.aggregate({
+			where: { farmerId: userId, status: "DELIVERED" },
+			_sum: { quantity: true }
+		});
+		const volTotal = Number(totalVolume?._sum?.quantity || 0);
+		if (volTotal > 1000) {
+			score += 10;
+			reasons.push("High-volume producer");
+		}
+
 		reasons.push(`Delivered sales: ${deliveredAsFarmer}`);
 		if (cancelledAsFarmer > 0) reasons.push(`Cancelled sales: ${cancelledAsFarmer}`);
 	}

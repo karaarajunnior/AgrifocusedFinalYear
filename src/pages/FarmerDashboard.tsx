@@ -11,7 +11,11 @@ import {
 	DollarSign,
 	TrendingUp,
 	Star,
-	FileText
+	FileText,
+	CreditCard,
+	Award,
+	Smartphone,
+	Check
 } from "lucide-react";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ProfitMaximizer from "../components/ProfitMaximizer";
@@ -60,6 +64,14 @@ interface Analytics {
 	recentOrders: any[];
 }
 
+interface CreditRecord {
+	score: number;
+	rating: string;
+	reasons: string[];
+	totalIncome: number;
+	repaidCount: number;
+}
+
 interface MarketPrice {
 	item: string;
 	price: number;
@@ -71,6 +83,7 @@ function FarmerDashboard() {
 
 	const [products, setProducts] = useState<Product[]>([]);
 	const [analytics, setAnalytics] = useState<Analytics | null>(null);
+	const [credit, setCredit] = useState<CreditRecord | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [cacheTime, setCacheTime] = useState<string | undefined>();
 	const [showAddProduct, setShowAddProduct] = useState(false);
@@ -88,6 +101,11 @@ function FarmerDashboard() {
 
 	const [addStep, setAddStep] = useState(0);
 	const [submitting, setSubmitting] = useState(false);
+
+	const [showUSSD, setShowUSSD] = useState(false);
+	const [ussdInput, setUssdInput] = useState("");
+	const [ussdResponse, setUssdResponse] = useState("CON Welcome to DAFIS Mobile\n1. List Harvest\n2. Check Market Prices\n3. My Credit Score\n4. Help");
+	const [ussdSessionId] = useState(`sess_${Math.random().toString(16).slice(2)}`);
 
 	const [productFormDef, setProductFormDef] = useState<FormDefinition>(
 		defaultProductFormDefinition(),
@@ -118,19 +136,22 @@ function FarmerDashboard() {
 
 	const fetchData = async () => {
 		try {
-			const [p, a, m] = await Promise.all([
+			const [p, a, m, c] = await Promise.all([
 				api.get("/products/farmer/my-products"),
 				api.get("/analytics/farmer"),
 				api.get("/analytics/market-prices"),
+				api.get("/analytics/credit-score"),
 			]);
 			setProducts(p.data.products);
 			setAnalytics(a.data);
 			setMarketPrices(m.data);
+			setCredit(c.data);
 
 			// Save to cache
 			saveToCache('farmer.products', p.data.products);
 			saveToCache('farmer.analytics', a.data);
 			saveToCache('farmer.marketPrices', m.data);
+			saveToCache('farmer.credit', c.data);
 			setCacheTime(undefined);
 		} catch (e) {
 			if (axios.isAxiosError(e) && !e.response) {
@@ -144,7 +165,9 @@ function FarmerDashboard() {
 					setCacheTime(cachedAnalytics.timestamp);
 				}
 				const cachedMarket = getFromCache<MarketPrice[]>('farmer.marketPrices');
+				const cachedCredit = getFromCache<CreditRecord>('farmer.credit');
 				if (cachedMarket) setMarketPrices(cachedMarket.data);
+				if (cachedCredit) setCredit(cachedCredit.data);
 
 				toast.error("Offline: Showing cached data", { icon: "📡" });
 			} else {
@@ -195,6 +218,29 @@ function FarmerDashboard() {
 		e.preventDefault();
 		if (!isLastStep()) return setAddStep((s) => s + 1);
 		await submitProduct();
+	};
+
+	const submitUSSD = async (e?: React.FormEvent) => {
+		if (e) e.preventDefault();
+		try {
+			const res = await api.post("/ussd", {
+				msisdn: user?.phone || "256700000000",
+				text: ussdInput,
+				sessionId: ussdSessionId
+			});
+			setUssdResponse(res.data);
+			if (res.data.startsWith("END")) {
+				// Success or Final screen
+				setTimeout(() => {
+					setUssdResponse("");
+					setShowUSSD(false);
+					fetchData();
+				}, 3000);
+			}
+			setUssdInput("");
+		} catch (err) {
+			toast.error("USSD Gateway error");
+		}
 	};
 
 	if (loading) {
@@ -298,6 +344,54 @@ function FarmerDashboard() {
 				<div className="grid lg:grid-cols-3 gap-8 mb-10">
 					{/* Left Column: Analytics & Proof */}
 					<div className="lg:col-span-2 space-y-8">
+						{/* Financial Identity Section */}
+						{credit && (
+							<div className="bg-white rounded-[32px] p-8 shadow-sm border border-blue-50 relative overflow-hidden">
+								<div className="absolute top-0 right-0 p-8">
+									<Award className={`h-16 w-16 opacity-10 ${credit.score > 700 ? 'text-green-600' : 'text-blue-600'}`} />
+								</div>
+								
+								<div className="flex flex-col md:flex-row gap-8 items-start">
+									<div className="flex-1">
+										<div className="flex items-center gap-2 mb-2">
+											<CreditCard className="h-5 w-5 text-blue-600" />
+											<h3 className="text-xl font-black text-gray-900 tracking-tight lowercase">financial identity</h3>
+										</div>
+										<p className="text-gray-500 text-sm mb-6">Verified credit score based on your DAFIS transaction history.</p>
+										
+										<div className="grid grid-cols-2 gap-4">
+											<div className="bg-gray-50 p-4 rounded-2xl">
+												<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Credit Score</p>
+												<h4 className="text-2xl font-black text-blue-600">{credit.score}</h4>
+												<p className="text-xs font-bold text-gray-500">{credit.rating} Rating</p>
+											</div>
+											<div className="bg-gray-50 p-4 rounded-2xl">
+												<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Verified Income</p>
+												<h4 className="text-2xl font-black text-green-600">UGX {Math.floor(credit.totalIncome / 1000).toLocaleString()}k</h4>
+												<p className="text-xs font-bold text-gray-500">Trailing 12mo</p>
+											</div>
+										</div>
+									</div>
+
+									<div className="w-full md:w-64 space-y-3">
+										<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Score Analysis</p>
+										{credit.reasons.map((r, i) => (
+											<div key={i} className="flex items-center gap-2 text-xs font-bold text-gray-600">
+												<div className="h-1 w-1 rounded-full bg-green-500" />
+												{r}
+											</div>
+										))}
+										<button 
+											onClick={() => toast.success("Verified Statement Generating...")}
+											className="w-full mt-4 py-3 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
+										>
+											Download Bank Report
+										</button>
+									</div>
+								</div>
+							</div>
+						)}
+
 						<ProfitMaximizer onSellDirect={() => setShowAddProduct(true)} />
 
 						{/* My Listings */}
@@ -411,6 +505,19 @@ function FarmerDashboard() {
 								Official DAFIS Generated Record.<br />
 								{new Date().toLocaleDateString()}
 							</div>
+						</div>
+
+						{/* USSD Simulation Trigger */}
+						<div className="bg-amber-50 border-2 border-dashed border-amber-200 rounded-2xl p-6 text-center">
+							<Smartphone className="h-10 w-10 text-amber-600 mx-auto mb-3" />
+							<h4 className="font-bold text-amber-900 mb-1">Feature Phone (USSD)</h4>
+							<p className="text-xs text-amber-700 mb-4">Simulate how farmers without internet list products via *284#</p>
+							<button 
+								onClick={() => setShowUSSD(true)}
+								className="w-full py-2 bg-amber-600 text-white rounded-lg font-bold text-xs hover:bg-amber-700 transition"
+							>
+								Open USSD Simulation
+							</button>
 						</div>
 					</div>
 				</div>
@@ -548,6 +655,62 @@ function FarmerDashboard() {
 									</button>
 								</div>
 							</form>
+						</div>
+					</div>
+				)}
+
+				{/* USSD Simulation Modal (Fixed Mock Phone) */}
+				{showUSSD && (
+					<div className="fixed bottom-10 right-10 z-[60] animate-in slide-in-from-bottom-10 duration-500">
+						<div className="w-72 bg-gray-900 rounded-[40px] p-4 shadow-2xl border-4 border-gray-800 relative overflow-hidden">
+							<div className="h-4 w-1 bg-gray-800 absolute right-[-4px] top-20 rounded-l" />
+							<div className="h-8 w-1 bg-gray-800 absolute right-[-4px] top-32 rounded-l" />
+							
+							{/* Screen */}
+							<div className="bg-[#8fb8a3] aspect-[2/3] rounded-xl mb-4 p-4 font-mono text-sm text-black flex flex-col justify-between shadow-inner">
+								<div className="whitespace-pre-wrap leading-tight">
+									{ussdResponse.replace(/CON |END /, '')}
+								</div>
+								
+								{ussdResponse.startsWith("CON") && (
+									<form onSubmit={submitUSSD} className="mt-4">
+										<input
+											autoFocus
+											className="w-full bg-transparent border-b border-black outline-none font-bold"
+											value={ussdInput}
+											onChange={(e) => setUssdInput(e.target.value)}
+										/>
+									</form>
+								)}
+							</div>
+
+							{/* Buttons */}
+							<div className="grid grid-cols-3 gap-2">
+								{[1, 2, 3, 4, 5, 6, 7, 8, 9, '*', 0, '#'].map(num => (
+									<button 
+										key={num}
+										onClick={() => setUssdInput(prev => prev + num)}
+										className="h-10 bg-gray-800 text-white rounded-lg font-bold hover:bg-gray-700 transition border-b-2 border-black active:translate-y-0.5"
+									>
+										{num}
+									</button>
+								))}
+							</div>
+
+							<div className="flex gap-2 mt-4">
+								<button 
+									onClick={() => setShowUSSD(false)}
+									className="flex-1 py-2 bg-red-900 text-white rounded-lg font-bold text-xs uppercase"
+								>
+									End
+								</button>
+								<button 
+									onClick={() => submitUSSD()}
+									className="flex-1 py-2 bg-green-900 text-white rounded-lg font-bold text-xs uppercase"
+								>
+									Send
+								</button>
+							</div>
 						</div>
 					</div>
 				)}

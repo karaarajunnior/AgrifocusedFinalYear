@@ -1,6 +1,7 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
+import bcrypt from 'bcryptjs';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -195,11 +196,40 @@ router.get('/admin/shops', authenticateToken, requireRole(['ADMIN']), async (req
     try {
         const shops = await prisma.user.findMany({
             where: { role: 'AGRO_SHOP' },
-            select: { id: true, name: true, location: true }
+            select: { id: true, name: true, location: true, email: true }
         });
         res.json({ shops });
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch shops' });
+    }
+});
+
+// Admin: Create agro-shop (User with role AGRO_SHOP)
+router.post('/admin/shops', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+    try {
+        const { name, email, password, location } = req.body;
+
+        // Check if user exists
+        const existing = await prisma.user.findUnique({ where: { email } });
+        if (existing) return res.status(400).json({ error: 'User with this email already exists' });
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const shop = await prisma.user.create({
+            data: {
+                name,
+                email,
+                password: hashedPassword,
+                role: 'AGRO_SHOP',
+                location,
+                verified: true
+            }
+        });
+
+        res.status(201).json({ message: 'Agro-shop created successfully', shop: { id: shop.id, name: shop.name } });
+    } catch (error) {
+        console.error('Create shop error:', error);
+        res.status(500).json({ error: 'Failed to create agro-shop' });
     }
 });
 

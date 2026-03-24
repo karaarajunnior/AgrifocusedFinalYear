@@ -165,6 +165,14 @@ function AdminDashboard() {
     category: 'Fertilizer',
     shopId: ''
   });
+  const [showAddShopModal, setShowAddShopModal] = useState(false);
+  const [newShop, setNewShop] = useState({
+    name: '',
+    email: '',
+    password: '',
+    location: ''
+  });
+  const [agroView, setAgroView] = useState<'inputs' | 'shops'>('inputs');
   const [cacheTime, setCacheTime] = useState<string | undefined>();
 
   const { isOnline } = useOfflineSync(() => {
@@ -248,23 +256,16 @@ function AdminDashboard() {
     }
   };
 
-  const handleCreateAgroInput = async (e: React.FormEvent) => {
+  const handleCreateAgroShop = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post('/inputs/admin/create', newInput);
-      toast.success('Agro-input created!');
-      setShowAddInputModal(false);
-      setNewInput({
-        name: '',
-        description: '',
-        price: '',
-        unit: 'kg',
-        category: 'Fertilizer',
-        shopId: agroShops[0]?.id || ''
-      });
+      await api.post('/inputs/admin/shops', newShop);
+      toast.success('Agro-shop registered!');
+      setShowAddShopModal(false);
+      setNewShop({ name: '', email: '', password: '', location: '' });
       fetchAdminAgroData();
     } catch (e: any) {
-      toast.error(e.response?.data?.error || 'Failed to create agro-input');
+      toast.error(e.response?.data?.error || 'Failed to register shop');
     }
   };
 
@@ -1040,13 +1041,36 @@ function AdminDashboard() {
             {activeTab === 'agro' && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-xl font-bold text-gray-900">Agro-Store Inputs</h3>
-                  <button
-                    onClick={() => setShowAddInputModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition shadow-lg shadow-green-600/20"
-                  >
-                    <PlusCircle className="h-5 w-5" /> Add New Input
-                  </button>
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={() => setAgroView('inputs')}
+                      className={`px-4 py-2 rounded-xl font-bold transition ${agroView === 'inputs' ? 'bg-green-600 text-white shadow-lg shadow-green-600/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    >
+                      Inputs
+                    </button>
+                    <button 
+                      onClick={() => setAgroView('shops')}
+                      className={`px-4 py-2 rounded-xl font-bold transition ${agroView === 'shops' ? 'bg-green-600 text-white shadow-lg shadow-green-600/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    >
+                      Agro-Shops
+                    </button>
+                  </div>
+                  
+                  {agroView === 'inputs' ? (
+                    <button
+                      onClick={() => setShowAddInputModal(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition shadow-lg shadow-green-600/20"
+                    >
+                      <PlusCircle className="h-5 w-5" /> Add New Input
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowAddShopModal(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-600/20"
+                    >
+                      <PlusCircle className="h-5 w-5" /> Register New Shop
+                    </button>
+                  )}
                 </div>
 
                 {agroLoading ? (
@@ -1054,53 +1078,91 @@ function AdminDashboard() {
                     <LoadingSpinner />
                   </div>
                 ) : (
-                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Item</th>
-                          <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Category</th>
-                          <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Price</th>
-                          <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Shop</th>
-                          <th className="px-6 py-4 text-right text-xs font-black text-gray-500 uppercase tracking-widest">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 bg-white">
-                        {agroInputs.map((input) => (
-                          <tr key={input.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4">
-                              <div className="text-sm font-bold text-gray-900">{input.name}</div>
-                              <div className="text-xs text-gray-500 truncate max-w-[200px]">{input.description}</div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-[10px] font-black uppercase">
-                                {input.category}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-sm font-black text-green-600">
-                              UGX {input.price.toLocaleString()}
-                              <span className="text-[10px] text-gray-400 font-bold ml-1">/{input.unit}</span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm font-medium text-gray-900">{input.shop.name}</div>
-                              <div className="text-xs text-gray-500">{input.shop.location}</div>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <button
-                                onClick={() => handleDeleteAgroInput(input.id)}
-                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              >
-                                <Trash2 className="h-5 w-5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {agroInputs.length === 0 && (
-                      <div className="py-20 text-center text-gray-400 font-medium">No agro-inputs found. Add one to get started.</div>
+                  <>
+                    {agroView === 'inputs' ? (
+                      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Item</th>
+                              <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Category</th>
+                              <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Price</th>
+                              <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Shop</th>
+                              <th className="px-6 py-4 text-right text-xs font-black text-gray-500 uppercase tracking-widest">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 bg-white">
+                            {agroInputs.map((input) => (
+                              <tr key={input.id} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-6 py-4">
+                                  <div className="text-sm font-bold text-gray-900">{input.name}</div>
+                                  <div className="text-xs text-gray-500 truncate max-w-[200px]">{input.description}</div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-[10px] font-black uppercase">
+                                    {input.category}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 text-sm font-black text-green-600">
+                                  UGX {input.price.toLocaleString()}
+                                  <span className="text-[10px] text-gray-400 font-bold ml-1">/{input.unit}</span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="text-sm font-medium text-gray-900">{input.shop.name}</div>
+                                  <div className="text-xs text-gray-500">{input.shop.location}</div>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <button
+                                    onClick={() => handleDeleteAgroInput(input.id)}
+                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  >
+                                    <Trash2 className="h-5 w-5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {agroInputs.length === 0 && (
+                          <div className="py-20 text-center text-gray-400 font-medium">No agro-inputs found. Add one to get started.</div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Shop Name</th>
+                              <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Email</th>
+                              <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Location</th>
+                              <th className="px-6 py-4 text-right text-xs font-black text-gray-500 uppercase tracking-widest">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 bg-white">
+                            {agroShops.map((shop) => (
+                              <tr key={shop.id} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-6 py-4">
+                                  <div className="text-sm font-bold text-gray-900">{shop.name}</div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="text-sm text-gray-600">{shop.email || 'N/A'}</div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="text-sm text-gray-900">{shop.location}</div>
+                                </td>
+                                <td className="px-6 py-4 text-right text-xs text-gray-400 font-bold">
+                                  Registered Supplier
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {agroShops.length === 0 && (
+                          <div className="py-20 text-center text-gray-400 font-medium">No shops found. Register your first supplier.</div>
+                        )}
+                      </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             )}
@@ -1250,6 +1312,82 @@ function AdminDashboard() {
                     className="flex-[2] py-4 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-700 transition shadow-lg shadow-green-600/30"
                   >
                     Create Item
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Shop Modal */}
+        {showAddShopModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+              <div className="bg-blue-600 px-8 py-6 text-white">
+                <h3 className="text-2xl font-black">Register Agro-Shop</h3>
+                <p className="text-blue-100 text-sm mt-1">Create a new supplier account for the marketplace.</p>
+              </div>
+
+              <form onSubmit={handleCreateAgroShop} className="p-8 space-y-5">
+                <div>
+                  <label className="block text-xs font-black text-gray-500 uppercase mb-2">Shop Name</label>
+                  <input
+                    required
+                    type="text"
+                    className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-blue-500 transition-all outline-none"
+                    placeholder="e.g. Jinja Agro Suppliers"
+                    value={newShop.name}
+                    onChange={e => setNewShop({ ...newShop, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-gray-500 uppercase mb-2">Email Address</label>
+                  <input
+                    required
+                    type="email"
+                    className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-blue-500 transition-all outline-none"
+                    placeholder="shop@example.com"
+                    value={newShop.email}
+                    onChange={e => setNewShop({ ...newShop, email: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black text-gray-500 uppercase mb-2">Temp Password</label>
+                    <input
+                      required
+                      type="password"
+                      className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-blue-500 transition-all outline-none"
+                      value={newShop.password}
+                      onChange={e => setNewShop({ ...newShop, password: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-gray-500 uppercase mb-2">District/City</label>
+                    <input
+                      required
+                      type="text"
+                      className="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-blue-500 transition-all outline-none"
+                      placeholder="e.g. Mbale"
+                      value={newShop.location}
+                      onChange={e => setNewShop({ ...newShop, location: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddShopModal(false)}
+                    className="flex-1 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-600/20"
+                  >
+                    Register Shop
                   </button>
                 </div>
               </form>

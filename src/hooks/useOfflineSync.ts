@@ -3,6 +3,7 @@ import { toast } from 'react-hot-toast';
 import api from '../services/api';
 import { getOfflineProductQueue, removeOfflineProductDraft } from '../utils/offlineProductQueue';
 import { getOfflineOrderQueue, removeOfflineOrderDraft } from '../utils/offlineOrderQueue';
+import { getOfflineHandoverQueue, removeOfflineHandover } from '../utils/offlineHandoverQueue';
 
 /**
  * Hook to handle offline/online transitions and background synchronization.
@@ -39,8 +40,9 @@ export function useOfflineSync(onSyncComplete?: () => void) {
     const syncData = async () => {
         const productQueue = getOfflineProductQueue();
         const orderQueue = getOfflineOrderQueue();
+        const handoverQueue = getOfflineHandoverQueue();
 
-        if (productQueue.length === 0 && orderQueue.length === 0) return;
+        if (productQueue.length === 0 && orderQueue.length === 0 && handoverQueue.length === 0) return;
 
         let successCount = 0;
 
@@ -63,6 +65,21 @@ export function useOfflineSync(onSyncComplete?: () => void) {
                 successCount++;
             } catch (e) {
                 console.error(`Sync: Failed to place order ${item.id}`, e);
+            }
+        }
+
+        // Sync Handovers (Status Updates)
+        for (const item of handoverQueue) {
+            try {
+                if (item.status === 'DELIVERED' && item.code) {
+                    await api.post('/delivery-proof/confirm', { orderId: item.orderId, code: item.code });
+                } else {
+                    await api.patch(`/orders/${item.orderId}/status`, { status: item.status });
+                }
+                removeOfflineHandover(item.id);
+                successCount++;
+            } catch (e) {
+                console.error(`Sync: Failed to update order ${item.orderId}`, e);
             }
         }
 

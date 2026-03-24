@@ -9,12 +9,16 @@ import {
   Truck,
   Star,
   Eye,
-  Filter
+  Filter,
+  QrCode
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import SpeakButton from "../components/SpeakButton";
+import { useOfflineSync } from '../hooks/useOfflineSync';
+import { enqueueOfflineHandover, getOfflineHandoverQueue } from '../utils/offlineHandoverQueue';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface Order {
   id: string;
@@ -72,6 +76,10 @@ function OrdersPage() {
   const [deliveryCode, setDeliveryCode] = useState("");
   const [generatedProof, setGeneratedProof] = useState<{ code: string; qrToken: string } | null>(null);
 
+  const { isOnline } = useOfflineSync(() => {
+    fetchOrders();
+  });
+
   useEffect(() => {
     fetchOrders();
   }, []);
@@ -89,6 +97,13 @@ function OrdersPage() {
   };
 
   const updateOrderStatus = async (orderId: string, status: string) => {
+    if (!isOnline) {
+      enqueueOfflineHandover(orderId, status);
+      toast.success('Status update saved offline');
+      // Optimistically update UI
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: status as Order['status'] } : o));
+      return;
+    }
     try {
       await api.patch(`/orders/${orderId}/status`, { status });
       toast.success('Order status updated successfully');
@@ -148,6 +163,13 @@ function OrdersPage() {
   };
 
   const generateDeliveryProof = async (orderId: string) => {
+    if (!isOnline) {
+      // Generate a deterministic local code for offline handover
+      const localCode = (parseInt(orderId.slice(-4), 16) % 900000 + 100000).toString();
+      setGeneratedProof({ code: localCode, qrToken: `offline-${orderId}` });
+      toast.success("Generated OFFLINE verification code.");
+      return;
+    }
     try {
       const res = await api.post("/delivery-proof/generate", { orderId });
       setGeneratedProof(res.data?.proof || null);
@@ -164,6 +186,15 @@ function OrdersPage() {
 
   const confirmDelivery = async () => {
     if (!deliveryOrder) return;
+    if (!isOnline) {
+      enqueueOfflineHandover(deliveryOrder.id, 'DELIVERED', deliveryCode);
+      toast.success("Delivery confirmation saved offline");
+      setOrders(prev => prev.map(o => o.id === deliveryOrder.id ? { ...o, status: 'DELIVERED' } : o));
+      setShowDeliveryModal(false);
+      setDeliveryOrder(null);
+      setDeliveryCode("");
+      return;
+    }
     try {
       await api.post("/delivery-proof/confirm", { orderId: deliveryOrder.id, code: deliveryCode });
       toast.success("Delivery confirmed");
@@ -368,9 +399,16 @@ function OrdersPage() {
                       </div>
                     </div>
 
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
-                      {order.status.charAt(0) + order.status.slice(1).toLowerCase()}
-                    </span>
+                    <div className="flex flex-col items-end gap-2">
+                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
+                        {order.status.charAt(0) + order.status.slice(1).toLowerCase()}
+                      </span>
+                      {getOfflineHandoverQueue().some(i => i.orderId === order.id) && (
+                        <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> PENDING SYNC
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -443,12 +481,22 @@ function OrdersPage() {
                           Generate delivery code
                         </button>
                         {generatedProof?.code ? (
-                          <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm">
-                            <div className="text-gray-600">Code</div>
-                            <div className="font-bold text-gray-900 text-lg tracking-widest">
-                              {generatedProof.code}
+                          <div className="flex flex-col items-center gap-4 p-4 bg-gray-50 border border-gray-200 rounded-2xl mt-4">
+                            <div className="bg-white p-3 rounded-xl shadow-sm">
+                              <QRCodeSVG 
+                                value={generatedProof.qrToken} 
+                                size={128}
+                              />
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">QR verification token: {generatedProof.qrToken}</div>
+                            <div className="text-center">
+                              <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">verification code</div>
+                              <div className="font-black text-3xl text-gray-900 tracking-[0.2em]">
+                                {generatedProof.code}
+                              </div>
+                              {!isOnline && (
+                                <div className="mt-2 text-[10px] font-bold text-amber-600 uppercase">Offline Mode / Local Proof</div>
+                              )}
+                            </div>
                           </div>
                         ) : null}
                       </div>

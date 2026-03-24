@@ -38,26 +38,26 @@ class LocationService {
 		try {
 			// For demo purposes, we'll use predefined coordinates for common Indian cities
 			const cityCoordinates = {
-				jinja: { lat: 19.076, lon: 72.8777 },
-				mbale: { lat: 28.7041, lon: 77.1025 },
-				soroti: { lat: 12.9716, lon: 77.5946 },
-				fortportal: { lat: 13.0827, lon: 80.2707 },
-				kampala: { lat: 22.5726, lon: 88.3639 },
-				masaka: { lat: 17.385, lon: 78.4867 },
-				ntungamo: { lat: 18.5204, lon: 73.8567 },
-				kasese: { lat: 23.0225, lon: 72.5714 },
-				kimaka: { lat: 26.9124, lon: 75.7873 },
-				mbarara: { lat: 26.8467, lon: 80.9462 },
-				kanungu: { lat: 26.4499, lon: 80.3319 },
-				bushenyi: { lat: 21.1458, lon: 79.0882 },
-				amuria: { lat: 22.7196, lon: 75.8577 },
-				kapchwora: { lat: 19.2183, lon: 72.9781 },
-				serere: { lat: 23.2599, lon: 77.4126 },
-				kisonga: { lat: 17.6868, lon: 83.2185 },
-				sebei: { lat: 18.6298, lon: 73.7997 },
-				ibanda: { lat: 25.5941, lon: 85.1376 },
-				nakapiriprit: { lat: 22.3072, lon: 73.1812 },
-				hamjoshcity: { lat: 28.6692, lon: 77.4538 },
+				jinja: { lat: 0.4472, lon: 33.2027 },
+				mbale: { lat: 1.0716, lon: 34.1816 },
+				soroti: { lat: 1.7146, lon: 33.6111 },
+				fortportal: { lat: 0.6931, lon: 30.2731 },
+				kampala: { lat: 0.3476, lon: 32.5825 },
+				masaka: { lat: -0.3333, lon: 31.7333 },
+				ntungamo: { lat: -0.8756, lon: 30.2636 },
+				kasese: { lat: 0.1833, lon: 30.0833 },
+				kimaka: { lat: 0.4578, lon: 33.1906 },
+				mbarara: { lat: -0.6133, lon: 30.6583 },
+				kanungu: { lat: -0.8931, lon: 29.7897 },
+				bushenyi: { lat: -0.5475, lon: 30.1867 },
+				amuria: { lat: 2.0294, lon: 33.6428 },
+				kapchwora: { lat: 1.3931, lon: 34.4531 },
+				serere: { lat: 1.5036, lon: 33.4531 },
+				kisonga: { lat: 0.5133, lon: 30.1333 },
+				sebei: { lat: 1.3431, lon: 34.4531 },
+				ibanda: { lat: -0.1333, lon: 30.4833 },
+				nakapiriprit: { lat: 1.9167, lon: 34.5333 },
+				hamjoshcity: { lat: 0.4472, lon: 33.2027 },
 			};
 
 			const normalizedLocation = location.toLowerCase().split(",")[0].trim();
@@ -68,14 +68,14 @@ class LocationService {
 				return coordinates;
 			}
 
-			// Default coordinates for unknown locations (Mumbai)
-			const defaultCoords = { lat: 19.076, lon: 72.8777 };
+			// Default coordinates for unknown locations (Kampala)
+			const defaultCoords = { lat: 0.3476, lon: 32.5825 };
 			this.geocodeCache.set(location, defaultCoords);
 			return defaultCoords;
 		} catch (error) {
 			console.error("Geocoding error:", error);
-			// Return default coordinates (Mumbai) on error
-			return { lat: 19.076, lon: 72.8777 };
+			// Return default coordinates (Kampala) on error
+			return { lat: 0.3476, lon: 32.5825 };
 		}
 	}
 
