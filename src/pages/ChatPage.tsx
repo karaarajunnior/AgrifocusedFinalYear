@@ -151,6 +151,16 @@ function ChatPage() {
 		};
 	}, [socketUrl, activeUserId]);
 
+	// Auto-translate incoming messages
+	useEffect(() => {
+		if (targetLang === "english") return; 
+		// Check for un-translated messages
+		const lastMsg = messages[messages.length - 1];
+		if (lastMsg && !lastMsg.senderId.includes(user?.id || "---") && !translations[lastMsg.id]) {
+			translateMessage(lastMsg.id, lastMsg.content);
+		}
+	}, [messages, targetLang]);
+
 	const send = async () => {
 		if (!user) return;
 		if (!activeUserId) return;
@@ -462,6 +472,7 @@ function ChatPage() {
 											onChange={(e) => setTargetLang(e.target.value)}
 											className="text-xs bg-transparent border-none focus:ring-0 text-gray-600"
 										>
+											<option value="english">English (Default)</option>
 											<option value="luganda">Luganda (Central)</option>
 											<option value="runyankore">Runyankore (West)</option>
 											<option value="acholi">Acholi (North)</option>

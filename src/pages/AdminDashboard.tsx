@@ -269,6 +269,19 @@ function AdminDashboard() {
     }
   };
 
+  const handleCreateAgroInput = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/inputs/admin/create', newInput);
+      toast.success('Agro-input created!');
+      setShowAddInputModal(false);
+      setNewInput({ name: '', description: '', price: '', unit: 'kg', category: 'Fertilizer', shopId: agroShops[0]?.id || '' });
+      fetchAdminAgroData();
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || 'Failed to create input');
+    }
+  };
+
   const handleDeleteAgroInput = async (id: string) => {
     if (!confirm('Are you sure you want to delete this item?')) return;
     try {

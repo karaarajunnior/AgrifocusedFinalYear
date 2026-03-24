@@ -47,14 +47,16 @@ const DICTIONARY = {
  * Translates a sentence by looking up common words.
  * For complex sentences, it provides a 'best-effort' gist.
  */
-export function translateLocal(text, targetLang = "luganda") {
-    const lang = DICTIONARY[targetLang.toLowerCase()];
-    if (!lang) return text;
+export function translateLocal(text, targetLang) {
+    if (!text || !targetLang || targetLang === 'english') return text;
+    
+    const langDict = DICTIONARY[targetLang.toLowerCase()];
+    if (!langDict) return text;
 
     let translated = text.toLowerCase();
     
     // Simple greedy replacement for common terms
-    const sortedKeys = Object.keys(lang).sort((a, b) => b.length - a.length);
+    const sortedKeys = Object.keys(langDict).sort((a, b) => b.length - a.length);
     
     for (const key of sortedKeys) {
         const regex = new RegExp(`\\b${key}\\b`, 'gi');

@@ -663,17 +663,17 @@ function FarmerDashboard() {
 				{showUSSD && (
 					<div className="fixed bottom-10 right-10 z-[60] animate-in slide-in-from-bottom-10 duration-500">
 						<div className="w-72 bg-gray-900 rounded-[40px] p-4 shadow-2xl border-4 border-gray-800 relative overflow-hidden">
-							<div className="h-4 w-1 bg-gray-800 absolute right-[-4px] top-20 rounded-l" />
+								<div className="h-4 w-1 bg-gray-800 absolute right-[-4px] top-20 rounded-l" />
 							<div className="h-8 w-1 bg-gray-800 absolute right-[-4px] top-32 rounded-l" />
 							
 							{/* Screen */}
-							<div className="bg-[#8fb8a3] aspect-[2/3] rounded-xl mb-4 p-4 font-mono text-sm text-black flex flex-col justify-between shadow-inner">
+							<div className="bg-[#8fb8a3] aspect-[2/3] rounded-xl mb-2 p-4 font-mono text-[11px] text-black flex flex-col justify-between shadow-inner">
 								<div className="whitespace-pre-wrap leading-tight">
 									{ussdResponse.replace(/CON |END /, '')}
 								</div>
 								
 								{ussdResponse.startsWith("CON") && (
-									<form onSubmit={submitUSSD} className="mt-4">
+									<form onSubmit={(e) => { e.preventDefault(); submitUSSD(); }} className="mt-4">
 										<input
 											autoFocus
 											className="w-full bg-transparent border-b border-black outline-none font-bold"
@@ -682,6 +682,9 @@ function FarmerDashboard() {
 										/>
 									</form>
 								)}
+							</div>
+							<div className="text-[9px] text-center text-gray-500 font-bold mb-2 uppercase tracking-widest">
+								* Use digital keypad & Send *
 							</div>
 
 							{/* Buttons */}
