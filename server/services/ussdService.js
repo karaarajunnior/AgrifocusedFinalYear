@@ -54,21 +54,29 @@ export async function handleUSSDRequest(msisdn, text, sessionId) {
         // Final Confirmation
         const user = await prisma.user.findFirst({ where: { phone: msisdn } });
         if (user) {
-            await prisma.product.create({
-                data: {
-                    name: `${session.data.type} (via USSD)`,
-                    description: "Listed via mobile feature phone",
-                    category: session.data.type === 'COFFEE' ? 'COFFEE' : 'VEGETABLES',
-                    price: parseFloat(session.data.price),
-                    quantity: parseFloat(session.data.quantity),
-                    unit: 'kg',
-                    farmerId: user.id,
-                    available: true
-                }
-            });
-            response = `END Success! Your ${session.data.type} has been listed on DAFIS Marketplace at UGX ${session.data.price}/kg.`;
+            // Map common types to Category enum if possible
+            const type = session.data.type.toUpperCase();
+            const categories = ['COFFEE', 'VEGETABLES', 'FRUITS', 'GRAINS', 'PULSES', 'SPICES', 'DAIRY', 'POULTRY', 'ORGANIC', 'PROCESSED'];
+            const finalCategory = categories.includes(type) ? type : 'ORGANIC';
+
+            try {
+                await prisma.product.create({
+                    data: {
+                        name: session.data.type,
+                        category: finalCategory,
+                        price: parseFloat(session.data.price),
+                        quantity: parseInt(session.data.quantity) || 1,
+                        location: user.location || 'Unknown',
+                        farmerId: user.id
+                    }
+                });
+                response = `END Harvest listed successfully! Buyers can now see your ${session.data.type}.`;
+            } catch (err) {
+                console.error("USSD Product Create Error:", err);
+                response = `END Error saving harvest. Please ensure you are a registered farmer.`;
+            }
         } else {
-            response = "END Account linking failed. Please verify phone number.";
+            response = `END User not found. Please register first.`;
         }
         endSession = true;
     }
