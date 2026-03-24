@@ -1,3 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-['Outfit'] text-slate-900 bg-slate-50 antialiased;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl shadow-slate-200/50 rounded-[32px];
+  }
+
+  .premium-btn {
+    @apply relative overflow-hidden transition-all duration-300 transform active:scale-95;
+  }
+
+  .premium-btn::after {
+    @apply content-[''] absolute inset-0 bg-white/10 opacity-0 transition-opacity duration-300;
+  }
+
+  .premium-btn:hover::after {
+    @apply opacity-100;
+  }
+
+  .dot-bg {
+    background-image: radial-gradient(#059669 0.5px, transparent 0.5px);
+    background-size: 24px 24px;
+    @apply opacity-[0.03];
+  }
+}
+
+/* Custom Gradients */
+.grad-emerald {
+  @apply bg-gradient-to-br from-emerald-500 to-emerald-900;
+}
+
+.text-grad-emerald {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-emerald-950;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-slate-100;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
+}

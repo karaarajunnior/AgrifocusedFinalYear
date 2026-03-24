@@ -37,13 +37,15 @@ function Navbar() {
 	};
 
 	return (
-		<nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+		<nav className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-50">
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-				<div className="flex justify-between items-center h-16">
+				<div className="flex justify-between items-center h-20">
 					{/* Logo */}
-					<Link to="/" className="flex items-center space-x-2">
-						<Leaf className="h-8 w-8 text-green-600" />
-						<span className="text-xl font-bold text-gray-900">DAFIS</span>
+					<Link to="/" className="flex items-center space-x-3 group">
+						<div className="bg-gradient-to-br from-emerald-500 to-emerald-700 p-2 rounded-2xl shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
+							<Leaf className="h-6 w-6 text-white" />
+						</div>
+						<span className="text-2xl font-black tracking-tight text-slate-900">DAFIS</span>
 					</Link>
 
 					{/* Desktop Navigation */}
@@ -161,19 +163,17 @@ function Navbar() {
 									<span>Chat</span>
 								</Link>
 
-								<div className="flex items-center space-x-4">
+								<div className="flex items-center space-x-6">
 									<Link
 										to="/profile"
-										className="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-900">
-										<User className="h-5 w-5" />
-										<span>{user.name}</span>
+										className="flex items-center space-x-2 text-sm font-bold text-slate-600 hover:text-emerald-600 transition-colors uppercase tracking-widest">
+										<span>Account</span>
 									</Link>
 
 									<button
 										onClick={handleLogout}
-										className="flex items-center space-x-1 text-sm text-gray-600 hover:text-red-600 transition-colors">
-										<LogOut className="h-4 w-4" />
-										<span>Logout</span>
+										className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all">
+										Logout
 									</button>
 								</div>
 							</>

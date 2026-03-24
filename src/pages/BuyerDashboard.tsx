@@ -265,21 +265,21 @@ function BuyerDashboard() {
 				)}
 
 				{/* Location-Based Shopping Section */}
-				<div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow mb-8">
-					<div className="p-6">
-						<div className="flex items-center justify-between mb-4">
+				<div className="glass-card mb-12 overflow-hidden border-blue-100/30">
+					<div className="p-10">
+						<div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-10">
 							<div className="flex items-center">
-								<div className="p-2 bg-blue-100 rounded-lg mr-3">
-									<Navigation className="h-6 w-6 text-blue-600" />
+								<div className="p-4 bg-blue-50 rounded-2xl text-blue-600 mr-6 shadow-sm">
+									<Navigation className="h-6 w-6" />
 								</div>
 								<div>
-									<h2 className="text-xl font-semibold text-gray-900">
-										Products Near You
+									<h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+										Regional Inventory
 									</h2>
-									<p className="text-gray-600">
+									<p className="text-slate-500 font-medium mt-1">
 										{locationLoading
-											? "Detecting your location..."
-											: `Showing products within ${searchRadius}km of ${userLocation}`}
+											? "Syncing geospatial data..."
+											: `Verified assets within ${searchRadius}km of ${userLocation}`}
 									</p>
 								</div>
 							</div>
@@ -384,50 +384,44 @@ function BuyerDashboard() {
 				</div>
 				{/* Analytics Cards */}
 				{analytics && (
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-						<div className="bg-white rounded-lg shadow p-6">
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+						<div className="glass-card p-10 group hover:translate-y-[-4px] transition-all">
 							<div className="flex items-center">
-								<div className="p-2 bg-blue-100 rounded-lg">
-									<Package className="h-6 w-6 text-blue-600" />
+								<div className="p-4 bg-blue-50 rounded-2xl text-blue-600 group-hover:scale-110 transition-transform shadow-sm">
+									<Package className="h-7 w-7" />
 								</div>
-								<div className="ml-4">
-									<p className="text-sm font-medium text-gray-600">
-										Total Orders
-									</p>
-									<p className="text-2xl font-bold text-gray-900">
-										{analytics.overview.totalOrders}
+								<div className="ml-8">
+									<p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Procurement</p>
+									<p className="text-4xl font-black text-slate-900 tracking-tight">{analytics.overview.totalOrders}</p>
+								</div>
+							</div>
+						</div>
+
+						<div className="glass-card p-10 group hover:translate-y-[-4px] transition-all">
+							<div className="flex items-center">
+								<div className="p-4 bg-emerald-50 rounded-2xl text-emerald-600 group-hover:scale-110 transition-transform shadow-sm">
+									<DollarSign className="h-7 w-7" />
+								</div>
+								<div className="ml-8">
+									<p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Capital Expenditure</p>
+									<p className="text-3xl font-black text-slate-900 tracking-tight">
+										<span className="text-xs font-bold mr-1 opacity-30 tracking-normal">UGX</span>
+										{analytics.overview.totalSpent.toLocaleString()}
 									</p>
 								</div>
 							</div>
 						</div>
 
-						<div className="bg-white rounded-lg shadow p-6">
+						<div className="glass-card p-10 group hover:translate-y-[-4px] transition-all">
 							<div className="flex items-center">
-								<div className="p-2 bg-green-100 rounded-lg">
-									<DollarSign className="h-6 w-6 text-green-600" />
+								<div className="p-4 bg-purple-50 rounded-2xl text-purple-600 group-hover:scale-110 transition-transform shadow-sm">
+									<TrendingUp className="h-7 w-7" />
 								</div>
-								<div className="ml-4">
-									<p className="text-sm font-medium text-gray-600">
-										Total Spent
-									</p>
-									<p className="text-2xl font-bold text-gray-900">
-										UGX {analytics.overview.totalSpent.toLocaleString()}
-									</p>
-								</div>
-							</div>
-						</div>
-
-						<div className="bg-white rounded-lg shadow p-6">
-							<div className="flex items-center">
-								<div className="p-2 bg-purple-100 rounded-lg">
-									<TrendingUp className="h-6 w-6 text-purple-600" />
-								</div>
-								<div className="ml-4">
-									<p className="text-sm font-medium text-gray-600">
-										Avg Order Value
-									</p>
-									<p className="text-2xl font-bold text-gray-900">
-										UGX {analytics.overview.averageOrderValue.toLocaleString()}
+								<div className="ml-8">
+									<p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Efficiency Index</p>
+									<p className="text-3xl font-black text-slate-900 tracking-tight">
+										<span className="text-xs font-bold mr-1 opacity-30 tracking-normal">UGX</span>
+										{analytics.overview.averageOrderValue.toLocaleString()}
 									</p>
 								</div>
 							</div>
@@ -436,27 +430,27 @@ function BuyerDashboard() {
 				)}
 
 				{/* Search and Filters */}
-				<div className="bg-white rounded-lg shadow mb-8">
-					<div className="p-6">
-						<div className="flex flex-col md:flex-row gap-4">
+				<div className="glass-card mb-12">
+					<div className="p-10">
+						<div className="flex flex-col md:flex-row gap-6">
 							<div className="flex-1">
-								<div className="relative">
-									<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+								<div className="relative group">
+									<Search className="absolute left-5 top-1/2 transform -translate-y-1/2 text-slate-400 h-5 w-5 group-focus-within:text-emerald-500 transition-colors" />
 									<input
 										type="text"
-										placeholder="Search for products..."
+										placeholder="Query market inventory..."
 										value={searchTerm}
 										onChange={(e) => setSearchTerm(e.target.value)}
-										className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+										className="w-full pl-14 pr-6 py-5 bg-slate-50 border-0 rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 font-medium text-slate-900"
 									/>
 								</div>
 							</div>
 
 							<button
 								onClick={() => setShowFilters(!showFilters)}
-								className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-								<Filter className="h-4 w-4 mr-2" />
-								Filters
+								className="inline-flex items-center px-8 py-5 bg-white border-2 border-slate-100 rounded-2xl hover:border-emerald-200 hover:bg-emerald-50/30 transition-all font-black text-[10px] uppercase tracking-[0.2em] text-slate-600">
+								<Filter className="h-4 w-4 mr-3" />
+								Engine Parameters
 							</button>
 						</div>
 
@@ -516,143 +510,156 @@ function BuyerDashboard() {
 				</div>
 
 				{/* Products Grid */}
-				<div className="bg-white rounded-lg shadow mb-8">
-					<div className="px-6 py-4 border-b border-gray-200">
-						<h2 className="text-xl font-semibold text-gray-900">
-							Available Products
+				<div className="mb-12">
+					<div className="flex items-center justify-between mb-8">
+						<h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+							Market Inventory
 						</h2>
+						<div className="text-xs font-black text-slate-400 uppercase tracking-widest">
+							{products.length} assets listed
+						</div>
 					</div>
 
-					<div className="p-6">
-						{products.length === 0 ? (
-							<div className="text-center py-12">
-								<Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-								<h3 className="text-lg font-medium text-gray-900 mb-2">
-									No products found
-								</h3>
-								<p className="text-gray-600">
-									Try adjusting your search or filters
-								</p>
-							</div>
-						) : (
-							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-								{products.map((product) => (
-									<div
-										key={product.id}
-										className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-										<div className="flex justify-between items-start mb-3">
-											<div>
-												<h3 className="font-semibold text-gray-900">
-													{product.name}
-												</h3>
-												<p className="text-sm text-gray-600">
-													{product.category}
-												</p>
-											</div>
-											{product.organic && (
-												<span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
-													Organic
-												</span>
-											)}
+					{products.length === 0 ? (
+						<div className="glass-card p-20 text-center">
+							<Package className="h-12 w-12 text-slate-200 mx-auto mb-6" />
+							<h3 className="text-lg font-bold text-slate-900 mb-2">
+								Empty Ledger
+							</h3>
+							<p className="text-slate-500 font-medium">
+								No products match your current parameters.
+							</p>
+						</div>
+					) : (
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+							{products.map((product) => (
+								<div
+									key={product.id}
+									className="glass-card p-8 group hover:translate-y-[-4px] transition-all border-slate-100/50">
+									<div className="flex justify-between items-start mb-6">
+										<div>
+											<h3 className="font-black text-slate-900 text-lg leading-tight group-hover:text-emerald-600 transition-colors">
+												{product.name}
+											</h3>
+											<p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+												{product.category}
+											</p>
 										</div>
+										{product.organic && (
+											<span className="bg-emerald-50 text-emerald-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border border-emerald-100/50">
+												Organic
+											</span>
+										)}
+									</div>
 
-										<div className="space-y-2 text-sm text-gray-600 mb-4">
-											<p className="text-lg font-bold text-green-600">
-												UGX {product.price}/{product.unit}
+									<div className="space-y-4 mb-8">
+										<div className="p-4 bg-slate-50 rounded-2xl">
+											<p className="text-2xl font-black text-slate-900">
+												<span className="text-xs font-bold mr-1 opacity-30">UGX</span>
+												{product.price.toLocaleString()}
+												<span className="text-xs font-bold opacity-30 ml-1">/{product.unit}</span>
 											</p>
-											<p>
-												<span className="font-medium">Available:</span>{" "}
-												{product.quantity} {product.unit}
-											</p>
-
-											<div className="flex items-center">
-												<MapPin className="h-4 w-4 mr-1" />
+										</div>
+										
+										<div className="flex flex-col gap-3 text-sm font-medium text-slate-600">
+											<div className="flex items-center gap-3">
+												<div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-slate-400">
+													<MapPin className="h-4 w-4" />
+												</div>
 												<span>{product.location}</span>
 											</div>
 
 											<div className="flex items-center justify-between">
-												<div className="flex items-center">
-													<User className="h-4 w-4 mr-1" />
-													<span>{product.farmer.name}</span>
-													{product.farmer.verified && (
-														<span className="ml-1 text-blue-500">✓</span>
-													)}
-													{product.farmerTrust ? (
-														<span className="ml-2">
+												<div className="flex items-center gap-3">
+													<div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-slate-400">
+														<User className="h-4 w-4" />
+													</div>
+													<div className="flex items-center gap-2">
+														<span className="font-bold text-slate-900">{product.farmer.name}</span>
+														{product.farmer.verified && (
+															<div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
+																<span className="text-[10px] text-white font-bold">✓</span>
+															</div>
+														)}
+														{product.farmerTrust && (
 															<TrustBadge trust={product.farmerTrust} compact />
-														</span>
-													) : null}
+														)}
+													</div>
 												</div>
 
 												{product.totalReviews > 0 && (
-													<div className="flex items-center">
-														<Star className="h-4 w-4 text-yellow-400 fill-current" />
-														<span className="ml-1">
-															{product.avgRating.toFixed(1)} (
-															{product.totalReviews})
+													<div className="flex items-center gap-1.5 bg-amber-50 px-3 py-1 rounded-full border border-amber-100">
+														<Star className="h-3.5 w-3.5 text-amber-500 fill-current" />
+														<span className="text-xs font-black text-amber-700">
+															{product.avgRating.toFixed(1)}
 														</span>
 													</div>
 												)}
 											</div>
 										</div>
-
-										<div className="flex space-x-2">
-											<Link
-												to={`/product/${product.id}`}
-												className="flex-1 text-center px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-												View Details
-											</Link>
-											<button
-												onClick={() => handleOrder(product.id)}
-												className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-												Order Now
-											</button>
-										</div>
 									</div>
-								))}
-							</div>
-						)}
-					</div>
+
+									<div className="flex gap-4">
+										<Link
+											to={`/product/${product.id}`}
+											className="flex-1 text-center py-4 border-2 border-slate-100 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all font-black text-[10px] uppercase tracking-widest">
+											Specs
+										</Link>
+										<button
+											onClick={() => handleOrder(product.id)}
+											className="flex-1 py-4 bg-slate-900 text-white rounded-2xl hover:bg-emerald-600 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/10 hover:shadow-emerald-500/20">
+											Procure
+										</button>
+									</div>
+								</div>
+							))}
+						</div>
+					)}
 				</div>
 
 				{/* Recent Orders */}
 				{analytics && analytics.recentOrders.length > 0 && (
-					<div className="bg-white rounded-lg shadow">
-						<div className="px-6 py-4 border-b border-gray-200">
-							<h2 className="text-xl font-semibold text-gray-900">
-								Recent Orders
+					<div className="glass-card overflow-hidden mb-12">
+						<div className="px-10 py-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+							<h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">
+								Procurement History
 							</h2>
+							<div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+								Verified Ledger
+							</div>
 						</div>
-						<div className="p-6">
-							<div className="space-y-4">
-								{analytics.recentOrders.map((order) => (
-									<div
-										key={order.id}
-										className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+						<div className="divide-y divide-slate-50">
+							{analytics.recentOrders.map((order) => (
+								<div
+									key={order.id}
+									className="flex items-center justify-between p-10 hover:bg-slate-50/50 transition-colors group">
+									<div className="flex items-center gap-8">
+										<div className="w-16 h-16 bg-white border border-slate-100 rounded-2xl flex items-center justify-center font-black text-xs text-slate-400 group-hover:scale-110 transition-transform shadow-sm">
+											{order.product.category.slice(0, 3).toUpperCase()}
+										</div>
 										<div>
-											<h3 className="font-medium text-gray-900">
+											<h3 className="font-bold text-slate-900 text-lg">
 												{order.product.name}
 											</h3>
-											<p className="text-sm text-gray-600">
-												{order.quantity} units • UGX {order.totalPrice} •{" "}
-												{order.farmer.name}
+											<p className="text-sm text-slate-500 font-medium mt-1">
+												{order.quantity} units · UGX {order.totalPrice.toLocaleString()} · {order.farmer.name}
 											</p>
-											<p className="text-xs text-gray-500">
+											<p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">
 												{new Date(order.createdAt).toLocaleDateString()}
 											</p>
 										</div>
-										<span
-											className={`px-2 py-1 text-xs font-medium rounded-full ${order.status === "DELIVERED"
-												? "bg-green-100 text-green-800"
-												: order.status === "PENDING"
-													? "bg-yellow-100 text-yellow-800"
-													: "bg-blue-100 text-blue-800"
-												}`}>
-											{order.status}
-										</span>
 									</div>
-								))}
-							</div>
+									<span
+										className={`px-4 py-2 text-[10px] font-black rounded-full uppercase tracking-widest border ${order.status === "DELIVERED"
+											? "bg-emerald-50 text-emerald-700 border-emerald-100"
+											: order.status === "PENDING"
+												? "bg-amber-50 text-amber-700 border-amber-100"
+												: "bg-blue-50 text-blue-700 border-blue-100"
+											}`}>
+										{order.status}
+									</span>
+								</div>
+							))}
 						</div>
 					</div>
 				)}

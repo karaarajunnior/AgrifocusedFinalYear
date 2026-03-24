@@ -346,13 +346,15 @@ function ChatPage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-gray-50 py-6">
+		<div className="min-h-screen bg-gray-50 py-10">
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-				<h1 className="text-2xl font-bold text-gray-900 mb-4">Chat</h1>
-				<div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-					<div className="bg-white rounded-lg shadow p-4 lg:col-span-1">
-						<h2 className="text-sm font-semibold text-gray-700 mb-3">
-							Conversations
+				<h1 className="text-4xl font-black text-slate-900 tracking-tight uppercase mb-10">
+					Communication Hub
+				</h1>
+				<div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+					<div className="glass-card p-6 lg:col-span-1">
+						<h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">
+							Active Sessions
 						</h2>
 						<div className="space-y-2">
 							{conversations.length === 0 ? (
@@ -370,32 +372,36 @@ function ChatPage() {
 												: "border-gray-200 hover:bg-gray-50"
 										}`}
 									>
-										<div className="text-sm font-medium text-gray-900">
-											{c.name}{" "}
-											{c.verified ? (
-												<span className="text-xs text-blue-600">(verified)</span>
-											) : (
-												<span className="text-xs text-yellow-700">(pending)</span>
+										<div className="flex items-center justify-between">
+											<div className="text-sm font-black text-slate-900 truncate">
+												{c.name}
+											</div>
+											{c.verified && (
+												<div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center shrink-0 ml-2 shadow-sm">
+													<span className="text-[10px] text-white font-bold">✓</span>
+												</div>
 											)}
 										</div>
-										<div className="text-xs text-gray-500">{c.role}</div>
+										<div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+											{c.role}
+										</div>
 									</button>
 								))
 							)}
 						</div>
 					</div>
 
-					<div className="bg-white rounded-lg shadow p-4 lg:col-span-2">
+					<div className="glass-card p-0 overflow-hidden lg:col-span-3 flex flex-col">
 						{!activeUserId ? (
-							<div className="flex flex-col items-center justify-center h-64 text-center">
-								<div className="bg-green-50 p-4 rounded-full mb-4">
-									<MessageCircle className="h-8 w-8 text-green-600" />
+							<div className="flex flex-col items-center justify-center h-[70vh] text-center p-12">
+								<div className="bg-emerald-50 p-8 rounded-3xl mb-8 shadow-sm">
+									<MessageCircle className="h-12 w-12 text-emerald-600" />
 								</div>
-								<h3 className="text-lg font-medium text-gray-900">Your Messages</h3>
-								<p className="text-gray-500 mt-2 max-w-sm">
+								<h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Terminal Idle</h3>
+								<p className="text-slate-500 mt-4 max-w-sm font-medium">
 									{conversations.length === 0
-										? "You don't have any active conversations yet. Visit the Products page to find a farmer you'd like to contact."
-										: "Select a conversation from the sidebar to start chatting."}
+										? "No active encrypted channels found. Initialize a session via the Market Inventory."
+										: "Select a secure channel from the directory to begin data transmission."}
 								</p>
 								{conversations.length === 0 && (
 									<a
@@ -490,35 +496,35 @@ function ChatPage() {
 												value={text}
 												onChange={(e) => setText(e.target.value)}
 												onKeyDown={(e) => e.key === 'Enter' && send()}
-												className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
-												placeholder="Type a message…"
+												className="flex-1 px-6 py-5 bg-slate-50 border-0 rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 font-medium text-slate-900"
+												placeholder="Enter secure message..."
 											/>
 											<button
 												type="button"
 												onClick={listening ? stopVoiceInput : startVoiceInput}
-												className={`px-3 py-2 rounded-lg border transition-all ${
+												className={`px-5 py-5 rounded-2xl transition-all ${
 													listening
-														? "border-red-500 bg-red-50 text-red-600 animate-pulse"
-														: "border-gray-300 hover:bg-gray-50 text-gray-700"
+														? "bg-rose-500 text-white shadow-lg shadow-rose-500/30 animate-pulse"
+														: "bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
 												}`}
 												title="Speech to Text"
 											>
-												<Mic className="h-4 w-4" />
+												<Mic className="h-5 w-5" />
 											</button>
 											<button
 												type="button"
 												onClick={startRecording}
-												className="px-3 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 text-blue-600"
+												className="px-5 py-5 bg-slate-50 text-blue-400 hover:text-blue-600 hover:bg-slate-100 rounded-2xl transition-all"
 												title="Record Voice Note"
 											>
-												<Play className="h-4 w-4" />
+												<Play className="h-5 w-5" />
 											</button>
 											<button
 												onClick={send}
 												disabled={!text.trim()}
-												className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+												className="px-8 py-5 bg-slate-900 text-white rounded-2xl hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/10 hover:shadow-emerald-500/20 transition-all"
 											>
-												Send
+												Transmit
 											</button>
 										</>
 									) : (

@@ -32,19 +32,19 @@ function LandingPage() {
                 Our decentralized platform ensures fair prices and transparent transactions for Uganda's coffee sector.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-6">
                 <Link
                   to="/register"
-                  className="inline-flex items-center justify-center px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
+                  className="inline-flex items-center justify-center px-10 py-5 bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-2xl hover:bg-emerald-600 transition-all shadow-xl shadow-slate-900/10 hover:shadow-emerald-500/20"
                 >
-                  Get Started Today
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  Initiate Account
+                  <ArrowRight className="ml-3 h-4 w-4" />
                 </Link>
                 <Link
                   to="/marketplace"
-                  className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                  className="inline-flex items-center justify-center px-10 py-5 border-2 border-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-[0.2em] rounded-2xl hover:border-emerald-200 hover:bg-emerald-50/30 transition-all"
                 >
-                  Browse Marketplace
+                  Market Access
                 </Link>
               </div>
 
@@ -102,38 +102,38 @@ function LandingPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             <FeatureCard
               icon={<Users className="h-8 w-8 text-blue-600" />}
-              title="Direct Connection"
-              description="Connect farmers directly with buyers, eliminating unnecessary middlemen and reducing costs."
+              title="DIRECT NETWORK"
+              description="Connect farmers directly with institutional buyers, eliminating inefficient intermediaries."
             />
 
             <FeatureCard
-              icon={<BarChart3 className="h-8 w-8 text-green-600" />}
-              title="Market Price Transparency"
-              description="Access real-time market prices and demand data to make informed selling decisions and get fair value."
+              icon={<BarChart3 className="h-8 w-8 text-emerald-600" />}
+              title="PRICE DISCOVERY"
+              description="Real-time market data feed ensures absolute transparency in asset valuation."
             />
 
             <FeatureCard
               icon={<Shield className="h-8 w-8 text-purple-600" />}
-              title="Blockchain Security"
-              description="Transparent and tamper-proof transactions recorded on our decentralized blockchain network."
+              title="IMMUTABLE LEDGER"
+              description="Tamper-proof transaction records providing institutional-grade security."
             />
 
             <FeatureCard
               icon={<Truck className="h-8 w-8 text-orange-600" />}
-              title="Smart Logistics"
-              description="Efficient delivery tracking and logistics optimization to ensure fresh produce reaches buyers."
+              title="PRECISION LOGISTICS"
+              description="Asset tracking and delivery optimization ensuring supply chain integrity."
             />
 
             <FeatureCard
-              icon={<TrendingUp className="h-8 w-8 text-red-600" />}
-              title="Market Analytics"
-              description="Comprehensive dashboards with insights on pricing trends, demand patterns, and market opportunities."
+              icon={<TrendingUp className="h-8 w-8 text-rose-600" />}
+              title="MARKET ANALYTICS"
+              description="Deep intelligence on pricing trends, demand forecasting, and yield opportunities."
             />
 
             <FeatureCard
               icon={<CheckCircle className="h-8 w-8 text-teal-600" />}
-              title="Quality Assurance"
-              description="Verified farmers, quality guarantees, and transparent rating systems for trust and reliability."
+              title="QUALITY PROTOCOLS"
+              description="Standardized grading systems and verified participants for reliable sourcing."
             />
           </div>
         </div>
@@ -259,20 +259,20 @@ function LandingPage() {
             coffee at fair prices, DAFIS is your solution.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-6 justify-center">
             <Link
               to="/register"
-              className="inline-flex items-center justify-center px-8 py-4 bg-white text-green-600 font-bold rounded-lg hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center justify-center px-10 py-5 bg-white text-slate-900 font-black text-[10px] uppercase tracking-[0.2em] rounded-2xl hover:bg-emerald-50 transition-all shadow-xl"
             >
-              Start Selling Today
-              <Leaf className="ml-2 h-5 w-5" />
+              Start Selling
+              <Leaf className="ml-3 h-4 w-4 text-emerald-600" />
             </Link>
             <Link
               to="/marketplace"
-              className="inline-flex items-center justify-center px-8 py-4 border-2 border-white text-white font-bold rounded-lg hover:bg-white hover:text-green-600 transition-colors"
+              className="inline-flex items-center justify-center px-10 py-5 border-2 border-white text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-2xl hover:bg-white hover:text-emerald-600 transition-all"
             >
-              Browse Products
-              <ArrowRight className="ml-2 h-5 w-5" />
+              Browse Global Market
+              <ArrowRight className="ml-3 h-4 w-4" />
             </Link>
           </div>
         </div>
@@ -288,10 +288,10 @@ function FeatureCard({ icon, title, description }: {
   description: string;
 }) {
   return (
-    <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 hover:shadow-lg transition-shadow">
-      <div className="mb-4">{icon}</div>
-      <h3 className="text-xl font-semibold text-gray-900 mb-3">{title}</h3>
-      <p className="text-gray-600 leading-relaxed">{description}</p>
+    <div className="glass-card p-10 group hover:translate-y-[-4px] transition-all border-slate-100/30">
+      <div className="mb-6 bg-slate-50 w-16 h-16 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">{icon}</div>
+      <h3 className="text-xl font-black text-slate-900 mb-3 tracking-tight uppercase">{title}</h3>
+      <p className="text-slate-500 font-medium leading-relaxed">{description}</p>
     </div>
   );
 }

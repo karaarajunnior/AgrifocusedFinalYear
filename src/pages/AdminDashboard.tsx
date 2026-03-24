@@ -404,15 +404,15 @@ function AdminDashboard() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-12">
           <OfflineBadge isOffline={!isOnline} timestamp={cacheTime} />
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                Admin Dashboard ðŸ‘¨â€ðŸ’¼
+              <h1 className="text-4xl font-black text-slate-900 tracking-tight uppercase">
+                Administrative Control Center
               </h1>
-              <p className="text-gray-600 mt-2">
-                Monitor and manage the DAFIS platform
+              <p className="text-slate-500 mt-2 font-medium">
+                System-wide monitoring and multi-sector management.
               </p>
             </div>
           </div>
@@ -420,72 +420,75 @@ function AdminDashboard() {
 
 
         {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
+          <div className="glass-card p-8 group hover:translate-y-[-4px] transition-all">
             <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Users className="h-6 w-6 text-blue-600" />
+              <div className="p-3 bg-blue-50 rounded-2xl text-blue-600 group-hover:scale-110 transition-transform">
+                <Users className="h-6 w-6" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900">{dashboardData.overview.totalUsers}</p>
+              <div className="ml-6">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Network</p>
+                <h3 className="text-3xl font-black text-slate-900 tracking-tight">{dashboardData.overview.totalUsers}</h3>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="glass-card p-8 group hover:translate-y-[-4px] transition-all">
             <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Package className="h-6 w-6 text-green-600" />
+              <div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600 group-hover:scale-110 transition-transform">
+                <Package className="h-6 w-6" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Products</p>
-                <p className="text-2xl font-bold text-gray-900">{dashboardData.overview.totalProducts}</p>
+              <div className="ml-6">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Assets</p>
+                <h3 className="text-3xl font-black text-slate-900 tracking-tight">{dashboardData.overview.totalProducts}</h3>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="glass-card p-8 group hover:translate-y-[-4px] transition-all">
             <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-yellow-600" />
+              <div className="p-3 bg-amber-50 rounded-2xl text-amber-600 group-hover:scale-110 transition-transform">
+                <TrendingUp className="h-6 w-6" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Orders</p>
-                <p className="text-2xl font-bold text-gray-900">{dashboardData.overview.totalOrders}</p>
+              <div className="ml-6">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Closed Orders</p>
+                <h3 className="text-3xl font-black text-slate-900 tracking-tight">{dashboardData.overview.totalOrders}</h3>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="glass-card p-8 group hover:translate-y-[-4px] transition-all">
             <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Shield className="h-6 w-6 text-purple-600" />
+              <div className="p-3 bg-purple-50 rounded-2xl text-purple-600 group-hover:scale-110 transition-transform">
+                <Shield className="h-6 w-6" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Transactions</p>
-                <p className="text-2xl font-bold text-gray-900">{dashboardData.overview.totalTransactions}</p>
+              <div className="ml-6">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Validations</p>
+                <h3 className="text-3xl font-black text-slate-900 tracking-tight">{dashboardData.overview.totalTransactions}</h3>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="glass-card p-8 group hover:translate-y-[-4px] transition-all">
             <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <DollarSign className="h-6 w-6 text-red-600" />
+              <div className="p-3 bg-slate-900 rounded-2xl text-white group-hover:scale-110 transition-transform">
+                <DollarSign className="h-6 w-6" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">UGX {dashboardData.overview.totalRevenue.toLocaleString()}</p>
+              <div className="ml-6">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">System Yield</p>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-none">
+                  <span className="text-[10px] font-bold block mb-1 opacity-40">UGX</span>
+                  {dashboardData.overview.totalRevenue.toLocaleString()}
+                </h3>
               </div>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-lg shadow mb-8">
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-8 px-6">
+        <div className="glass-card mb-12">
+          <div className="border-b border-slate-100 overflow-x-auto">
+            <nav className="flex space-x-8 px-10">
               {[
                 { id: 'overview', name: 'Overview', icon: BarChart3 },
                 { id: 'financials', name: 'Financials', icon: FileText },

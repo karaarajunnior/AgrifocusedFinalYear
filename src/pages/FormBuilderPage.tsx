@@ -116,10 +116,8 @@ export default function FormBuilderPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Dynamic Form Builder</h1>
-              <p className="text-gray-600 mt-1">
-                Admin can add custom fields + fieldsets. Farmers will see these when adding products.
-              </p>
+              <h1 className="text-2xl font-bold text-gray-900">CUSTOMIZE FORMS</h1>
+
             </div>
             <div className="flex gap-2">
               <button onClick={addFieldset} className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm">
@@ -212,9 +210,6 @@ export default function FormBuilderPage() {
             ))}
           </div>
 
-          <div className="mt-6 text-xs text-gray-500">
-            Stored locally in this browser: <code>{PRODUCT_FORM_KEY}</code>. For production, you can persist this in DB.
-          </div>
         </div>
       </div>
     </div>

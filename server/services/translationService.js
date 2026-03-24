@@ -40,6 +40,19 @@ const DICTIONARY = {
         "seeds": "ensigo",
         "weather": "embeera y'obwire",
         "hello": "agandi",
+        "how much": "zingahi",
+    },
+    acholi: {
+        "coffee": "kawa",
+        "price": "wel",
+        "harvest": "acaka",
+        "payment": "cul",
+        "market": "cuk",
+        "farmer": "lapur",
+        "fertilizer": "pur",
+        "seeds": "koti",
+        "weather": "piny",
+        "hello": "itye ningning",
     }
 };
 
@@ -60,7 +73,7 @@ export function translateLocal(text, targetLang) {
     
     for (const key of sortedKeys) {
         const regex = new RegExp(`\\b${key}\\b`, 'gi');
-        translated = translated.replace(regex, lang[key]);
+        translated = translated.replace(regex, langDict[key]);
     }
 
     return translated;

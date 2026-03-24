@@ -264,7 +264,7 @@ function OrdersPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
-            {user?.role === 'FARMER' ? 'Sales Orders' : 'My Orders'} 📦
+            {user?.role === 'FARMER' ? 'Sales Orders' : 'My Orders'}
           </h1>
           <p className="text-gray-600 mt-2">
             {user?.role === 'FARMER'
@@ -287,8 +287,8 @@ function OrdersPage() {
                 <button
                   onClick={() => setStatusFilter('')}
                   className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${statusFilter === ''
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                 >
                   All ({orders.length})
@@ -303,8 +303,8 @@ function OrdersPage() {
                       key={status}
                       onClick={() => setStatusFilter(status)}
                       className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${statusFilter === status
-                          ? getStatusColor(status)
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? getStatusColor(status)
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                     >
                       {status.charAt(0) + status.slice(1).toLowerCase()} ({count})
@@ -400,7 +400,7 @@ function OrdersPage() {
                     </div>
 
                     <div className="flex flex-col items-end gap-2">
-                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
                         {order.status.charAt(0) + order.status.slice(1).toLowerCase()}
                       </span>
                       {getOfflineHandoverQueue().some(i => i.orderId === order.id) && (
@@ -483,8 +483,8 @@ function OrdersPage() {
                         {generatedProof?.code ? (
                           <div className="flex flex-col items-center gap-4 p-4 bg-gray-50 border border-gray-200 rounded-2xl mt-4">
                             <div className="bg-white p-3 rounded-xl shadow-sm">
-                              <QRCodeSVG 
-                                value={generatedProof.qrToken} 
+                              <QRCodeSVG
+                                value={generatedProof.qrToken}
                                 size={128}
                               />
                             </div>
@@ -536,7 +536,7 @@ function OrdersPage() {
 
                     {order.transaction && (
                       <div className="flex items-center gap-2">
-                        <button 
+                        <button
                           onClick={() => setSelectedOrder(order)}
                           className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center"
                         >
@@ -595,8 +595,8 @@ function OrdersPage() {
                       >
                         <Star
                           className={`h-8 w-8 ${star <= reviewData.rating
-                              ? 'text-yellow-400 fill-current'
-                              : 'text-gray-300'
+                            ? 'text-yellow-400 fill-current'
+                            : 'text-gray-300'
                             }`}
                         />
                       </button>
@@ -647,14 +647,14 @@ function OrdersPage() {
           <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl">
             <div className="p-6 border-b bg-gray-50 flex justify-between items-center">
               <h2 className="text-xl font-bold text-gray-900">Transaction Details</h2>
-              <button 
+              <button
                 onClick={() => setSelectedOrder(null)}
                 className="p-2 hover:bg-gray-200 rounded-full transition"
               >
                 <XCircle className="h-6 w-6 text-gray-400" />
               </button>
             </div>
-            
+
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-2 gap-6">
                 <div className="p-4 bg-gray-50 rounded-xl">

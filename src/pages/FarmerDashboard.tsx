@@ -243,6 +243,51 @@ function FarmerDashboard() {
 		}
 	};
 
+	const handleDownloadReport = async () => {
+		if (!credit || !user) return;
+		
+		const toastId = toast.loading("Generating Secure Financial Report...");
+		
+		try {
+			// Generate CSV content
+			const csvHeaders = ["DAFIS Verified Financial Identity Report", ""];
+			const csvMeta = [
+				["Generated On", new Date().toLocaleString()],
+				["Farmer Name", user.name],
+				["DAFIS ID", user.id],
+				["Credit Score", credit.score],
+				["Rating", credit.rating],
+				["Total Verified Income", `UGX ${credit.totalIncome.toLocaleString()}`],
+				["Credits Repaid", credit.repaidCount]
+			];
+			const csvFactors = [
+				[""],
+				["Verification Factors"],
+				...credit.reasons.map(r => [r])
+			];
+			const csvFooter = [
+				[""],
+				["Disclaimer: This report is a verified record of DAFIS transactions and is intended for credit assessment by verified banking partners."]
+			];
+
+			const allLines = [csvHeaders, ...csvMeta, ...csvFactors, ...csvFooter];
+			const csvContent = allLines.map(line => line.map(cell => `"${cell}"`).join(",")).join("\n");
+
+			const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement("a");
+			link.setAttribute("href", url);
+			link.setAttribute("download", `DAFIS_Bank_Report_${user.name.split(' ').join('_')}.csv`);
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			
+			toast.success("Report downloaded successfully", { id: toastId });
+		} catch (err) {
+			toast.error("Failed to generate report", { id: toastId });
+		}
+	};
+
 	if (loading) {
 		return (
 			<div className="min-h-screen flex items-center justify-center">
@@ -259,65 +304,65 @@ function FarmerDashboard() {
 					<OfflineBadge isOffline={!isOnline} timestamp={cacheTime} />
 				</div>
 
-				<div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+				<div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
 					<div>
-						<h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-							Hello, {user?.name.split(' ')[0]} 👋
+						<h1 className="text-4xl font-black text-slate-900 tracking-tight uppercase">
+							Farmer Overview
 						</h1>
-						<p className="text-gray-500 mt-1">Manage your coffee farm and track market trends.</p>
+						<p className="text-slate-500 mt-2 font-medium">Agricultural analytics and market performance tracking.</p>
 					</div>
-					<div className="flex gap-3">
+					<div className="flex gap-4">
 						<button
 							onClick={() => setShowAddProduct(true)}
-							className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 transition shadow-lg shadow-green-600/20 flex items-center gap-2"
+							className="premium-btn grad-emerald text-white px-8 py-4 rounded-2xl font-bold hover:shadow-2xl hover:shadow-emerald-500/30 transition-all flex items-center gap-2 uppercase tracking-widest text-xs"
 						>
 							<Plus className="h-5 w-5" />
-							List Harvest
+							List New Harvest
 						</button>
 						{!user?.isExportVerified && (
 							<Link
 								to="/export-verification"
-								className="bg-white border-2 border-green-600 text-green-700 px-6 py-3 rounded-xl font-bold hover:bg-green-50 transition flex items-center gap-2"
+								className="premium-btn bg-white border-2 border-emerald-600 text-emerald-700 px-8 py-4 rounded-2xl font-bold hover:bg-emerald-50 transition-all flex items-center gap-2 uppercase tracking-widest text-xs"
 							>
 								<Globe className="h-5 w-5" />
-								Apply to Export
+								Verify Export
 							</Link>
 						)}
 					</div>
 				</div>
 
 				{/* Quick Stats Grid */}
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-					<div className="bg-white p-6 rounded-2xl border shadow-sm">
-						<div className="p-3 bg-blue-50 w-fit rounded-xl mb-4 text-blue-600">
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+					<div className="glass-card p-8 group hover:translate-y-[-4px] transition-all">
+						<div className="p-4 bg-emerald-50 w-fit rounded-2xl mb-6 text-emerald-600 group-hover:scale-110 transition-transform">
 							<Package className="h-6 w-6" />
 						</div>
-						<p className="text-sm font-bold text-gray-500 uppercase tracking-wider">Total Products</p>
-						<h3 className="text-3xl font-black text-gray-900 mt-1">{analytics?.overview.totalProducts || 0}</h3>
+						<p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Total Listings</p>
+						<h3 className="text-4xl font-black text-slate-900 tracking-tight">{analytics?.overview.totalProducts || 0}</h3>
 					</div>
-					<div className="bg-white p-6 rounded-2xl border shadow-sm">
-						<div className="p-3 bg-green-50 w-fit rounded-xl mb-4 text-green-600">
+					<div className="glass-card p-8 group hover:translate-y-[-4px] transition-all">
+						<div className="p-4 bg-blue-50 w-fit rounded-2xl mb-6 text-blue-600 group-hover:scale-110 transition-transform">
 							<DollarSign className="h-6 w-6" />
 						</div>
-						<p className="text-sm font-bold text-gray-500 uppercase tracking-wider">Total Revenue</p>
-						<h3 className="text-3xl font-black text-gray-900 mt-1">
-							<span className="text-lg font-bold mr-1">UGX</span>
+						<p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Verified Revenue</p>
+						<h3 className="text-4xl font-black text-slate-900 tracking-tight">
+							<span className="text-lg font-bold mr-1 opacity-30">UGX</span>
 							{(analytics?.overview.totalRevenue || 0).toLocaleString()}
 						</h3>
 					</div>
-					<div className="bg-white p-6 rounded-2xl border shadow-sm">
-						<div className="p-3 bg-amber-50 w-fit rounded-xl mb-4 text-amber-600">
+					<div className="glass-card p-8 group hover:translate-y-[-4px] transition-all">
+						<div className="p-4 bg-amber-50 w-fit rounded-2xl mb-6 text-amber-600 group-hover:scale-110 transition-transform">
 							<TrendingUp className="h-6 w-6" />
 						</div>
-						<p className="text-sm font-bold text-gray-500 uppercase tracking-wider">Sales Made</p>
-						<h3 className="text-3xl font-black text-gray-900 mt-1">{analytics?.overview.totalSales || 0}</h3>
+						<p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Completed Sales</p>
+						<h3 className="text-4xl font-black text-slate-900 tracking-tight">{analytics?.overview.totalSales || 0}</h3>
 					</div>
-					<div className="bg-white p-6 rounded-2xl border shadow-sm">
-						<div className="p-3 bg-purple-50 w-fit rounded-xl mb-4 text-purple-600">
+					<div className="glass-card p-8 group hover:translate-y-[-4px] transition-all">
+						<div className="p-4 bg-purple-50 w-fit rounded-2xl mb-6 text-purple-600 group-hover:scale-110 transition-transform">
 							<Star className="h-6 w-6" />
 						</div>
-						<p className="text-sm font-bold text-gray-500 uppercase tracking-wider">Avg Rating</p>
-						<h3 className="text-3xl font-black text-gray-900 mt-1">{analytics?.overview.averageRating.toFixed(1) || '0.0'}</h3>
+						<p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Network Rating</p>
+						<h3 className="text-4xl font-black text-slate-900 tracking-tight">{analytics?.overview.averageRating.toFixed(1) || '0.0'}</h3>
 					</div>
 				</div>
 
@@ -346,18 +391,20 @@ function FarmerDashboard() {
 					<div className="lg:col-span-2 space-y-8">
 						{/* Financial Identity Section */}
 						{credit && (
-							<div className="bg-white rounded-[32px] p-8 shadow-sm border border-blue-50 relative overflow-hidden">
-								<div className="absolute top-0 right-0 p-8">
-									<Award className={`h-16 w-16 opacity-10 ${credit.score > 700 ? 'text-green-600' : 'text-blue-600'}`} />
+							<div className="glass-card p-10 relative overflow-hidden group">
+								<div className="absolute top-0 right-0 p-10">
+									<Award className={`h-24 w-24 opacity-5 transition-transform group-hover:scale-110 ${credit.score > 700 ? 'text-emerald-600' : 'text-blue-600'}`} />
 								</div>
 								
-								<div className="flex flex-col md:flex-row gap-8 items-start">
+								<div className="flex flex-col md:flex-row gap-10 items-start">
 									<div className="flex-1">
-										<div className="flex items-center gap-2 mb-2">
-											<CreditCard className="h-5 w-5 text-blue-600" />
-											<h3 className="text-xl font-black text-gray-900 tracking-tight lowercase">financial identity</h3>
+										<div className="flex items-center gap-3 mb-4">
+											<div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-600/20">
+												<CreditCard className="h-5 w-5" />
+											</div>
+											<h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase">verified financial identity</h3>
 										</div>
-										<p className="text-gray-500 text-sm mb-6">Verified credit score based on your DAFIS transaction history.</p>
+										<p className="text-slate-500 text-sm mb-10 font-medium">Secure credit assessment based on DAFIS ledger activity.</p>
 										
 										<div className="grid grid-cols-2 gap-4">
 											<div className="bg-gray-50 p-4 rounded-2xl">
@@ -382,7 +429,7 @@ function FarmerDashboard() {
 											</div>
 										))}
 										<button 
-											onClick={() => toast.success("Verified Statement Generating...")}
+											onClick={handleDownloadReport}
 											className="w-full mt-4 py-3 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
 										>
 											Download Bank Report
@@ -395,36 +442,36 @@ function FarmerDashboard() {
 						<ProfitMaximizer onSellDirect={() => setShowAddProduct(true)} />
 
 						{/* My Listings */}
-						<div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-							<div className="p-6 border-b flex justify-between items-center">
-								<h3 className="text-xl font-bold text-gray-900">My Listings</h3>
+						<div className="glass-card overflow-hidden">
+							<div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+								<h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">inventory ledger</h3>
 								<button 
 									onClick={() => setShowAllProducts(!showAllProducts)}
-									className="text-sm font-bold text-green-600 hover:text-green-700 flex items-center gap-1"
+									className="text-xs font-black text-emerald-600 hover:text-emerald-700 flex items-center gap-2 uppercase tracking-widest transition-colors"
 								>
-									{showAllProducts ? 'Show Less' : 'Manage All'} <ArrowRight className={`h-4 w-4 transition-transform ${showAllProducts ? 'rotate-90' : ''}`} />
+									{showAllProducts ? 'Minimize' : 'View All Assets'} <ArrowRight className={`h-4 w-4 transition-transform ${showAllProducts ? 'rotate-90' : ''}`} />
 								</button>
 							</div>
-							<div className="divide-y">
+							<div className="divide-y divide-slate-50">
 								{products.length > 0 ? (showAllProducts ? products : products.slice(0, 5)).map(product => (
-									<div key={product.id} className="p-6 hover:bg-gray-50 transition flex items-center justify-between">
-										<div className="flex items-center gap-4">
-											<div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center font-bold text-xs">
+									<div key={product.id} className="p-8 hover:bg-slate-50/50 transition-colors flex items-center justify-between group">
+										<div className="flex items-center gap-6">
+											<div className="w-14 h-14 bg-white border border-slate-100 rounded-2xl flex items-center justify-center font-black text-[10px] text-slate-400 uppercase shadow-sm group-hover:scale-110 transition-transform">
 												{product.category.slice(0, 3)}
 											</div>
 											<div>
-												<h4 className="font-bold text-gray-900">{product.name}</h4>
-												<p className="text-sm text-gray-500">{product.quantity}{product.unit} Available</p>
+												<h4 className="font-bold text-slate-900 mt-1">{product.name}</h4>
+												<p className="text-xs text-slate-500 font-medium">{product.quantity} {product.unit} · IN STOCK</p>
 											</div>
 										</div>
 										<div className="text-right">
-											<p className="font-bold text-gray-900">UGX {product.price.toLocaleString()}</p>
-											<p className="text-xs text-gray-500 capitalize">{product.category}</p>
+											<p className="font-black text-slate-900">UGX {product.price.toLocaleString()}</p>
+											<p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{product.category}</p>
 										</div>
 									</div>
 								)) : (
-									<div className="p-10 text-center text-gray-500">
-										No products listed yet. Start by listing your harvest.
+									<div className="p-16 text-center text-slate-400 font-medium">
+										No active listings found in ledger.
 									</div>
 								)}
 							</div>
@@ -455,55 +502,54 @@ function FarmerDashboard() {
 
 						<ClimateAlertsCard location={user?.location || "Kampala"} />
 
-						<div className="bg-white rounded-2xl shadow-sm border p-6">
-							<h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-								<Zap className="h-4 w-4 text-amber-500" />
-								Regional Price Index
+						<div className="glass-card p-8 bg-slate-900 text-white border-0 shadow-emerald-900/20">
+							<h4 className="font-black text-white mb-6 flex items-center gap-2 uppercase tracking-widest text-xs">
+								<Zap className="h-4 w-4 text-amber-400" />
+								Market Price Index
 							</h4>
 							<div className="space-y-4">
 								{marketPrices.length > 0 ? marketPrices.map((mp, i) => (
-									<div key={i} className="flex justify-between items-center text-sm">
-										<span className="text-gray-600 font-medium">{mp.item}</span>
-										<span className="font-bold text-green-600">{mp.price.toLocaleString()}/kg</span>
+									<div key={i} className="flex justify-between items-center text-sm border-b border-white/10 pb-3 last:border-0 last:pb-0">
+										<span className="text-slate-400 font-medium">{mp.item}</span>
+										<span className="font-black text-emerald-400">UGX {mp.price.toLocaleString()}</span>
 									</div>
 								)) : (
-									<p className="text-xs text-gray-400 italic">No recent price data available.</p>
+									<p className="text-xs text-slate-500 italic">No price baseline available.</p>
 								)}
 							</div>
 						</div>
 
-						<div className="bg-white rounded-2xl shadow-sm border p-6">
-							<div className="flex justify-between items-center mb-4">
-								<h4 className="font-bold text-gray-900 flex items-center gap-2">
+						<div className="glass-card p-8">
+							<div className="flex justify-between items-center mb-6">
+								<h4 className="font-black text-slate-900 flex items-center gap-2 uppercase tracking-widest text-xs">
 									<FileText className="h-4 w-4 text-blue-500" />
-									Financial Statement
+									Financial Record
 								</h4>
 								<button 
 									onClick={() => window.print()} 
-									className="text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+									className="bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-colors"
 								>
-									Print PDF
+									Export PDF
 								</button>
 							</div>
 							
-							<div className="space-y-3 text-sm">
-								<div className="flex justify-between pb-2 border-b border-gray-100">
-									<span className="text-gray-500">Gross Sales Volume</span>
-									<span className="font-bold text-gray-900">UGX {(analytics?.overview.totalRevenue || 0).toLocaleString()}</span>
+							<div className="space-y-4 text-sm">
+								<div className="flex justify-between pb-3 border-b border-slate-50">
+									<span className="text-slate-500 font-medium">Gross Sales Portfolio</span>
+									<span className="font-black text-slate-900">UGX {(analytics?.overview.totalRevenue || 0).toLocaleString()}</span>
 								</div>
-								<div className="flex justify-between pb-2 border-b border-gray-100">
-									<span className="text-gray-500">Platform Fees (2.5%)</span>
-									<span className="font-bold text-red-600">- UGX {((analytics?.overview.totalRevenue || 0) * 0.025).toLocaleString()}</span>
+								<div className="flex justify-between pb-3 border-b border-slate-100">
+									<span className="text-slate-500 font-medium">Verification Fees (2.5%)</span>
+									<span className="font-black text-red-500">- UGX {((analytics?.overview.totalRevenue || 0) * 0.025).toLocaleString()}</span>
 								</div>
-								<div className="flex justify-between pt-1">
-									<span className="font-bold text-gray-900">Net Estimated Payout</span>
-									<span className="font-black text-green-600">UGX {((analytics?.overview.totalRevenue || 0) * 0.975).toLocaleString()}</span>
+								<div className="flex justify-between pt-2">
+									<span className="font-black text-slate-900 uppercase text-xs tracking-tight">Net Estimated Payout</span>
+									<span className="font-black text-emerald-600 text-lg">UGX {((analytics?.overview.totalRevenue || 0) * 0.975).toLocaleString()}</span>
 								</div>
 							</div>
 							
-							<div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-500 text-center">
-								Official DAFIS Generated Record.<br />
-								{new Date().toLocaleDateString()}
+							<div className="mt-8 p-4 bg-slate-50 rounded-2xl text-[10px] font-bold text-slate-400 text-center uppercase tracking-widest">
+								verified ledger extract · {new Date().toLocaleDateString()}
 							</div>
 						</div>
 
