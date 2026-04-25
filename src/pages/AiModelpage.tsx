@@ -16,6 +16,7 @@ import {
 import LoadingSpinner from "../components/LoadingSpinner";
 import api from "../services/api";
 import { toast } from "react-hot-toast";
+import { useAuth } from "../contexts/AuthContext";
 
 interface PricePrediction {
 	predictedPrice: number;
@@ -53,14 +54,16 @@ interface CropRecommendation {
 }
 
 function AIModelPage() {
+	const { user } = useAuth();
 	const [activeTab, setActiveTab] = useState("price-prediction");
 	const [loading, setLoading] = useState(false);
+	const defaultLocation = user?.location || "Kampala, Uganda";
 
 	// Price Prediction State
 	const [priceData, setPriceData] = useState({
 		category: "VEGETABLES",
 		quantity: 100,
-		location: "Mumbai, Maharashtra",
+		location: defaultLocation,
 		organic: false,
 	});
 	const [pricePrediction, setPricePrediction] =
@@ -69,7 +72,7 @@ function AIModelPage() {
 	// Demand Forecast State
 	const [demandData, setDemandData] = useState({
 		category: "VEGETABLES",
-		location: "Delhi, India",
+		location: defaultLocation,
 		timeframe: 30,
 	});
 	const [demandForecast, setDemandForecast] = useState<DemandForecast | null>(
@@ -78,11 +81,11 @@ function AIModelPage() {
 
 	// Crop Recommendation State
 	const [farmerData, setFarmerData] = useState({
-		location: "Punjab, India",
+		location: defaultLocation,
 		soilType: "Loamy",
-		climate: "Subtropical",
+		climate: "Tropical",
 		farmSize: 5,
-		previousCrops: ["Rice", "Wheat"],
+		previousCrops: ["Maize", "Beans"],
 	});
 	const [cropRecommendations, setCropRecommendations] = useState<
 		CropRecommendation[]
@@ -178,7 +181,7 @@ function AIModelPage() {
 					</p>
 				</div>
 
-				{/* AI Model Performance Stats */}
+				{/* AI Model Service Status */}
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 					<div className="bg-white rounded-lg shadow p-6">
 						<div className="flex items-center">
@@ -187,10 +190,10 @@ function AIModelPage() {
 							</div>
 							<div className="ml-4">
 								<p className="text-sm font-medium text-gray-600">
-									Price Model Accuracy
+									Price Signals
 								</p>
-								<p className="text-2xl font-bold text-gray-900">87%</p>
-								<p className="text-xs text-gray-500">MAE: 2.34</p>
+								<p className="text-2xl font-bold text-gray-900">Live</p>
+								<p className="text-xs text-gray-500">Uses product and price history</p>
 							</div>
 						</div>
 					</div>
@@ -202,10 +205,10 @@ function AIModelPage() {
 							</div>
 							<div className="ml-4">
 								<p className="text-sm font-medium text-gray-600">
-									Demand Model Accuracy
+									Demand Signals
 								</p>
-								<p className="text-2xl font-bold text-gray-900">82%</p>
-								<p className="text-xs text-gray-500">Precision: 79%</p>
+								<p className="text-2xl font-bold text-gray-900">Live</p>
+								<p className="text-xs text-gray-500">Uses orders and listings</p>
 							</div>
 						</div>
 					</div>
@@ -217,10 +220,10 @@ function AIModelPage() {
 							</div>
 							<div className="ml-4">
 								<p className="text-sm font-medium text-gray-600">
-									System Health
+									Service Status
 								</p>
-								<p className="text-2xl font-bold text-gray-900">99.7%</p>
-								<p className="text-xs text-gray-500">Uptime</p>
+								<p className="text-2xl font-bold text-gray-900">Ready</p>
+								<p className="text-xs text-gray-500">Predictions run on request</p>
 							</div>
 						</div>
 					</div>
@@ -337,7 +340,7 @@ function AIModelPage() {
 													})
 												}
 												className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-												placeholder="City, State"
+												placeholder="District, country"
 											/>
 										</div>
 
@@ -387,7 +390,7 @@ function AIModelPage() {
 												<div className="bg-purple-50 rounded-lg p-4">
 													<div className="text-center">
 														<div className="text-3xl font-bold text-purple-600">
-															₹{pricePrediction.predictedPrice.toFixed(2)}
+															UGX {pricePrediction.predictedPrice.toLocaleString()}
 														</div>
 														<div className="text-sm text-gray-600">per kg</div>
 														<div
@@ -467,7 +470,7 @@ function AIModelPage() {
 											<div className="text-center py-8">
 												<TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
 												<h4 className="text-lg font-medium text-gray-900 mb-2">
-													No Prediction Yet
+													No prediction yet
 												</h4>
 												<p className="text-gray-600">
 													Fill in the parameters and click "Generate Price
@@ -536,7 +539,7 @@ function AIModelPage() {
 													})
 												}
 												className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-												placeholder="City, State"
+												placeholder="District, country"
 											/>
 										</div>
 
@@ -639,7 +642,7 @@ function AIModelPage() {
 											<div className="text-center py-8">
 												<BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
 												<h4 className="text-lg font-medium text-gray-900 mb-2">
-													No Forecast Yet
+													No forecast yet
 												</h4>
 												<p className="text-gray-600">
 													Fill in the parameters and click "Generate Demand
@@ -686,7 +689,7 @@ function AIModelPage() {
 													})
 												}
 												className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-												placeholder="State, Country"
+												placeholder="District, country"
 											/>
 										</div>
 
@@ -801,7 +804,7 @@ function AIModelPage() {
 																	<div className="flex items-center">
 																		<DollarSign className="h-4 w-4 mr-2" />
 																		<span>
-																			Market Price: ₹{crop.marketPrice}/kg
+																			Market Price: UGX {crop.marketPrice.toLocaleString()}/kg
 																		</span>
 																	</div>
 																	<div className="flex items-center">

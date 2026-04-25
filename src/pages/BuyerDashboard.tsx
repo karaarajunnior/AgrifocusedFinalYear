@@ -180,16 +180,8 @@ function BuyerDashboard() {
 			setNearbyProducts(response.data.products || []);
 		} catch (error) {
 			console.error("Failed to fetch nearby products:", error);
-			// Fallback to regular products with simulated distances
-			const productsWithDistance = products
-				.slice(0, 6)
-				.map((product) => ({
-					...product,
-					distance: Math.round((Math.random() * searchRadius + 1) * 10) / 10,
-					distanceText: `${Math.round((Math.random() * searchRadius + 1) * 10) / 10
-						} km away`,
-				}));
-			setNearbyProducts(productsWithDistance);
+			setNearbyProducts([]);
+			toast.error("Could not load nearby products. Check your connection and try again.");
 		}
 	};
 	const fetchProducts = async () => {
@@ -416,10 +408,7 @@ function BuyerDashboard() {
 											</h3>
 											<span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
 												📍{" "}
-												{product.distanceText ||
-													`${product.distance ||
-													Math.round(Math.random() * searchRadius + 1)
-													}km away`}
+												{product.distanceText || (product.distance ? `${product.distance}km away` : "Location available")}
 											</span>
 										</div>
 

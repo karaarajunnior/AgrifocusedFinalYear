@@ -338,6 +338,7 @@ export async function getPublicPortfolio(req, res) {
 				verified: true,
 				role: true,
 				bio: true,
+				createdAt: true,
 			},
 		});
 
@@ -345,12 +346,26 @@ export async function getPublicPortfolio(req, res) {
 			return res.status(404).json({ error: "Farmer portfolio not found" });
 		}
 
-		const products = await prisma.product.findMany({
-			where: { farmerId: id },
-			orderBy: { createdAt: "desc" },
-		});
+		const [products, avgRating, deliveredSales] = await Promise.all([
+			prisma.product.findMany({
+				where: { farmerId: id },
+				orderBy: { createdAt: "desc" },
+			}),
+			prisma.review.aggregate({
+				where: { product: { farmerId: id } },
+				_avg: { rating: true },
+			}),
+			prisma.order.count({ where: { farmerId: id, status: "DELIVERED" } }),
+		]);
 
-		res.json({ farmer, products });
+		res.json({
+			farmer: {
+				...farmer,
+				averageRating: avgRating._avg.rating || null,
+				deliveredSales,
+			},
+			products,
+		});
 	} catch (error) {
 		console.error("Get public portfolio error:", error);
 		res.status(500).json({ error: "Failed to fetch public portfolio" });

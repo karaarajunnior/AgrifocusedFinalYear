@@ -118,38 +118,23 @@ const PublicPortfolio: React.FC = () => {
                     <div className="space-y-8">
                         <div className="glass-card p-8">
                             <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Trust & Reliability</h3>
-                            <div className="space-y-6">
-                                <div>
-                                    <div className="flex justify-between items-center mb-2">
-                                        <span className="text-xs font-bold text-slate-600 uppercase">Fulfillment Rate</span>
-                                        <span className="text-xs font-black text-emerald-600">98%</span>
-                                    </div>
-                                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                        <div className="h-full bg-emerald-500 w-[98%]" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="flex justify-between items-center mb-2">
-                                        <span className="text-xs font-bold text-slate-600 uppercase">Quality Grade</span>
-                                        <span className="text-xs font-black text-blue-600">A+ Verified</span>
-                                    </div>
-                                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                        <div className="h-full bg-blue-500 w-[95%]" />
-                                    </div>
-                                </div>
+                            <div className={`rounded-2xl border p-5 ${farmer.verified ? 'bg-emerald-50 border-emerald-100' : 'bg-amber-50 border-amber-100'}`}>
+                                <p className={`text-sm font-bold ${farmer.verified ? 'text-emerald-900' : 'text-amber-900'}`}>
+                                    {farmer.verified ? 'Identity verified farmer' : 'Identity review pending'}
+                                </p>
+                                <p className="text-xs text-emerald-700 mt-2">
+                                    This public profile shows live listed products from AgriConnect records.
+                                </p>
                             </div>
                             
                             <div className="mt-8 pt-8 border-t border-slate-100 grid grid-cols-2 gap-4">
                                 <div className="text-center">
-                                    <p className="text-2xl font-black text-slate-900">5.0</p>
-                                    <div className="flex justify-center mb-1">
-                                        {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 text-yellow-500 fill-current" />)}
-                                    </div>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Rating</p>
+                                    <p className="text-2xl font-black text-slate-900">{products.length}</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Live products</p>
                                 </div>
                                 <div className="text-center border-l border-slate-100">
-                                    <p className="text-2xl font-black text-slate-900">24</p>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Months Active</p>
+                                    <p className="text-2xl font-black text-slate-900">{farmer.verified ? 'Yes' : 'No'}</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Verified</p>
                                 </div>
                             </div>
                         </div>
@@ -228,8 +213,8 @@ const PublicPortfolio: React.FC = () => {
                                 <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl flex items-center gap-3">
                                     <Navigation className="h-5 w-5 text-emerald-400" />
                                     <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Processing Hub</p>
-                                        <p className="text-sm font-bold">Standard Hub Verified</p>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Location</p>
+                                        <p className="text-sm font-bold">{farmer.location || "Farm location shared by farmer"}</p>
                                     </div>
                                 </div>
                                 <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl flex items-center gap-3">

@@ -407,15 +407,15 @@ function ChatPage() {
 								<div className="bg-emerald-50 p-8 rounded-3xl mb-8 shadow-sm">
 									<MessageCircle className="h-12 w-12 text-emerald-600" />
 								</div>
-								<h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Terminal Idle</h3>
+								<h3 className="text-2xl font-black text-slate-900 tracking-tight">No chat selected</h3>
 								<p className="text-slate-500 mt-4 max-w-sm font-medium">
 									{conversations.length === 0
-										? "No active encrypted channels found. Initialize a session via the Market Inventory."
-										: "Select a secure channel from the directory to begin data transmission."}
+										? "Start from a product page or choose a buyer/farmer you have traded with."
+										: "Choose a conversation from the list to continue messaging."}
 								</p>
 								{conversations.length === 0 && (
 									<a
-										href="/products"
+										href="/marketplace"
 										className="mt-6 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
 									>
 										Browse Products
@@ -471,7 +471,7 @@ function ChatPage() {
 												onChange={(e) => setText(e.target.value)}
 												onKeyDown={(e) => e.key === 'Enter' && send()}
 												className="flex-1 px-6 py-5 bg-slate-50 border-0 rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 font-medium text-slate-900"
-												placeholder="Enter secure message..."
+												placeholder="Type your message..."
 											/>
 											<button
 												type="button"

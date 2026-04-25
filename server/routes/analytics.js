@@ -168,8 +168,8 @@ router.get("/farmer", authenticateToken, requireRole(["FARMER"]), async (req, re
 				totalRevenue: revenueData._sum.totalPrice || 0,
 				averageRating: ratingData._avg.rating || 0
 			},
-			topProducts: [], // Can be expanded later
-			recentOrders: []  // Can be expanded later
+			topProducts: [],
+			recentOrders: []
 		});
 	} catch (error) {
 		console.error("Farmer analytics error:", error);

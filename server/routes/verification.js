@@ -1,11 +1,36 @@
 import express from "express";
 import multer from "multer";
+import path from "path";
+import fs from "fs/promises";
+import { fileURLToPath } from "url";
 import OpenAI from "openai";
 import { authenticateToken } from "../middleware/auth.js";
 import prisma from "../db/prisma.js";
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const verificationUploadsDir = path.join(__dirname, "..", "uploads", "verification");
+
+const storage = multer.diskStorage({
+	destination: async (req, file, cb) => {
+		try {
+			await fs.mkdir(verificationUploadsDir, { recursive: true });
+			cb(null, verificationUploadsDir);
+		} catch (error) {
+			cb(error);
+		}
+	},
+	filename: (req, file, cb) => {
+		const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+		cb(null, `${req.user.id}_${Date.now()}_${safe}`);
+	},
+});
+
+const upload = multer({
+	storage,
+	limits: { fileSize: 8 * 1024 * 1024 },
+});
 
 // Lazy-initialize OpenAI so it only runs after dotenv has loaded all env vars
 let _openai = null;
@@ -38,8 +63,8 @@ Output strictly in JSON format matching this schema:
 /**
  * Utility to build OpenAI multimodal message
  */
-function buildOpenAIMessage(prompt, buffer, mimeType) {
-	const base64Image = buffer.toString("base64");
+async function buildOpenAIMessage(prompt, filePath, mimeType) {
+	const base64Image = (await fs.readFile(filePath)).toString("base64");
 	return [
 		{
 			role: "user",
@@ -77,7 +102,7 @@ router.post("/upload", authenticateToken, upload.single("document"), async (req,
 
 		console.log(`Starting AI verification for ${documentType} using OpenAI...`);
 		const prompt = buildVerificationPrompt(rule.criteria);
-		const messages = buildOpenAIMessage(prompt, req.file.buffer, req.file.mimetype);
+		const messages = await buildOpenAIMessage(prompt, req.file.path, req.file.mimetype);
 
 		let aiApproved = false;
 		let aiReason = "Verification failed unexpectedly.";
@@ -107,13 +132,10 @@ router.post("/upload", authenticateToken, upload.single("document"), async (req,
 		const newDoc = await prisma.document.create({
 			data: {
 				userId: req.user.id,
-				title: title || `${documentType} Upload`,
-				type: documentType,
-				fileUrl: "local_buffer_discarded_for_demo", // Assuming no cloud storage for now
 				originalName: req.file.originalname,
 				mimeType: req.file.mimetype,
 				sizeBytes: req.file.size,
-				storagePath: "memory",
+				storagePath: `/uploads/verification/${path.basename(req.file.path)}`,
 				status: statusEnum,
 				verificationLog: aiReason,
 			}

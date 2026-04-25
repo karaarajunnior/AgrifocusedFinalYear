@@ -10,7 +10,6 @@ import {
 	Save,
 	X,
 	Shield,
-	Star,
 	Target
 } from "lucide-react";
 import LoadingSpinner from "../components/LoadingSpinner";
@@ -502,39 +501,34 @@ function ProfilePage() {
 					</div>
 				</div>
 
-				{/* Account Stats */}
+				{/* Account Status */}
 				<div className="mt-8 bg-white rounded-lg shadow">
 					<div className="px-6 py-4 border-b border-gray-200">
 						<h2 className="text-xl font-semibold text-gray-900">
-							Account Statistics
+							Account Status
 						</h2>
 					</div>
 					<div className="p-6">
 						<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-							<div className="text-center">
-								<div className="text-2xl font-bold text-green-600">
-									{user.role === "FARMER" ? "12" : "8"}
+							<div className="rounded-xl bg-green-50 p-4 text-center">
+								<div className="text-lg font-bold text-green-700">
+									{user.verified ? "Verified" : "Pending review"}
 								</div>
-								<div className="text-sm text-gray-600">
-									{user.role === "FARMER" ? "Products Listed" : "Orders Placed"}
-								</div>
+								<div className="text-sm text-green-800">Identity status</div>
 							</div>
 
-							<div className="text-center">
-								<div className="text-2xl font-bold text-blue-600">
-									{user.role === "FARMER" ? "₹45,000" : "₹12,500"}
+							<div className="rounded-xl bg-blue-50 p-4 text-center">
+								<div className="text-lg font-bold text-blue-700">
+									{user.mfaEnabled ? "Protected" : "Set up MFA"}
 								</div>
-								<div className="text-sm text-gray-600">
-									{user.role === "FARMER" ? "Total Revenue" : "Total Spent"}
-								</div>
+								<div className="text-sm text-blue-800">Login security</div>
 							</div>
 
-							<div className="text-center">
-								<div className="flex items-center justify-center text-2xl font-bold text-yellow-600">
-									<Star className="h-6 w-6 mr-1 fill-current" />
-									4.8
+							<div className="rounded-xl bg-amber-50 p-4 text-center">
+								<div className="text-lg font-bold text-amber-700">
+									{user.location ? "Location saved" : "Add location"}
 								</div>
-								<div className="text-sm text-gray-600">Average Rating</div>
+								<div className="text-sm text-amber-800">Map readiness</div>
 							</div>
 						</div>
 					</div>
