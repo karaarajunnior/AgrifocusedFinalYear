@@ -167,7 +167,10 @@ export async function scanInactiveUsers({ inactiveDays = DEFAULT_INACTIVE_DAYS, 
 			role: { not: "ADMIN" },
 			accountStatus: { not: "DISABLED" },
 			OR: [
-				{ analytics: { none: { timestamp: { gte: cutoff } } } },
+				{
+					createdAt: { lt: cutoff },
+					analytics: { none: { timestamp: { gte: cutoff } } },
+				},
 				{
 					analytics: {
 						some: { event: "login" },
@@ -281,7 +284,10 @@ export async function getAccountReviewSummary({ inactiveDays = DEFAULT_INACTIVE_
 				{ verified: false },
 				{ documents: { some: { status: "REJECTED" } } },
 				{ exportApplications: { some: { status: "REJECTED" } } },
-				{ analytics: { none: { timestamp: { gte: cutoff } } } },
+				{
+					createdAt: { lt: cutoff },
+					analytics: { none: { timestamp: { gte: cutoff } } },
+				},
 				{
 					analytics: {
 						some: { event: "login" },
