@@ -40,6 +40,7 @@ import verificationRoutes from "./routes/verification.js";
 import intelligenceRoutes from "./routes/intelligence.js";
 import locationRoutes from "./routes/location.js";
 import translationRoutes from "./routes/translation.js";
+import { runAccountReview } from "./services/accountReviewService.js";
 import cron from "node-cron";
 import { initSocket } from "./socket.js";
 import path from "path";
@@ -176,6 +177,17 @@ if (String(process.env.MARKET_DATA_CRON_ENABLED || "false").toLowerCase() === "t
 			await refreshMarketWebPrices();
 		} catch (e) {
 			console.error("Market data cron refresh failed:", e);
+		}
+	});
+}
+
+if (String(process.env.ACCOUNT_REVIEW_CRON_ENABLED || "true").toLowerCase() === "true") {
+	const schedule = process.env.ACCOUNT_REVIEW_CRON_SCHEDULE || "0 7 * * *";
+	cron.schedule(schedule, async () => {
+		try {
+			await runAccountReview();
+		} catch (e) {
+			console.error("Account review cron failed:", e);
 		}
 	});
 }

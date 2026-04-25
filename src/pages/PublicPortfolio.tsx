@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
+import LocationLink from '../components/LocationLink';
 
 const PublicPortfolio: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -93,7 +94,13 @@ const PublicPortfolio: React.FC = () => {
                         <div className="text-center md:text-left text-white mb-2">
                             <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-2">{farmer.name}</h1>
                             <div className="flex flex-wrap justify-center md:justify-start items-center gap-4 text-xs font-bold uppercase tracking-widest text-slate-400">
-                                <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {farmer.location}</span>
+                                <LocationLink
+                                    location={farmer.location}
+                                    latitude={farmer.latitude}
+                                    longitude={farmer.longitude}
+                                    className="flex items-center gap-1 text-slate-400 hover:text-emerald-400"
+                                    iconClassName="h-3 w-3"
+                                />
                                 <span className="w-1 h-1 rounded-full bg-slate-700" />
                                 <span className="flex items-center gap-1 text-emerald-400"><ShieldCheck className="h-3 w-3" /> Identity Verified</span>
                                 <span className="w-1 h-1 rounded-full bg-slate-700" />

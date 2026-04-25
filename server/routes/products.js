@@ -113,9 +113,11 @@ router.get(
 			]),
 		query("location").optional().isString(),
 		query("origin").optional().isIn(["LOCAL", "INTERNATIONAL"]),
+		query("scope").optional().isIn(["LOCAL", "INTERNATIONAL", "ALL"]),
 		query("minPrice").optional().isFloat({ min: 0 }),
 		query("maxPrice").optional().isFloat({ min: 0 }),
 		query("organic").optional().isBoolean(),
+		query("search").optional().isString().trim().isLength({ min: 1, max: 100 }),
 		query("page").optional().isInt({ min: 1 }),
 		query("limit").optional().isInt({ min: 1, max: 100 }),
 	],
@@ -130,6 +132,7 @@ router.get(
 				category,
 				location,
 				origin,
+				scope,
 				minPrice,
 				maxPrice,
 				organic,
@@ -146,6 +149,7 @@ router.get(
 			if (category) where.category = category;
 			if (location) where.location = { contains: location };
 			if (origin) where.origin = origin;
+			if (!origin && scope && scope !== "ALL") where.origin = scope;
 			if (organic !== undefined) where.organic = organic === "true";
 			if (minPrice || maxPrice) {
 				where.price = {};
@@ -170,6 +174,8 @@ router.get(
 								id: true,
 								name: true,
 								location: true,
+								latitude: true,
+								longitude: true,
 								verified: true,
 							},
 						},

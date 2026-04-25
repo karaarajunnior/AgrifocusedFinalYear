@@ -29,6 +29,7 @@ import { enqueueOfflineOrderDraft, getOfflineOrderCount } from "../utils/offline
 import DocumentVerification from "../components/DocumentVerification";
 import { AIAdvisor, MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
 import { t } from "../utils/translation";
+import LocationLink from "../components/LocationLink";
 
 interface Product {
 	id: string;
@@ -38,6 +39,8 @@ interface Product {
 	quantity: number;
 	unit: string;
 	location: string;
+	latitude?: number | null;
+	longitude?: number | null;
 	organic: boolean;
 	avgRating: number;
 	origin: "LOCAL" | "INTERNATIONAL";
@@ -164,17 +167,6 @@ function BuyerDashboard() {
 			setUserLocation(user?.location || "Kampala, Uganda");
 		} finally {
 			setLocationLoading(false);
-		}
-	};
-
-	const handleLocateFarmer = async (location: string) => {
-		try {
-			const res = await api.get(`/location/map-url?location=${encodeURIComponent(location)}`);
-			if (res.data.url) {
-				window.open(res.data.url, '_blank');
-			}
-		} catch (error) {
-			toast.error("Failed to generate map link");
 		}
 	};
 
@@ -442,18 +434,13 @@ function BuyerDashboard() {
 													<span className="ml-1 text-blue-500">✓</span>
 												)}
 											</div>
-											<div className="flex items-center justify-between">
-												<div className="flex items-center">
-													<MapPin className="h-4 w-4 mr-1" />
-													<span className="truncate max-w-[100px]">{product.location}</span>
-												</div>
-												<button 
-													onClick={() => handleLocateFarmer(product.location)}
-													className="text-[10px] font-black text-blue-600 uppercase hover:underline"
-												>
-													Locate
-												</button>
-											</div>
+											<LocationLink
+												location={product.location}
+												latitude={product.latitude ?? product.farmer.latitude}
+												longitude={product.longitude ?? product.farmer.longitude}
+												className="flex items-center text-gray-600 hover:text-blue-700"
+												textClassName="truncate max-w-[120px]"
+											/>
 										</div>
 
 										<div className="flex space-x-2">
@@ -705,18 +692,12 @@ function BuyerDashboard() {
 										</div>
 										
 										<div className="flex flex-col gap-2 text-sm text-slate-600">
-											<div className="flex items-center justify-between">
-												<div className="flex items-center gap-2">
-													<MapPin className="h-4 w-4 text-slate-400" />
-													<span>{product.location}</span>
-												</div>
-												<button 
-													onClick={() => handleLocateFarmer(product.location)}
-													className="text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:bg-emerald-50 px-2 py-1 rounded transition-all"
-												>
-													Locate
-												</button>
-											</div>
+											<LocationLink
+												location={product.location}
+												latitude={product.latitude ?? product.farmer.latitude}
+												longitude={product.longitude ?? product.farmer.longitude}
+												className="flex items-center text-slate-600 hover:text-emerald-700"
+											/>
 
 											<div className="flex items-center justify-between">
 												<div className="flex items-center gap-2">

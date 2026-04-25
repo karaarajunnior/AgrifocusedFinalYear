@@ -12,7 +12,9 @@ import {
 	TrendingUp,
 	Sprout,
 	Sun,
-	ChevronDown
+	ChevronDown,
+	Globe2,
+	Home
 } from "lucide-react";
 import LoadingSpinner from "../components/LoadingSpinner";
 import api from "../services/api";
@@ -21,6 +23,7 @@ import { useAuth } from "../contexts/AuthContext";
 import TrustBadge, { TrustScore } from "../components/TrustBadge";
 import { t } from "../utils/translation";
 import { useLanguage } from "../contexts/LanguageContext";
+import LocationLink from "../components/LocationLink";
 
 interface Product {
 	id: string;
@@ -30,6 +33,10 @@ interface Product {
 	quantity: number;
 	unit: string;
 	location: string;
+	latitude?: number | null;
+	longitude?: number | null;
+	origin?: "LOCAL" | "INTERNATIONAL";
+	country?: string;
 	organic: boolean;
 	avgRating: number;
 	totalReviews: number;
@@ -37,6 +44,8 @@ interface Product {
 		id: string;
 		name: string;
 		location: string;
+		latitude?: number | null;
+		longitude?: number | null;
 		verified: boolean;
 	};
 	farmerTrust?: TrustScore;
@@ -53,6 +62,8 @@ function MarketplacePage() {
 	const [organicOnly, setOrganicOnly] = useState(false);
 	const [showFilters, setShowFilters] = useState(false);
 	const [sortBy, setSortBy] = useState("newest");
+	const [originFilter, setOriginFilter] = useState<"" | "LOCAL" | "INTERNATIONAL">("");
+	const [locationTerm, setLocationTerm] = useState("");
 
 	const categories = [
 		"VEGETABLES",
@@ -64,9 +75,19 @@ function MarketplacePage() {
 		"ORGANIC",
 	];
 
+	const categoryLabels: Record<string, string> = {
+		VEGETABLES: "Vegetables",
+		FRUITS: "Fruits",
+		GRAINS: "Grains",
+		PULSES: "Beans & peas",
+		SPICES: "Spices",
+		DAIRY: "Milk & dairy",
+		ORGANIC: "Organic",
+	};
+
 	useEffect(() => {
 		fetchProducts();
-	}, [searchTerm, selectedCategory, priceRange, organicOnly, sortBy]);
+	}, [searchTerm, selectedCategory, priceRange, organicOnly, sortBy, originFilter, locationTerm]);
 
 	const fetchProducts = async () => {
 		try {
@@ -76,6 +97,8 @@ function MarketplacePage() {
 			if (priceRange.min) params.append("minPrice", priceRange.min);
 			if (priceRange.max) params.append("maxPrice", priceRange.max);
 			if (organicOnly) params.append("organic", "true");
+			if (originFilter) params.append("origin", originFilter);
+			if (locationTerm) params.append("location", locationTerm);
 
 			const response = await api.get(`/products?${params.toString()}`);
 			const sortedProducts: Product[] = [...response.data.products];
@@ -145,6 +168,8 @@ function MarketplacePage() {
 		setPriceRange({ min: "", max: "" });
 		setOrganicOnly(false);
 		setSortBy("newest");
+		setOriginFilter("");
+		setLocationTerm("");
 	};
 
 	if (loading) {
@@ -175,6 +200,18 @@ function MarketplacePage() {
 					<p className="text-emerald-100/90 max-w-2xl mx-auto text-lg md:text-xl font-medium leading-relaxed drop-shadow-sm">
 						{t('marketplace_subtitle')}
 					</p>
+					<div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto text-left">
+						{[
+							{ icon: Search, text: "1. Search crop name" },
+							{ icon: MapPin, text: "2. Choose nearby or outside Uganda" },
+							{ icon: ShoppingCart, text: "3. Tap Order or View" },
+						].map(({ icon: Icon, text }) => (
+							<div key={text} className="flex items-center gap-3 bg-white/10 border border-white/15 rounded-2xl px-4 py-3">
+								<Icon className="h-6 w-6 text-emerald-200 shrink-0" />
+								<span className="font-bold text-sm">{text}</span>
+							</div>
+						))}
+					</div>
 				</div>
 			</div>
 
@@ -194,6 +231,29 @@ function MarketplacePage() {
 										onChange={(e) => setSearchTerm(e.target.value)}
 										className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-transparent hover:border-emerald-200 border-2 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700"
 									/>
+								</div>
+							</div>
+
+							<div className="lg:w-72">
+								<div className="grid grid-cols-3 gap-2 bg-slate-50 rounded-xl p-1 border-2 border-transparent">
+									{[
+										{ value: "", label: "All", icon: Globe2 },
+										{ value: "LOCAL", label: "Near", icon: Home },
+										{ value: "INTERNATIONAL", label: "World", icon: Globe2 },
+									].map(({ value, label, icon: Icon }) => (
+										<button
+											key={value || "all"}
+											type="button"
+											onClick={() => setOriginFilter(value as "" | "LOCAL" | "INTERNATIONAL")}
+											className={`flex flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-black transition-all ${originFilter === value
+												? "bg-emerald-600 text-white shadow"
+												: "text-slate-600 hover:bg-white"
+											}`}
+											aria-pressed={originFilter === value}>
+											<Icon className="h-4 w-4" />
+											{label}
+										</button>
+									))}
 								</div>
 							</div>
 
@@ -225,7 +285,7 @@ function MarketplacePage() {
 						{/* Expanded Filters Panel */}
 						{showFilters && (
 							<div className="mt-6 pt-6 border-t border-slate-100 animate-in slide-in-from-top-4 duration-300">
-								<div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+								<div className="grid grid-cols-1 md:grid-cols-5 gap-6">
 									<div>
 										<label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">
 											{t('category')}
@@ -238,12 +298,25 @@ function MarketplacePage() {
 												<option value="">{t('all_categories')}</option>
 												{categories.map((category) => (
 													<option key={category} value={category}>
-														{category.charAt(0) + category.slice(1).toLowerCase()}
+														{categoryLabels[category] || category}
 													</option>
 												))}
 											</select>
 											<ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
 										</div>
+									</div>
+
+									<div>
+										<label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">
+											Market place
+										</label>
+										<input
+											type="text"
+											value={locationTerm}
+											onChange={(e) => setLocationTerm(e.target.value)}
+											className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/50 font-medium"
+											placeholder="District, city, country"
+										/>
 									</div>
 
 									<div>
@@ -306,6 +379,8 @@ function MarketplacePage() {
 					<p className="text-slate-500 font-medium tracking-wide">
 						{t('found_products')} <span className="font-bold text-slate-800">{products.length}</span> {t('products')}
 						{selectedCategory && ` in ${selectedCategory.toLowerCase()}`}
+						{originFilter === "LOCAL" && " nearby"}
+						{originFilter === "INTERNATIONAL" && " worldwide"}
 					</p>
 				</div>
 
@@ -356,7 +431,10 @@ function MarketplacePage() {
 									{/* Category Tag */}
 									<div className="mb-3">
 										<span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
-											{product.category}
+											{categoryLabels[product.category] || product.category}
+										</span>
+										<span className={`ml-2 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md ${product.origin === "INTERNATIONAL" ? "text-indigo-700 bg-indigo-50" : "text-slate-600 bg-slate-100"}`}>
+											{product.origin === "INTERNATIONAL" ? "World market" : "Local"}
 										</span>
 									</div>
 
@@ -375,10 +453,12 @@ function MarketplacePage() {
 
 									{/* Product Metadata */}
 									<div className="space-y-3 test-sm text-slate-600 mb-6 font-medium bg-slate-50 p-4 rounded-2xl flex-grow">
-										<div className="flex items-start">
-											<MapPin className="h-4 w-4 mr-2 mt-0.5 text-slate-400 shrink-0" />
-											<span className="line-clamp-2 leading-snug">{product.location}</span>
-										</div>
+										<LocationLink
+											location={product.location}
+											latitude={product.latitude ?? product.farmer?.latitude}
+											longitude={product.longitude ?? product.farmer?.longitude}
+											className="flex items-start text-slate-600 hover:text-emerald-700"
+										/>
 
 										<div className="flex items-center justify-between">
 											<div className="flex items-center">

@@ -86,7 +86,10 @@ class LocationService {
 			const productsWithDistance = [];
 
 			for (const product of products) {
-				const productCoords = await this.geocodeLocation(product.location);
+				const productCoords =
+					Number.isFinite(Number(product.latitude)) && Number.isFinite(Number(product.longitude))
+						? { lat: Number(product.latitude), lon: Number(product.longitude) }
+						: await this.geocodeLocation(product.location);
 				const distance = this.calculateDistance(
 					userCoords.lat,
 					userCoords.lon,

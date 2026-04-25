@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { normalizeLocalLanguage, translateLocal } from './translationService.js';
 
 // Simple in-memory cache to prevent redundant API calls for exact same text strings
 const translationCache = new Map();
@@ -12,21 +13,9 @@ const translationCache = new Map();
  */
 export const translateText = async (text, sourceLang = 'en', targetLang = 'ug') => {
     if (!text || text.trim() === '') return text;
-    
-    // Map internal codes to Sunbird supported language codes
-    const mapLang = (lang) => {
-        const lower = lang.toLowerCase();
-        if (lower === 'en' || lower === 'eng' || lower === 'english') return 'eng';
-        if (lower === 'ug' || lower === 'lug' || lower === 'luganda') return 'lug';
-        if (lower === 'ach' || lower === 'acholi') return 'ach';
-        if (lower === 'teo' || lower === 'ateso') return 'teo';
-        if (lower === 'lgg' || lower === 'lugbara') return 'lgg';
-        if (lower === 'nyn' || lower === 'runyankole' || lower === 'runyankore') return 'nyn';
-        return lower;
-    };
-    
-    const src = mapLang(sourceLang);
-    const tgt = mapLang(targetLang);
+
+    const src = normalizeLocalLanguage(sourceLang);
+    const tgt = normalizeLocalLanguage(targetLang);
     
     // Don't translate if languages match
     if (src === tgt) return text;
@@ -38,8 +27,7 @@ export const translateText = async (text, sourceLang = 'en', targetLang = 'ug') 
 
     const apiKey = process.env.sunbird_api_key;
     if (!apiKey) {
-        console.warn('Sunbird API key missing in .env. Returning original text.');
-        return text;
+        return translateLocal(text, tgt, src);
     }
 
     try {
@@ -73,12 +61,15 @@ export const translateText = async (text, sourceLang = 'en', targetLang = 'ug') 
             translated = data.translation;
         }
 
+        if (!translated || translated === text) {
+            translated = translateLocal(text, tgt, src);
+        }
+
         translationCache.set(cacheKey, translated);
         return translated;
         
     } catch (error) {
         console.error('Error translating text via Sunbird:', error.response ? error.response.data : error.message);
-        // Gracefully fallback to original text if translation completely fails
-        return text;
+        return translateLocal(text, tgt, src);
     }
 };

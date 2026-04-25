@@ -16,6 +16,8 @@ import {
     ChevronUp,
 } from 'lucide-react';
 import { getCurrentPosition } from '../utils/geolocation';
+import LocationLink from '../components/LocationLink';
+import { openMapLocation } from '../utils/maps';
 
 interface CollectionSchedule {
     id: string;
@@ -85,15 +87,8 @@ function LogisticsPage() {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [locating, setLocating] = useState(false);
 
-    const handleLocate = async (location: string) => {
-        try {
-            const res = await api.get(`/location/map-url?location=${encodeURIComponent(location)}`);
-            if (res.data.url) {
-                window.open(res.data.url, '_blank');
-            }
-        } catch (error) {
-            toast.error("Failed to generate map link");
-        }
+    const handleLocate = (location: string) => {
+        openMapLocation({ location });
     };
 
     const handleDetectCurrentLocation = async () => {
@@ -384,15 +379,11 @@ function LogisticsPage() {
                                             </span>
                                         </div>
                                         <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-2">
-                                            <span className="flex items-center gap-1 group">
-                                                <MapPin className="h-4 w-4" /> 
-                                                {schedule.subcounty}, {schedule.district}
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); handleLocate(`${schedule.subcounty}, ${schedule.district}`); }}
-                                                    className="ml-1 text-[9px] font-black text-blue-600 uppercase tracking-tighter hover:underline opacity-0 group-hover:opacity-100 transition-all"
-                                                >
-                                                    Locate
-                                                </button>
+                                            <span onClick={(e) => e.stopPropagation()}>
+                                                <LocationLink
+                                                    location={`${schedule.subcounty}, ${schedule.district}`}
+                                                    className="flex items-center gap-1 text-gray-600 hover:text-blue-700"
+                                                />
                                             </span>
                                             <span className="flex items-center gap-1"><Calendar className="h-4 w-4" /> {new Date(schedule.collectionDate).toLocaleDateString('en-UG', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
                                             <span className="flex items-center gap-1"><Users className="h-4 w-4" /> {schedule.requests.length} farmer{schedule.requests.length !== 1 ? 's' : ''}</span>

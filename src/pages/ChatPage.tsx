@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import api from "../services/api";
@@ -6,8 +6,9 @@ import { useAuth } from "../contexts/AuthContext";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { toast } from "react-hot-toast";
 import { Mic, MessageCircle, Volume2, Globe, Square, Play, Trash2 } from "lucide-react";
-import { t, languageNames } from "../utils/translation";
+import { languageNames } from "../utils/translation";
 import { useLanguage } from "../contexts/LanguageContext";
+import { requestTranslation } from "../services/translationApi";
 
 type UserSummary = {
 	id: string;
@@ -36,9 +37,11 @@ function ChatPage() {
 	const [potentialContacts, setPotentialContacts] = useState<UserSummary[]>([]);
 	const [activeUserId, setActiveUserId] = useState<string | null>(null);
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
+	const [translatedMessages, setTranslatedMessages] = useState<Record<string, string>>({});
 	const [text, setText] = useState("");
 	const [listening, setListening] = useState(false);
 	const [socket, setSocket] = useState<Socket | null>(null);
+	const recognitionRef = useRef<SpeechRecognition | null>(null);
 
 	const [searchParams] = useSearchParams();
 	const initialUserId = searchParams.get("userId");
@@ -53,6 +56,12 @@ function ChatPage() {
 		return apiUrl.replace(/\/api\/?$/, "");
 	}, []);
 
+	const mediaUrl = (url?: string | null) => {
+		if (!url) return "";
+		if (/^https?:\/\//i.test(url)) return url;
+		return `${socketUrl}${url.startsWith("/") ? "" : "/"}${url}`;
+	};
+
 	useEffect(() => {
 		let mounted = true;
 		(async () => {
@@ -62,9 +71,9 @@ function ChatPage() {
 				
 				let fetchedConvs = res.data.conversations || [];
 
-				if (initialUserId && !fetchedConvs.find((c: any) => c.id === initialUserId)) {
+				if (initialUserId && !fetchedConvs.find((c: UserSummary) => c.id === initialUserId)) {
 					try {
-						const userRes = await api.get(`/users/${initialUserId}`);
+						const userRes = await api.get(`/users/profile/${initialUserId}`);
 						if (userRes.data?.user) {
 							fetchedConvs = [userRes.data.user, ...fetchedConvs];
 						}
@@ -103,6 +112,28 @@ function ChatPage() {
 			}
 		})();
 	}, [activeUserId]);
+
+	useEffect(() => {
+		let cancelled = false;
+		if (language === "en") {
+			setTranslatedMessages({});
+			return;
+		}
+
+		(async () => {
+			const next: Record<string, string> = {};
+			for (const message of messages) {
+				if (!message.content || message.content === "[Voice Message]") continue;
+				next[message.id] = await requestTranslation(message.content, "en", language);
+				if (cancelled) return;
+			}
+			if (!cancelled) setTranslatedMessages(next);
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [language, messages]);
 
 	useEffect(() => {
 		let mounted = true;
@@ -148,6 +179,7 @@ function ChatPage() {
 
 		return () => {
 			mounted = false;
+			recognitionRef.current?.abort();
 			s.disconnect();
 		};
 	}, [socketUrl, activeUserId]);
@@ -186,14 +218,14 @@ function ChatPage() {
 	};
 
 	const startVoiceInput = () => {
-		const AnyWindow = window as any;
-		const WebSpeech = AnyWindow.SpeechRecognition || AnyWindow.webkitSpeechRecognition;
+		const WebSpeech = window.SpeechRecognition || window.webkitSpeechRecognition;
 		if (!WebSpeech) {
 			toast.error("Voice input not supported on this device");
 			return;
 		}
 
 		const rec = new WebSpeech();
+		recognitionRef.current = rec;
 		rec.lang = "en-US";
 		rec.interimResults = false;
 		rec.maxAlternatives = 1;
@@ -201,7 +233,7 @@ function ChatPage() {
 		rec.onstart = () => setListening(true);
 		rec.onend = () => setListening(false);
 		rec.onerror = () => setListening(false);
-		rec.onresult = (e: any) => {
+		rec.onresult = (e: SpeechRecognitionEvent) => {
 			const transcript = e?.results?.[0]?.[0]?.transcript;
 			if (typeof transcript === "string" && transcript.trim()) {
 				setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
@@ -212,6 +244,7 @@ function ChatPage() {
 	};
 
 	const stopVoiceInput = () => {
+		recognitionRef.current?.stop();
 		setListening(false);
 	};
 
@@ -232,7 +265,7 @@ function ChatPage() {
 			setMediaRecorder(recorder);
 			setAudioChunks([]);
 
-			recorder.ondataavailable = (e: any) => {
+			recorder.ondataavailable = (e: BlobEvent) => {
 				if (e.data.size > 0) {
 					setAudioChunks((prev) => [...prev, e.data]);
 				}
@@ -256,12 +289,12 @@ function ChatPage() {
 			try {
 				const formData = new FormData();
 				formData.append("file", audioBlob, `voice_${Date.now()}.webm`);
-				const uploadRes = await api.post("/documents/upload", formData, {
+				const uploadRes = await api.post("/chat/voice-upload", formData, {
 					headers: { "Content-Type": "multipart/form-data" }
 				});
 
-				if (uploadRes.data?.path) {
-					const audioUrl = uploadRes.data.path;
+				if (uploadRes.data?.audioUrl) {
+					const audioUrl = uploadRes.data.audioUrl;
 					if (socket && socket.connected) {
 						socket.emit("chat:send", { receiverId: activeUserId, content: "[Voice Message]", audioUrl });
 					} else {
@@ -394,7 +427,9 @@ function ChatPage() {
 								<div className="h-[55vh] overflow-y-auto border border-gray-100 rounded-lg p-3 space-y-3">
 									{messages.map((m) => {
 										const isMine = m.senderId === user?.id;
-										const finalContent = t(m.content);
+										const finalContent = language === "en"
+											? m.content
+											: translatedMessages[m.id] || m.content;
 										return (
 											<div key={m.id} className={`max-w-[85%] ${isMine ? "ml-auto text-right" : "mr-auto"}`}>
 												<div className={`inline-block px-3 py-2 rounded-lg relative group ${isMine ? "bg-green-600 text-white" : "bg-gray-100 text-gray-900"}`}>
@@ -406,7 +441,7 @@ function ChatPage() {
 													</div>
 													{m.audioUrl && (
 														<div className="mt-2">
-															<audio controls src={m.audioUrl} className="w-full h-8" />
+															<audio controls src={mediaUrl(m.audioUrl)} className="w-full h-8" />
 														</div>
 													)}
 												</div>

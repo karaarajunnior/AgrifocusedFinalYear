@@ -18,11 +18,11 @@ router.get('/detect', authenticateToken, async (req, res) => {
 
 // Get map URL for a specific location string
 router.get('/map-url', authenticateToken, (req, res) => {
-	const { location } = req.query;
-	if (!location) {
-		return res.status(400).json({ error: "Location string is required" });
+	const { location, latitude, longitude } = req.query;
+	if (!location && (!latitude || !longitude)) {
+		return res.status(400).json({ error: "Location string or coordinates are required" });
 	}
-	const url = locationService.getMapUrl(location);
+	const url = locationService.getMapUrl(location, { latitude, longitude });
 	res.json({ url });
 });
 

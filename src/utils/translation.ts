@@ -116,6 +116,20 @@ export const staticTranslations: Record<Language, Record<string, string>> = {
     nyn: {}  // Runyankole
 };
 
+export const isSupportedLanguage = (lang: string | null | undefined): lang is Language => {
+    return Boolean(lang && ['en', 'ug', 'ach', 'teo', 'lgg', 'nyn'].includes(lang));
+};
+
+export const normalizeLanguage = (lang: string | null | undefined): Language => {
+    const lower = String(lang || 'en').toLowerCase();
+    if (lower === 'lug' || lower === 'luganda') return 'ug';
+    if (lower === 'acholi') return 'ach';
+    if (lower === 'ateso') return 'teo';
+    if (lower === 'lugbara') return 'lgg';
+    if (lower === 'runyankole' || lower === 'runyankore') return 'nyn';
+    return isSupportedLanguage(lower) ? lower : 'en';
+};
+
 const getDynamicTranslations = () => {
     try {
         const cached = localStorage.getItem('agri_dynamic_translations');
@@ -139,11 +153,11 @@ export const saveDynamicTranslations = () => {
 };
 
 export const setLanguage = (lang: Language) => {
-    localStorage.setItem('agri_lang', lang);
+    localStorage.setItem('agri_lang', normalizeLanguage(lang));
 };
 
 export const getLanguage = (): Language => {
-    return (localStorage.getItem('agri_lang') as Language) || 'en';
+    return normalizeLanguage(localStorage.getItem('agri_lang'));
 };
 
 /**

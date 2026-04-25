@@ -1,5 +1,12 @@
 import api from "../services/api";
 
+export function mediaUrl(pathOrUrl?: string | null): string | undefined {
+	if (!pathOrUrl) return undefined;
+	if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+	const apiBase = (import.meta.env.VITE_API_URL || "https://agrifocused-api.onrender.com/api").replace(/\/api\/?$/, "");
+	return `${apiBase}${pathOrUrl.startsWith("/") ? "" : "/"}${pathOrUrl}`;
+}
+
 // ── Voice Mode Tracking ───────────────────────────────────────────────────────
 // Tracks which voice tier is currently active so the UI can show a status badge.
 export type VoiceMode = "openai" | "browser" | "silent";
@@ -37,7 +44,7 @@ async function speakWithOpenAI(text: string, messageId?: string): Promise<boolea
 		if (!url) return false;
 
 		return new Promise((resolve) => {
-			const audio = new Audio(url);
+			const audio = new Audio(mediaUrl(url));
 			audio.onended = () => resolve(true);
 			audio.onerror = () => resolve(false);
 			audio.play().catch(() => resolve(false));

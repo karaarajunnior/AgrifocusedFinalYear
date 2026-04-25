@@ -55,6 +55,8 @@ export async function register(req, res) {
 				name: true,
 				role: true,
 				verified: true,
+				accountStatus: true,
+				accountStatusReason: true,
 				createdAt: true,
 			},
 		});
@@ -95,6 +97,12 @@ export async function login(req, res) {
 		const { email, password, mfaCode } = req.body;
 		const user = await prisma.user.findUnique({ where: { email } });
 		if (!user) return res.status(400).json({ error: "Invalid credentials" });
+		if (user.accountStatus === "DISABLED") {
+			return res.status(403).json({
+				error: user.accountStatusReason || "This account is under admin review.",
+				accountStatus: user.accountStatus,
+			});
+		}
 
 		const isValidPassword = await bcrypt.compare(password, user.password);
 		if (!isValidPassword) {
@@ -367,6 +375,8 @@ export async function me(req, res) {
 				walletAddress: true,
 				avatar: true,
 				verified: true,
+				accountStatus: true,
+				accountStatusReason: true,
 				mfaEnabled: true,
 				autoFulfillOnPayment: true,
 				notifySms: true,

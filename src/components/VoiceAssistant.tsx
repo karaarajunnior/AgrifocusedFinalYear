@@ -3,15 +3,56 @@ import { Mic, MicOff, Search, Navigation, Info, X, Leaf } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { speak, stopSpeaking } from '../utils/speech';
 import { toast } from 'react-hot-toast';
-import { t, getLanguage, translateCommandAsync } from '../utils/translation';
+import { t, translateCommandAsync } from '../utils/translation';
 import api from '../services/api';
+
+type SpeechRecognitionLike = {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    start: () => void;
+    stop: () => void;
+    onresult: ((event: SpeechRecognitionEvent) => void) | null;
+    onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+    onend: (() => void) | null;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+interface SpeechRecognitionAlternative {
+    transcript: string;
+}
+
+interface SpeechRecognitionResult {
+    readonly isFinal: boolean;
+    readonly [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionEvent {
+    readonly resultIndex: number;
+    readonly results: {
+        readonly [index: number]: SpeechRecognitionResult;
+    };
+}
+
+interface SpeechRecognitionErrorEvent {
+    readonly error: string;
+}
+
+function getSpeechRecognition(): SpeechRecognitionConstructor | null {
+    const w = window as Window & {
+        SpeechRecognition?: SpeechRecognitionConstructor;
+        webkitSpeechRecognition?: SpeechRecognitionConstructor;
+    };
+    return w.SpeechRecognition || w.webkitSpeechRecognition || null;
+}
 
 const VoiceAssistant: React.FC = () => {
     const [isListening, setIsListening] = useState(false);
     const [transcript, setTranscript] = useState('');
     const [showAssistant, setShowAssistant] = useState(false);
     const navigate = useNavigate();
-    const recognitionRef = React.useRef<any>(null);
+    const recognitionRef = React.useRef<SpeechRecognitionLike | null>(null);
 
     type VoiceState = 'IDLE' | 'AWAITING_PRODUCT_NAME' | 'AWAITING_QUANTITY' | 'AWAITING_PRICE' | 'AWAITING_CONFIRMATION' | 'AWAITING_SEARCH_QUERY';
     const [voiceState, setVoiceState] = useState<VoiceState>('IDLE');
@@ -39,14 +80,21 @@ const VoiceAssistant: React.FC = () => {
                     await speak("What are you looking to buy?");
                     if (recognitionRef.current) { setIsListening(true); recognitionRef.current.start(); }
                 } else if (cmd.includes('go to') || cmd.includes('navigate to')) {
-                    if (cmd.includes('home') || cmd.includes('landing')) navigate('/');
-                    else if (cmd.includes('dashboard') || cmd.includes('market')) navigate('/buyer-dashboard');
-                    else if (cmd.includes('farmer') || cmd.includes('my farm')) navigate('/farmer-dashboard');
-                    else if (cmd.includes('chat') || cmd.includes('messages')) navigate('/chat');
-                    else if (cmd.includes('logistics') || cmd.includes('truck')) navigate('/logistics');
-                    else if (cmd.includes('orders')) navigate('/orders');
-                    else if (cmd.includes('profile') || cmd.includes('account')) navigate('/profile');
-                    else await speak("I'm sorry, I couldn't find that page.");
+                    let destination: string | null = null;
+                    if (cmd.includes('home') || cmd.includes('landing')) destination = '/';
+                    else if (cmd.includes('market')) destination = '/marketplace';
+                    else if (cmd.includes('dashboard') || cmd.includes('farmer') || cmd.includes('my farm')) destination = '/dashboard';
+                    else if (cmd.includes('chat') || cmd.includes('messages')) destination = '/chat';
+                    else if (cmd.includes('logistics') || cmd.includes('truck')) destination = '/logistics';
+                    else if (cmd.includes('orders')) destination = '/orders';
+                    else if (cmd.includes('profile') || cmd.includes('account')) destination = '/profile';
+
+                    if (destination) {
+                        navigate(destination);
+                        await speak("Opening that page.");
+                    } else {
+                        await speak("I'm sorry, I couldn't find that page.");
+                    }
                 } else if (cmd.includes('what is this') || cmd.includes('tell me about this page')) {
                     const pageTitle = document.title || 'this page';
                     const h1 = document.querySelector('h1')?.innerText || '';
@@ -63,7 +111,7 @@ const VoiceAssistant: React.FC = () => {
                 if (recognitionRef.current) { setIsListening(true); recognitionRef.current.start(); }
                 break;
 
-            case 'AWAITING_QUANTITY':
+            case 'AWAITING_QUANTITY': {
                 const qtyMatch = cmd.match(/\d+/);
                 if (qtyMatch) {
                     setPendingProduct(prev => ({ ...prev, quantity: parseInt(qtyMatch[0]) }));
@@ -75,8 +123,9 @@ const VoiceAssistant: React.FC = () => {
                     if (recognitionRef.current) { setIsListening(true); recognitionRef.current.start(); }
                 }
                 break;
+            }
 
-            case 'AWAITING_PRICE':
+            case 'AWAITING_PRICE': {
                 const priceMatch = cmd.match(/\d+/);
                 if (priceMatch) {
                     setPendingProduct(prev => ({ ...prev, price: parseInt(priceMatch[0]) }));
@@ -88,6 +137,7 @@ const VoiceAssistant: React.FC = () => {
                     if (recognitionRef.current) { setIsListening(true); recognitionRef.current.start(); }
                 }
                 break;
+            }
 
             case 'AWAITING_CONFIRMATION':
                 if (cmd.includes('yes') || cmd.includes('yeah') || cmd.includes('correct') || cmd.includes('yep')) {
@@ -115,7 +165,7 @@ const VoiceAssistant: React.FC = () => {
                 break;
 
             case 'AWAITING_SEARCH_QUERY':
-                navigate(`/buyer-dashboard?search=${encodeURIComponent(cmd)}`);
+                navigate(`/marketplace?search=${encodeURIComponent(cmd)}`);
                 await speak(`Searching the market for ${cmd}.`);
                 setVoiceState('IDLE');
                 break;
@@ -123,15 +173,14 @@ const VoiceAssistant: React.FC = () => {
     }, [navigate, voiceState, pendingProduct]);
 
     useEffect(() => {
-        // @ts-ignore
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const SpeechRecognition = getSpeechRecognition();
         if (SpeechRecognition) {
             const r = new SpeechRecognition();
             r.continuous = false;
             r.interimResults = true;
             r.lang = 'en-US';
 
-            r.onresult = async (event: any) => {
+            r.onresult = async (event: SpeechRecognitionEvent) => {
                 const current = event.resultIndex;
                 const rawText = event.results[current][0].transcript;
                 
@@ -144,11 +193,11 @@ const VoiceAssistant: React.FC = () => {
                     const text = await translateCommandAsync(rawText);
                     setTranscript(text);
                     
-                    processCommand(text);
+                    void processCommand(text);
                 }
             };
 
-            r.onerror = (event: any) => {
+            r.onerror = (event: SpeechRecognitionErrorEvent) => {
                 console.error('Speech recognition error', event.error);
                 setIsListening(false);
                 toast.error('Voice recognition error. Check microphone permissions.');
@@ -185,8 +234,7 @@ const VoiceAssistant: React.FC = () => {
         }
     };
 
-    // @ts-ignore
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = getSpeechRecognition();
     if (!SpeechRecognition) return null;
 
     return (
