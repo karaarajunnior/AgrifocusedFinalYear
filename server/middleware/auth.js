@@ -19,6 +19,7 @@ const authenticateToken = async (req, res, next) => {
 				name: true,
 				role: true,
 				verified: true,
+				accountStatus: true,
 				mfaEnabled: true,
 				passwordChangedAt: true,
 			},
@@ -26,6 +27,14 @@ const authenticateToken = async (req, res, next) => {
 
 		if (!user) {
 			return res.status(401).json({ error: "Invalid token" });
+		}
+
+		if (user.accountStatus === "DISABLED") {
+			return res.status(403).json({
+				error: "Account is disabled pending admin review",
+				accountDisabled: true,
+				accountStatus: user.accountStatus,
+			});
 		}
 
 		// Invalidate tokens issued before the last password change (stops account takeover reuse)

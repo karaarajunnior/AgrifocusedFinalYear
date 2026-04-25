@@ -3,9 +3,11 @@ import { body, validationResult } from "express-validator";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import {
 	changePassword,
+	getAccountReview,
 	getUserProfile,
 	listUsers,
 	setUserVerified,
+	updateAccountStatus,
 	updateUserProfile,
 	uploadAvatar,
 	getPublicPortfolio,
@@ -93,12 +95,32 @@ router.put(
 // Get all users (admin only)
 router.get("/", authenticateToken, requireRole(["ADMIN"]), listUsers);
 
+// AI-assisted account review alerts for admins
+router.get(
+	"/account-review/alerts",
+	authenticateToken,
+	requireRole(["ADMIN"]),
+	getAccountReview,
+);
+
 // Toggle user verification (admin only)
 router.patch(
 	"/:id/verify",
 	authenticateToken,
 	requireRole(["ADMIN"]),
 	setUserVerified,
+);
+
+// Admin action: keep active, place under review, or suspend
+router.patch(
+	"/:id/account-status",
+	authenticateToken,
+	requireRole(["ADMIN"]),
+	[
+		body("status").isIn(["ACTIVE", "REVIEW_REQUESTED", "DISABLED"]),
+		body("reason").optional().isString().trim().isLength({ max: 1000 }),
+	],
+	updateAccountStatus,
 );
 
 export default router;

@@ -3,6 +3,10 @@ import { validationResult } from "express-validator";
 import prisma from "../db/prisma.js";
 import { writeAuditLog } from "../services/auditLogService.js";
 import { computeTrustScore } from "../services/trustScoreService.js";
+import {
+	getAccountReviewSummary,
+	setAccountStatus,
+} from "../services/accountReviewService.js";
 
 export async function getUserProfile(req, res) {
 	try {
@@ -183,11 +187,12 @@ export async function changePassword(req, res) {
 
 export async function listUsers(req, res) {
 	try {
-		const { role, verified, page = 1, limit = 20, search } = req.query;
+		const { role, verified, status, page = 1, limit = 20, search } = req.query;
 
 		const where = {};
 		if (role) where.role = String(role).toUpperCase();
 		if (verified !== undefined) where.verified = String(verified) === "true";
+		if (status) where.accountStatus = String(status).toUpperCase();
 		if (search) {
 			where.OR = [
 				{ name: { contains: search } },
@@ -208,6 +213,9 @@ export async function listUsers(req, res) {
 					role: true,
 					location: true,
 					verified: true,
+					accountStatus: true,
+					accountStatusReason: true,
+					accountStatusChangedAt: true,
 					createdAt: true,
 					_count: { select: { products: true, orders: true, sales: true } },
 				},
@@ -230,6 +238,45 @@ export async function listUsers(req, res) {
 	} catch (error) {
 		console.error("Get users error:", error);
 		res.status(500).json({ error: "Failed to fetch users" });
+	}
+}
+
+export async function listAccountReviewAlerts(req, res) {
+	try {
+		const summary = await getAccountReviewSummary();
+		res.json(summary);
+	} catch (error) {
+		console.error("Account review summary error:", error);
+		res.status(500).json({ error: "Failed to fetch account review summary" });
+	}
+}
+
+export async function updateAccountStatus(req, res) {
+	try {
+		const errors = validationResult(req);
+		if (!errors.isEmpty()) {
+			return res.status(400).json({ errors: errors.array() });
+		}
+
+		const updated = await setAccountStatus({
+			adminUserId: req.user.id,
+			targetUserId: req.params.id,
+			status: req.body.status,
+			reason: req.body.reason,
+			ip: req.ip,
+			userAgent: req.get("User-Agent"),
+		});
+
+		res.json({
+			message: `Account marked ${updated.accountStatus.toLowerCase()}`,
+			user: updated,
+		});
+	} catch (error) {
+		const statusCode = error?.statusCode || 500;
+		console.error("Account status update error:", error);
+		res.status(statusCode).json({
+			error: statusCode === 404 ? "User not found" : "Failed to update account status",
+		});
 	}
 }
 

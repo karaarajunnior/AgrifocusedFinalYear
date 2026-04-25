@@ -142,6 +142,30 @@ interface AgroShop {
   location: string;
 }
 
+interface AccountReviewUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  verified: boolean;
+  status: 'ACTIVE' | 'REVIEW_REQUESTED' | 'DISABLED';
+  lastSeenAt?: string | null;
+  riskLevel: 'low' | 'medium' | 'high';
+  reasons: string[];
+  recommendation: string;
+}
+
+interface AccountReviewSummary {
+  inactiveDays: number;
+  reviews: AccountReviewUser[];
+  counts: {
+    total: number;
+    highRisk: number;
+    disabled: number;
+    reviewRequested: number;
+  };
+}
+
 function AdminDashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -153,6 +177,8 @@ function AdminDashboard() {
   const [approvalsLoading, setApprovalsLoading] = useState(false);
   const [notificationStats, setNotificationStats] = useState<NotificationStats | null>(null);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [accountReviews, setAccountReviews] = useState<AccountReviewSummary | null>(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
   const [exportApps, setExportApps] = useState<ExportApplication[]>([]);
   const [exportLoading, setExportLoading] = useState(false);
   const [agroInputs, setAgroInputs] = useState<AdminAgroInput[]>([]);
@@ -180,12 +206,14 @@ function AdminDashboard() {
   const { isOnline } = useOfflineSync(() => {
     fetchDashboardData();
     fetchNotificationStats();
+    fetchAccountReviews();
   });
 
   useEffect(() => {
     fetchDashboardData();
     fetchApiHealth();
     fetchPendingUsers();
+    fetchAccountReviews();
     fetchNotificationStats();
     fetchExportApplications();
     fetchAdminAgroData();
@@ -360,6 +388,42 @@ function AdminDashboard() {
       }
     } finally {
       setNotificationsLoading(false);
+    }
+  };
+
+  const fetchAccountReviews = async () => {
+    setReviewLoading(true);
+    try {
+      const res = await api.get('/users/account-review/alerts');
+      setAccountReviews(res.data);
+    } catch (error) {
+      console.error('Failed to fetch account review alerts:', error);
+      setAccountReviews(null);
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  const updateAccountStatus = async (
+    userId: string,
+    status: 'ACTIVE' | 'REVIEW_REQUESTED' | 'DISABLED',
+    reason?: string,
+  ) => {
+    try {
+      await api.patch(`/users/${userId}/account-status`, { status, reason });
+      toast.success(status === 'DISABLED' ? 'Account disabled for review' : 'Account kept active');
+      fetchAccountReviews();
+      fetchDashboardData();
+    } catch (error: unknown) {
+      let message = 'Failed to update account status';
+      if (axios.isAxiosError(error)) {
+        const data = error.response?.data;
+        if (data && typeof data === 'object') {
+          const maybe = data as Record<string, unknown>;
+          if (typeof maybe.error === 'string') message = maybe.error;
+        }
+      }
+      toast.error(message);
     }
   };
 
@@ -670,7 +734,8 @@ function AdminDashboard() {
             )}
 
             {activeTab === 'approvals' && (
-              <div>
+              <div className="space-y-8">
+                <div>
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-4">
                     <h3 className="text-lg font-semibold text-gray-900">Pending approvals</h3>
@@ -769,6 +834,81 @@ function AdminDashboard() {
                     </table>
                   </div>
                 )}
+                </div>
+
+                <div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">AI account review alerts</h3>
+                      <p className="text-sm text-gray-600">
+                        The AI recommends review only. Admins decide whether to keep active or disable.
+                      </p>
+                    </div>
+                    <button
+                      onClick={fetchAccountReviews}
+                      className="px-3 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200"
+                      disabled={reviewLoading}
+                    >
+                      {reviewLoading ? 'Checking...' : 'Check now'}
+                    </button>
+                  </div>
+
+                  {(accountReviews?.users.length || 0) === 0 ? (
+                    <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-sm text-gray-600">
+                      No inactivity or compliance alerts need admin action.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {accountReviews?.users.map((review) => (
+                        <div key={review.id} className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h4 className="font-bold text-gray-900">{review.name}</h4>
+                                <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-gray-700">
+                                  {review.role}
+                                </span>
+                                <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
+                                  {review.riskLevel} risk
+                                </span>
+                              </div>
+                              <p className="mt-1 text-sm text-gray-700">{review.email}</p>
+                              <p className="mt-2 text-sm font-semibold text-amber-900">{review.recommendedAction}</p>
+                              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-700">
+                                {[review.riskReason, ...review.complianceFlags].map((reason) => (
+                                  <li key={reason}>{reason}</li>
+                                ))}
+                              </ul>
+                              {review.lastSeenAt && (
+                                <p className="mt-2 text-xs text-gray-500">
+                                  Last activity: {new Date(review.lastSeenAt).toLocaleDateString()}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+                              <button
+                                onClick={() => updateAccountStatus(review.id, 'ACTIVE', 'Admin cleared AI review alert')}
+                                className="rounded-lg border border-green-600 px-4 py-2 text-sm font-bold text-green-700 hover:bg-green-50"
+                              >
+                                Keep active
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const suggestedReason = [review.riskReason, ...review.complianceFlags].join('; ');
+                                  const reason = prompt('Reason for disabling this account?', suggestedReason);
+                                  if (reason !== null) updateAccountStatus(review.id, 'DISABLED', reason || review.recommendedAction);
+                                }}
+                                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700"
+                              >
+                                Disable account
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

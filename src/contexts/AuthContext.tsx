@@ -21,6 +21,8 @@ interface User {
 	longitude?: number;
 	avatar?: string;
 	verified: boolean;
+	accountStatus?: "ACTIVE" | "REVIEW_REQUESTED" | "DISABLED";
+	accountStatusReason?: string | null;
 	isExportVerified: boolean;
 	mfaEnabled?: boolean;
 	autoFulfillOnPayment?: boolean;
