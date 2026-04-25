@@ -6,8 +6,9 @@ import { useAuth } from "../contexts/AuthContext";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { toast } from "react-hot-toast";
 import { Mic, MessageCircle, Volume2, Globe, Square, Play, Trash2 } from "lucide-react";
-import { t, languageNames } from "../utils/translation";
+import { languageNames } from "../utils/translation";
 import { useLanguage } from "../contexts/LanguageContext";
+import { requestTranslation } from "../services/translationApi";
 
 type UserSummary = {
 	id: string;
@@ -36,6 +37,7 @@ function ChatPage() {
 	const [potentialContacts, setPotentialContacts] = useState<UserSummary[]>([]);
 	const [activeUserId, setActiveUserId] = useState<string | null>(null);
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
+	const [translatedMessages, setTranslatedMessages] = useState<Record<string, string>>({});
 	const [text, setText] = useState("");
 	const [listening, setListening] = useState(false);
 	const [socket, setSocket] = useState<Socket | null>(null);
@@ -110,6 +112,28 @@ function ChatPage() {
 			}
 		})();
 	}, [activeUserId]);
+
+	useEffect(() => {
+		let cancelled = false;
+		if (language === "en") {
+			setTranslatedMessages({});
+			return;
+		}
+
+		(async () => {
+			const next: Record<string, string> = {};
+			for (const message of messages) {
+				if (!message.content || message.content === "[Voice Message]") continue;
+				next[message.id] = await requestTranslation(message.content, "en", language);
+				if (cancelled) return;
+			}
+			if (!cancelled) setTranslatedMessages(next);
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [language, messages]);
 
 	useEffect(() => {
 		let mounted = true;
@@ -265,12 +289,12 @@ function ChatPage() {
 			try {
 				const formData = new FormData();
 				formData.append("file", audioBlob, `voice_${Date.now()}.webm`);
-				const uploadRes = await api.post("/chat/voice", formData, {
+				const uploadRes = await api.post("/chat/voice-upload", formData, {
 					headers: { "Content-Type": "multipart/form-data" }
 				});
 
-				if (uploadRes.data?.url) {
-					const audioUrl = uploadRes.data.url;
+				if (uploadRes.data?.audioUrl) {
+					const audioUrl = uploadRes.data.audioUrl;
 					if (socket && socket.connected) {
 						socket.emit("chat:send", { receiverId: activeUserId, content: "[Voice Message]", audioUrl });
 					} else {
@@ -403,7 +427,9 @@ function ChatPage() {
 								<div className="h-[55vh] overflow-y-auto border border-gray-100 rounded-lg p-3 space-y-3">
 									{messages.map((m) => {
 										const isMine = m.senderId === user?.id;
-										const finalContent = t(m.content);
+										const finalContent = language === "en"
+											? m.content
+											: translatedMessages[m.id] || m.content;
 										return (
 											<div key={m.id} className={`max-w-[85%] ${isMine ? "ml-auto text-right" : "mr-auto"}`}>
 												<div className={`inline-block px-3 py-2 rounded-lg relative group ${isMine ? "bg-green-600 text-white" : "bg-gray-100 text-gray-900"}`}>

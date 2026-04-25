@@ -238,22 +238,31 @@ router.post(
 	},
 );
 
+const handleVoiceUpload = async (req, res) => {
+	try {
+		if (!req.file) return res.status(400).json({ error: "Audio file required" });
+		const audioUrl = `/uploads/chat-voice/${path.basename(req.file.path)}`;
+		res.status(201).json({ audioUrl, url: audioUrl });
+	} catch (error) {
+		console.error("Voice upload error:", error);
+		res.status(500).json({ error: "Failed to upload voice message" });
+	}
+};
+
+router.post(
+	"/voice-upload",
+	authenticateToken,
+	requireVerified,
+	uploadVoice.single("file"),
+	handleVoiceUpload,
+);
+
 router.post(
 	"/voice",
 	authenticateToken,
 	requireVerified,
 	uploadVoice.single("file"),
-	async (req, res) => {
-		try {
-			if (!req.file) return res.status(400).json({ error: "Audio file required" });
-			res.status(201).json({
-				audioUrl: `/uploads/chat-voice/${path.basename(req.file.path)}`,
-			});
-		} catch (error) {
-			console.error("Voice upload error:", error);
-			res.status(500).json({ error: "Failed to upload voice message" });
-		}
-	},
+	handleVoiceUpload,
 );
 
 router.post(
@@ -261,12 +270,16 @@ router.post(
 	authenticateToken,
 	[
 		body("text").isString().notEmpty(),
-		body("targetLang").isString().isIn(["luganda", "runyankore", "acholi"]),
+		body("sourceLang").optional().isString().trim().isLength({ min: 2, max: 32 }),
+		body("targetLang").isString().trim().isLength({ min: 2, max: 32 }),
 	],
 	async (req, res) => {
 		try {
-			const { text, targetLang } = req.body;
-			const translated = translateLocal(text, targetLang);
+			const errors = validationResult(req);
+			if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+			const { text, sourceLang = "en", targetLang } = req.body;
+			const translated = translateLocal(text, targetLang, sourceLang);
 			res.json({ translated });
 		} catch (error) {
 			console.error("Translation error:", error);

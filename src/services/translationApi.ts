@@ -12,12 +12,13 @@ export const requestTranslation = async (
     sourceLanguage: string = 'en', 
     targetLanguage: string = 'ug'
 ): Promise<string> => {
-    if (!text || text.trim() === '') return text;
+    const normalizedText = text.trim();
+    if (!normalizedText) return text;
     if (sourceLanguage === targetLanguage) return text;
 
     try {
         const response = await api.post('/translate', {
-            text,
+            text: normalizedText,
             sourceLanguage,
             targetLanguage
         });
@@ -25,9 +26,9 @@ export const requestTranslation = async (
         if (response.data && response.data.translated) {
             return response.data.translated;
         }
-        return text;
+        return normalizedText;
     } catch (error) {
         console.error('Translation request failed:', error);
-        return text;
+        return normalizedText;
     }
 };

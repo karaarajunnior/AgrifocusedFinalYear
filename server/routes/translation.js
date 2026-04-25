@@ -1,5 +1,6 @@
 import express from 'express';
 import { translateText } from '../services/translate.service.js';
+import { normalizeLanguageCode } from '../services/translationService.js';
 
 const router = express.Router();
 
@@ -15,9 +16,11 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: 'Text is required for translation' });
         }
 
-        const translated = await translateText(text, sourceLanguage, targetLanguage);
+        const source = normalizeLanguageCode(sourceLanguage || 'en');
+        const target = normalizeLanguageCode(targetLanguage || 'ug');
+        const translated = await translateText(text, source, target);
         
-        res.json({ original: text, translated });
+        res.json({ original: text, translated, sourceLanguage: source, targetLanguage: target });
     } catch (error) {
         console.error('Translation route error:', error);
         // Do not crash the client, return original as fallback
