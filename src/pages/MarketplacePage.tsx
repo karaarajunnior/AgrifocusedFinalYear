@@ -57,6 +57,7 @@ function MarketplacePage() {
 	const { user } = useAuth();
 	useLanguage(); // Triggers re-render on translation switch
 	const [searchParams] = useSearchParams();
+	const [imageFailures, setImageFailures] = useState<Record<string, boolean>>({});
 	const [products, setProducts] = useState<Product[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [searchTerm, setSearchTerm] = useState("");
@@ -416,7 +417,7 @@ function MarketplacePage() {
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 xl:gap-8">
 						{products.map((product) => (
 							(() => {
-								const primaryImage = getPrimaryProductImage(product.images);
+								const primaryImage = imageFailures[product.id] ? undefined : getPrimaryProductImage(product.images);
 								return (
 							<div
 								key={product.id}
@@ -429,6 +430,7 @@ function MarketplacePage() {
 											src={primaryImage}
 											alt={product.name}
 											className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+											onError={() => setImageFailures((prev) => ({ ...prev, [product.id]: true }))}
 										/>
 									) : (
 										<>

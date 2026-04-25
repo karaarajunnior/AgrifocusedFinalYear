@@ -317,8 +317,13 @@ function ProductDetails() {
           {/* Product Image */}
           <div className="bg-white rounded-lg shadow">
             <div className="h-96 bg-gradient-to-br from-green-100 to-green-200 rounded-t-lg flex items-center justify-center overflow-hidden">
-              {productImages[0] ? (
-                <img src={productImages[0]} alt={product.name} className="h-full w-full object-cover" />
+              {productImages[0] && !productImageFailed ? (
+                <img
+                  src={productImages[0]}
+                  alt={product.name}
+                  className="h-full w-full object-cover"
+                  onError={() => setProductImageFailed(true)}
+                />
               ) : (
                 <Leaf className="h-32 w-32 text-green-600" />
               )}
