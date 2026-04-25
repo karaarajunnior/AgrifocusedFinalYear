@@ -1,5 +1,9 @@
 import express from "express";
 import { body, param, query, validationResult } from "express-validator";
+import multer from "multer";
+import path from "path";
+import fs from "fs/promises";
+import { fileURLToPath } from "url";
 import { authenticateToken } from "../middleware/auth.js";
 import { requireVerified } from "../middleware/verified.js";
 import { synthesizeToFile } from "../services/ttsService.js";
@@ -10,6 +14,33 @@ import { translateLocal } from "../services/translationService.js";
 import prisma from "../db/prisma.js";
 
 const router = express.Router();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const voiceUploadsDir = path.join(__dirname, "..", "uploads", "chat-voice");
+
+const voiceStorage = multer.diskStorage({
+	destination: async (req, file, cb) => {
+		try {
+			await fs.mkdir(voiceUploadsDir, { recursive: true });
+			cb(null, voiceUploadsDir);
+		} catch (error) {
+			cb(error);
+		}
+	},
+	filename: (req, file, cb) => {
+		const ext = path.extname(file.originalname || "") || ".webm";
+		cb(null, `${req.user.id}_${Date.now()}${ext}`);
+	},
+});
+
+const uploadVoice = multer({
+	storage: voiceStorage,
+	limits: { fileSize: 8 * 1024 * 1024 },
+	fileFilter: (req, file, cb) => {
+		if (file.mimetype?.startsWith("audio/")) return cb(null, true);
+		cb(new Error("Only audio files are allowed"));
+	},
+});
 
 // List potential new contacts (based on orders/interactions)
 router.get(
@@ -135,6 +166,7 @@ router.post(
 	[
 		body("receiverId").isString(),
 		body("content").trim().isLength({ min: 1, max: 2000 }).escape(),
+		body("audioUrl").optional().isString().trim().isLength({ max: 1000 }),
 	],
 	async (req, res) => {
 		try {
@@ -202,6 +234,24 @@ router.post(
 		} catch (error) {
 			console.error("Send message error:", error);
 			res.status(500).json({ error: "Failed to send message" });
+		}
+	},
+);
+
+router.post(
+	"/voice",
+	authenticateToken,
+	requireVerified,
+	uploadVoice.single("file"),
+	async (req, res) => {
+		try {
+			if (!req.file) return res.status(400).json({ error: "Audio file required" });
+			res.status(201).json({
+				audioUrl: `/uploads/chat-voice/${path.basename(req.file.path)}`,
+			});
+		} catch (error) {
+			console.error("Voice upload error:", error);
+			res.status(500).json({ error: "Failed to upload voice message" });
 		}
 	},
 );

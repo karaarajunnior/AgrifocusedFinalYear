@@ -35,10 +35,14 @@ export function initSocket(httpServer) {
 					name: true,
 					role: true,
 					verified: true,
+					accountStatus: true,
 					passwordChangedAt: true,
 				},
 			});
 			if (!user) return next(new Error("Invalid token"));
+			if (user.accountStatus === "DISABLED") {
+				return next(new Error("Account disabled pending admin review"));
+			}
 
 			if (decoded?.iat && user.passwordChangedAt) {
 				const changedAtSec = Math.floor(new Date(user.passwordChangedAt).getTime() / 1000);
@@ -65,6 +69,10 @@ export function initSocket(httpServer) {
 				}
 				const receiverId = String(payload?.receiverId || "");
 				const content = String(payload?.content || "").trim();
+				const clientAudioUrl =
+					typeof payload?.audioUrl === "string" && payload.audioUrl.startsWith("/uploads/chat-voice/")
+						? payload.audioUrl
+						: null;
 				if (!receiverId || content.length < 1 || content.length > 2000) {
 					return ack?.({ ok: false, error: "Invalid message" });
 				}
@@ -74,21 +82,24 @@ export function initSocket(httpServer) {
 						senderId: user.id,
 						receiverId,
 						content,
+						audioUrl: clientAudioUrl,
 					},
 				});
 
-				let audioUrl = null;
-				try {
-					audioUrl = await synthesizeToFile({ messageId: msg.id, text: content });
-					if (audioUrl) {
-						await prisma.message.update({
-							where: { id: msg.id },
-							data: { audioUrl },
-						});
+				let audioUrl = clientAudioUrl;
+				if (!audioUrl) {
+					try {
+						audioUrl = await synthesizeToFile({ messageId: msg.id, text: content });
+						if (audioUrl) {
+							await prisma.message.update({
+								where: { id: msg.id },
+								data: { audioUrl },
+							});
+						}
+					} catch (e) {
+						// Non-fatal: deliver text even if TTS fails
+						console.error("TTS failed:", e?.message || e);
 					}
-				} catch (e) {
-					// Non-fatal: deliver text even if TTS fails
-					console.error("TTS failed:", e?.message || e);
 				}
 
 				const full = {

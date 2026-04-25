@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import api from "../services/api";
@@ -39,6 +39,7 @@ function ChatPage() {
 	const [text, setText] = useState("");
 	const [listening, setListening] = useState(false);
 	const [socket, setSocket] = useState<Socket | null>(null);
+	const recognitionRef = useRef<SpeechRecognition | null>(null);
 
 	const [searchParams] = useSearchParams();
 	const initialUserId = searchParams.get("userId");
@@ -53,6 +54,12 @@ function ChatPage() {
 		return apiUrl.replace(/\/api\/?$/, "");
 	}, []);
 
+	const mediaUrl = (url?: string | null) => {
+		if (!url) return "";
+		if (/^https?:\/\//i.test(url)) return url;
+		return `${socketUrl}${url.startsWith("/") ? "" : "/"}${url}`;
+	};
+
 	useEffect(() => {
 		let mounted = true;
 		(async () => {
@@ -62,9 +69,9 @@ function ChatPage() {
 				
 				let fetchedConvs = res.data.conversations || [];
 
-				if (initialUserId && !fetchedConvs.find((c: any) => c.id === initialUserId)) {
+				if (initialUserId && !fetchedConvs.find((c: UserSummary) => c.id === initialUserId)) {
 					try {
-						const userRes = await api.get(`/users/${initialUserId}`);
+						const userRes = await api.get(`/users/profile/${initialUserId}`);
 						if (userRes.data?.user) {
 							fetchedConvs = [userRes.data.user, ...fetchedConvs];
 						}
@@ -148,6 +155,7 @@ function ChatPage() {
 
 		return () => {
 			mounted = false;
+			recognitionRef.current?.abort();
 			s.disconnect();
 		};
 	}, [socketUrl, activeUserId]);
@@ -186,14 +194,14 @@ function ChatPage() {
 	};
 
 	const startVoiceInput = () => {
-		const AnyWindow = window as any;
-		const WebSpeech = AnyWindow.SpeechRecognition || AnyWindow.webkitSpeechRecognition;
+		const WebSpeech = window.SpeechRecognition || window.webkitSpeechRecognition;
 		if (!WebSpeech) {
 			toast.error("Voice input not supported on this device");
 			return;
 		}
 
 		const rec = new WebSpeech();
+		recognitionRef.current = rec;
 		rec.lang = "en-US";
 		rec.interimResults = false;
 		rec.maxAlternatives = 1;
@@ -201,7 +209,7 @@ function ChatPage() {
 		rec.onstart = () => setListening(true);
 		rec.onend = () => setListening(false);
 		rec.onerror = () => setListening(false);
-		rec.onresult = (e: any) => {
+		rec.onresult = (e: SpeechRecognitionEvent) => {
 			const transcript = e?.results?.[0]?.[0]?.transcript;
 			if (typeof transcript === "string" && transcript.trim()) {
 				setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
@@ -212,6 +220,7 @@ function ChatPage() {
 	};
 
 	const stopVoiceInput = () => {
+		recognitionRef.current?.stop();
 		setListening(false);
 	};
 
@@ -232,7 +241,7 @@ function ChatPage() {
 			setMediaRecorder(recorder);
 			setAudioChunks([]);
 
-			recorder.ondataavailable = (e: any) => {
+			recorder.ondataavailable = (e: BlobEvent) => {
 				if (e.data.size > 0) {
 					setAudioChunks((prev) => [...prev, e.data]);
 				}
@@ -256,12 +265,12 @@ function ChatPage() {
 			try {
 				const formData = new FormData();
 				formData.append("file", audioBlob, `voice_${Date.now()}.webm`);
-				const uploadRes = await api.post("/documents/upload", formData, {
+				const uploadRes = await api.post("/chat/voice", formData, {
 					headers: { "Content-Type": "multipart/form-data" }
 				});
 
-				if (uploadRes.data?.path) {
-					const audioUrl = uploadRes.data.path;
+				if (uploadRes.data?.url) {
+					const audioUrl = uploadRes.data.url;
 					if (socket && socket.connected) {
 						socket.emit("chat:send", { receiverId: activeUserId, content: "[Voice Message]", audioUrl });
 					} else {
@@ -406,7 +415,7 @@ function ChatPage() {
 													</div>
 													{m.audioUrl && (
 														<div className="mt-2">
-															<audio controls src={m.audioUrl} className="w-full h-8" />
+															<audio controls src={mediaUrl(m.audioUrl)} className="w-full h-8" />
 														</div>
 													)}
 												</div>
