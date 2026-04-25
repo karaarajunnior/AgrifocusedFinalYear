@@ -174,6 +174,8 @@ router.get(
 								id: true,
 								name: true,
 								location: true,
+								latitude: true,
+								longitude: true,
 								verified: true,
 							},
 						},

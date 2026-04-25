@@ -24,6 +24,7 @@ import { toast } from 'react-hot-toast';
 import TrustBadge from "../components/TrustBadge";
 import { useTrustScore } from "../hooks/useTrustScore";
 import { QRCodeSVG } from 'qrcode.react';
+import LocationLink from '../components/LocationLink';
 
 interface ProductDetails {
   id: string;
@@ -34,6 +35,8 @@ interface ProductDetails {
   quantity: number;
   unit: string;
   location: string;
+  latitude?: number | null;
+  longitude?: number | null;
   organic: boolean;
   harvestDate: string;
   expiryDate: string;
@@ -65,7 +68,14 @@ interface ProductDetails {
   }>;
 }
 
-const TraceabilityJourney: React.FC<{ origin: string, location: string }> = ({ origin, location }) => {
+const TraceabilityJourney: React.FC<{
+  origin: string;
+  location: string;
+  originLatitude?: number | null;
+  originLongitude?: number | null;
+  productLatitude?: number | null;
+  productLongitude?: number | null;
+}> = ({ origin, location, originLatitude, originLongitude, productLatitude, productLongitude }) => {
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 mb-8 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-8 opacity-5">
@@ -84,10 +94,20 @@ const TraceabilityJourney: React.FC<{ origin: string, location: string }> = ({ o
                         <Leaf className="h-6 w-6" />
                     </div>
                     <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('origin')}</p>
-                    <p className="text-xs font-bold text-slate-900">{origin || 'Local Farm'}</p>
+                    <LocationLink
+                      location={origin || 'Local Farm'}
+                      latitude={originLatitude}
+                      longitude={originLongitude}
+                      className="mt-1 flex items-center text-xs font-bold text-slate-900 hover:text-emerald-700"
+                      iconClassName="h-3 w-3"
+                    />
                     <div className="mt-2 p-2 bg-emerald-50 rounded-lg border border-emerald-100 flex flex-col items-center">
                         <span className="text-[8px] font-black text-emerald-800 uppercase leading-none mb-1">{t('exact_origin')}</span>
-                        <span className="text-[7px] text-emerald-600 tabular-nums font-bold">0°20'44.2"N 32°35'44.4"E</span>
+                        <span className="text-[7px] text-emerald-600 tabular-nums font-bold">
+                          {originLatitude != null && originLongitude != null
+                            ? `${originLatitude.toFixed(5)}, ${originLongitude.toFixed(5)}`
+                            : 'Tap location to open map'}
+                        </span>
                     </div>
                 </div>
 
@@ -104,7 +124,13 @@ const TraceabilityJourney: React.FC<{ origin: string, location: string }> = ({ o
                         <MapPin className="h-6 w-6" />
                     </div>
                     <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('current')}</p>
-                    <p className="text-xs font-bold text-slate-900">{location}</p>
+                    <LocationLink
+                      location={location}
+                      latitude={productLatitude ?? originLatitude}
+                      longitude={productLongitude ?? originLongitude}
+                      className="mt-1 flex items-center text-xs font-bold text-slate-900 hover:text-emerald-700"
+                      iconClassName="h-3 w-3"
+                    />
                 </div>
             </div>
         </div>
@@ -188,18 +214,6 @@ function ProductDetails() {
       }
       toast.error(message);
     }
-  };
-
-  const handleLocateFarmer = (farmer: ProductDetails['farmer']) => {
-    let url: string;
-    if (farmer.latitude && farmer.longitude) {
-      // Exact GPS pin — opens a precise marker on Google Maps
-      url = `https://www.google.com/maps?q=${farmer.latitude},${farmer.longitude}&z=16`;
-    } else {
-      // Fallback: text search
-      url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(farmer.location)}`;
-    }
-    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   if (loading) {
@@ -304,18 +318,14 @@ function ProductDetails() {
                   <span className="ml-1 font-medium">{product.quantity} {product.unit}</span>
                 </div>
                 
-                <div className="flex items-center justify-between col-span-2 sm:col-span-1">
-                  <div className="flex items-center">
-                    <MapPin className="h-4 w-4 text-gray-400 mr-2" />
-                    <span className="text-gray-600">Location:</span>
-                    <span className="ml-1 font-medium">{product.location}</span>
-                  </div>
-                  <button 
-                    onClick={() => handleLocateFarmer(product.farmer)}
-                    className="text-[10px] font-black text-green-600 uppercase tracking-widest hover:underline px-2 py-1"
-                  >
-                    Locate
-                  </button>
+                <div className="col-span-2 sm:col-span-1">
+                  <span className="text-gray-600">Location:</span>
+                  <LocationLink
+                    location={product.location}
+                    latitude={product.latitude ?? product.farmer.latitude}
+                    longitude={product.longitude ?? product.farmer.longitude}
+                    className="mt-1 flex items-center text-gray-800 hover:text-green-700"
+                  />
                 </div>
                 
                 {product.harvestDate && (
@@ -340,7 +350,14 @@ function ProductDetails() {
               </div>
             </div>
 
-            <TraceabilityJourney origin={product.farmer.location} location={product.location} />
+            <TraceabilityJourney
+              origin={product.farmer.location}
+              location={product.location}
+              originLatitude={product.farmer.latitude}
+              originLongitude={product.farmer.longitude}
+              productLatitude={product.latitude}
+              productLongitude={product.longitude}
+            />
 
             {/* Traceability */}
             {trace?.batches?.length ? (
@@ -407,10 +424,12 @@ function ProductDetails() {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 flex items-center mt-1">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    {product.farmer.location}
-                  </p>
+                  <LocationLink
+                    location={product.farmer.location}
+                    latitude={product.farmer.latitude}
+                    longitude={product.farmer.longitude}
+                    className="mt-1 flex items-center text-sm text-gray-600 hover:text-green-700"
+                  />
                   {product.farmer.phone && (
                     <p className="text-sm text-gray-600 flex items-center mt-1">
                       <Phone className="h-4 w-4 mr-1" />

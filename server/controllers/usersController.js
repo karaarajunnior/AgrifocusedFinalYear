@@ -332,6 +332,8 @@ export async function getPublicPortfolio(req, res) {
 				id: true,
 				name: true,
 				location: true,
+				latitude: true,
+				longitude: true,
 				avatar: true,
 				verified: true,
 				role: true,

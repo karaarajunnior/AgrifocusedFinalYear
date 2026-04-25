@@ -23,6 +23,7 @@ import { useAuth } from "../contexts/AuthContext";
 import TrustBadge, { TrustScore } from "../components/TrustBadge";
 import { t } from "../utils/translation";
 import { useLanguage } from "../contexts/LanguageContext";
+import LocationLink from "../components/LocationLink";
 
 interface Product {
 	id: string;
@@ -32,6 +33,8 @@ interface Product {
 	quantity: number;
 	unit: string;
 	location: string;
+	latitude?: number | null;
+	longitude?: number | null;
 	origin?: "LOCAL" | "INTERNATIONAL";
 	country?: string;
 	organic: boolean;
@@ -41,6 +44,8 @@ interface Product {
 		id: string;
 		name: string;
 		location: string;
+		latitude?: number | null;
+		longitude?: number | null;
 		verified: boolean;
 	};
 	farmerTrust?: TrustScore;
@@ -448,10 +453,12 @@ function MarketplacePage() {
 
 									{/* Product Metadata */}
 									<div className="space-y-3 test-sm text-slate-600 mb-6 font-medium bg-slate-50 p-4 rounded-2xl flex-grow">
-										<div className="flex items-start">
-											<MapPin className="h-4 w-4 mr-2 mt-0.5 text-slate-400 shrink-0" />
-											<span className="line-clamp-2 leading-snug">{product.location}</span>
-										</div>
+										<LocationLink
+											location={product.location}
+											latitude={product.latitude ?? product.farmer?.latitude}
+											longitude={product.longitude ?? product.farmer?.longitude}
+											className="flex items-start text-slate-600 hover:text-emerald-700"
+										/>
 
 										<div className="flex items-center justify-between">
 											<div className="flex items-center">

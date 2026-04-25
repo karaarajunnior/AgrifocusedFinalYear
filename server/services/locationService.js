@@ -34,14 +34,19 @@ class LocationService {
 		}
 	}
 
-	getMapUrl(location) {
-		if (!location) return null;
-		// If location looks like coordinates
-		if (location.includes(',') && !isNaN(parseFloat(location))) {
-			return `https://www.google.com/maps/search/?api=1&query=${location}`;
+	getMapUrl(location, latitude, longitude) {
+		const lat = Number(latitude);
+		const lng = Number(longitude);
+		if (Number.isFinite(lat) && Number.isFinite(lng)) {
+			return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 		}
-		// Otherwise text search
-		return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+		if (!location) return null;
+		const trimmed = String(location).trim();
+		const coordinateMatch = trimmed.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+		if (coordinateMatch) {
+			return `https://www.google.com/maps/search/?api=1&query=${coordinateMatch[1]},${coordinateMatch[2]}`;
+		}
+		return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trimmed)}`;
 	}
 }
 
