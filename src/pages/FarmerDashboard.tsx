@@ -23,7 +23,10 @@ import {
 	Download,
 	Mic,
 	X,
-	MapPin
+	MapPin,
+	Camera,
+	Upload,
+	Image as ImageIcon
 } from "lucide-react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { t } from "../utils/translation";
@@ -51,6 +54,7 @@ import { getOfflineProductCount } from "../utils/offlineProductQueue";
 import DocumentVerification from "../components/DocumentVerification";
 import { AIAdvisor, MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
 import { getCurrentPosition } from "../utils/geolocation";
+import { firstProductImage, resolveProductImageUrl } from "../utils/productImages";
 
 interface Product {
 	id: string;
@@ -64,6 +68,7 @@ interface Product {
 	totalOrders: number;
 	totalReviews: number;
 	createdAt: string;
+	images?: string | string[] | null;
 }
 
 interface Analytics {
@@ -107,6 +112,8 @@ function FarmerDashboard() {
 	const [marketingContent, setMarketingContent] = useState<{heading: string, body: string, hashtags: string[]} | null>(null);
 	const [generatingMarketing, setGeneratingMarketing] = useState(false);
 	const [showMarketingModal, setShowMarketingModal] = useState(false);
+	const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+	const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
 
 	const { isOnline } = useOfflineSync(() => {
 		fetchData();
@@ -241,11 +248,21 @@ function FarmerDashboard() {
 
 		setSubmitting(true);
 		try {
-			await api.post("/products", payload);
+			const res = await api.post("/products", payload);
+			const createdProductId = res.data?.product?.id;
+			if (createdProductId && photoFiles.length > 0) {
+				const formData = new FormData();
+				photoFiles.forEach((file) => formData.append("images", file));
+				await api.post(`/products/${createdProductId}/images`, formData, {
+					headers: { "Content-Type": "multipart/form-data" },
+				});
+			}
 			toast.success("Product added");
 			setShowAddProduct(false);
 			setAddStep(0);
 			setCustomFields({});
+			setPhotoFiles([]);
+			setPhotoPreviews([]);
 			await fetchData();
 		} catch (err) {
 			if (axios.isAxiosError(err) && !err.response) {
@@ -264,6 +281,30 @@ function FarmerDashboard() {
 		e.preventDefault();
 		if (!isLastStep()) return setAddStep((s) => s + 1);
 		await submitProduct();
+	};
+
+	const clearProductPhotos = () => {
+		photoPreviews.forEach((url) => URL.revokeObjectURL(url));
+		setPhotoFiles([]);
+		setPhotoPreviews([]);
+	};
+
+	const handleProductPhotos = (files: FileList | File[]) => {
+		const selected = Array.from(files)
+			.filter((file) => file.type.startsWith("image/"))
+			.slice(0, 6);
+		setPhotoFiles(selected);
+		photoPreviews.forEach((url) => URL.revokeObjectURL(url));
+		setPhotoPreviews(selected.map((file) => URL.createObjectURL(file)));
+		if (selected.length > 0) toast.success(`${selected.length} product photo(s) ready`);
+	};
+
+	const resetAddProductModal = () => {
+		setShowAddProduct(false);
+		setAddStep(0);
+		setPhotoFiles([]);
+		photoPreviews.forEach((url) => URL.revokeObjectURL(url));
+		setPhotoPreviews([]);
 	};
 
 	const submitUSSD = async (e?: React.FormEvent) => {
@@ -910,6 +951,41 @@ function FarmerDashboard() {
 												}
 											/>
 											<div className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-gray-300">KG</div>
+										</div>
+										<div
+											onDragOver={(e) => e.preventDefault()}
+											onDrop={(e) => {
+												e.preventDefault();
+												handleProductPhotos(e.dataTransfer.files);
+											}}
+											className="border-2 border-dashed border-emerald-200 bg-emerald-50/40 rounded-2xl p-4"
+										>
+											<div className="flex items-center gap-3 mb-3">
+												<Camera className="h-5 w-5 text-emerald-600" />
+												<div>
+													<p className="text-sm font-black text-slate-800 uppercase">Product photos</p>
+													<p className="text-xs text-slate-500">Take or upload harvest photos so buyers see them on the dashboard.</p>
+												</div>
+											</div>
+											<label className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-emerald-50">
+												<Upload className="h-4 w-4" />
+												Take / choose photos
+												<input
+													type="file"
+													accept="image/*"
+													capture="environment"
+													multiple
+													className="hidden"
+													onChange={(e) => e.target.files && handleProductPhotos(e.target.files)}
+												/>
+											</label>
+											{photoPreviews.length > 0 && (
+												<div className="grid grid-cols-3 gap-2 mt-4">
+													{photoPreviews.map((url) => (
+														<img key={url} src={url} alt="Product preview" className="h-20 w-full object-cover rounded-xl border border-white shadow-sm" />
+													))}
+												</div>
+											)}
 										</div>
 									</div>
 								)}

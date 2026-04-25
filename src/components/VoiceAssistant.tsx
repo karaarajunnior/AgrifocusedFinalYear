@@ -5,6 +5,7 @@ import { speak, stopSpeaking } from '../utils/speech';
 import { toast } from 'react-hot-toast';
 import { t, translateCommandAsync } from '../utils/translation';
 import api from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 type SpeechRecognitionLike = {
     continuous: boolean;
@@ -52,11 +53,72 @@ const VoiceAssistant: React.FC = () => {
     const [transcript, setTranscript] = useState('');
     const [showAssistant, setShowAssistant] = useState(false);
     const navigate = useNavigate();
+    const { language } = useLanguage();
     const recognitionRef = React.useRef<SpeechRecognitionLike | null>(null);
 
     type VoiceState = 'IDLE' | 'AWAITING_PRODUCT_NAME' | 'AWAITING_QUANTITY' | 'AWAITING_PRICE' | 'AWAITING_CONFIRMATION' | 'AWAITING_SEARCH_QUERY';
     const [voiceState, setVoiceState] = useState<VoiceState>('IDLE');
     const [pendingProduct, setPendingProduct] = useState({ name: '', quantity: 0, price: 0 });
+
+    const recognitionLangs: Record<string, string> = {
+        en: 'en-US',
+        ug: 'lg-UG',
+        ach: 'en-UG',
+        teo: 'en-UG',
+        lgg: 'en-UG',
+        nyn: 'en-UG',
+    };
+
+    const numberWords: Record<string, number> = {
+        one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+        eleven: 11, twelve: 12, twenty: 20, thirty: 30, forty: 40, fifty: 50, hundred: 100,
+    };
+
+    const extractNumber = (text: string): number | null => {
+        const numeric = text.replace(/,/g, '').match(/\d+(?:\.\d+)?/);
+        if (numeric) return Number(numeric[0]);
+        for (const [word, value] of Object.entries(numberWords)) {
+            if (text.includes(word)) return value;
+        }
+        return null;
+    };
+
+    const guessCategory = (name: string) => {
+        const normalized = name.toLowerCase();
+        if (normalized.includes('coffee') || normalized.includes('kaawa') || normalized.includes('emmwanyi')) return 'COFFEE';
+        if (normalized.includes('milk') || normalized.includes('dairy')) return 'DAIRY';
+        if (normalized.includes('chicken') || normalized.includes('egg') || normalized.includes('poultry')) return 'POULTRY';
+        if (normalized.includes('bean') || normalized.includes('pea')) return 'PULSES';
+        if (normalized.includes('rice') || normalized.includes('maize') || normalized.includes('grain')) return 'GRAINS';
+        if (normalized.includes('fruit') || normalized.includes('banana') || normalized.includes('mango')) return 'FRUITS';
+        return 'VEGETABLES';
+    };
+
+    const extractProductListing = (cmd: string) => {
+        const quantity = extractNumber(cmd.match(/(?:quantity|amount|stock|with)\s+(.+)/)?.[1] || cmd);
+        const priceText = cmd.match(/(?:price|at|for|costs?|ugx|shillings?)\s+([a-z0-9,\s.]+)/)?.[1] || '';
+        const price = extractNumber(priceText) || extractNumber(cmd.split(/price|at|for|ugx|shillings?/).pop() || '');
+        const productMatch = cmd.match(/(?:list|sell|add|teeka|tunda)\s+(?:this\s+)?(?:product\s+)?(.+?)(?:\s+(?:with|at|for|price|quantity|qty|kg|kilograms?|ugx|shillings?)\b|$)/);
+        const name = (productMatch?.[1] || cmd.replace(/i want to|please|list|sell|add|this product|with|price|quantity|kg|kilograms|ugx|shillings/gi, ' '))
+            .replace(/\d+/g, ' ')
+            .trim()
+            .replace(/\s+/g, ' ');
+        if (!name || !quantity || !price) return null;
+        return { name, quantity, price };
+    };
+
+    const submitVoiceProduct = async (product: { name: string; quantity: number; price: number }) => {
+        await api.post('/products', {
+            name: product.name,
+            category: guessCategory(product.name),
+            quantity: Math.round(product.quantity),
+            unit: 'kg',
+            price: product.price,
+            origin: 'LOCAL',
+            location: 'Voice Direct Listing',
+            description: `Listed by voice command: ${product.name}`,
+        });
+    };
 
     const processCommand = useCallback(async (command: string) => {
         const cmd = command.toLowerCase();
@@ -71,15 +133,26 @@ const VoiceAssistant: React.FC = () => {
         
         switch (voiceState) {
             case 'IDLE':
-                if (cmd.includes('list') || cmd.includes('add harvest') || cmd.includes('sell')) {
+                if (cmd.includes('list') || cmd.includes('add harvest') || cmd.includes('sell') || cmd.includes('teeka') || cmd.includes('tunda')) {
+                    const fullListing = extractProductListing(cmd);
+                    if (fullListing) {
+                        try {
+                            await submitVoiceProduct(fullListing);
+                            toast.success("Crop listed via voice");
+                            await speak(`Listed ${fullListing.quantity} kilograms of ${fullListing.name} at ${fullListing.price} shillings.`);
+                        } catch {
+                            await speak("I could not save that listing. Please make sure you are logged in as a verified farmer.");
+                        }
+                        return;
+                    }
                     setVoiceState('AWAITING_PRODUCT_NAME');
-                    await speak("What crop are you selling?");
+                    await speak("What crop are you selling? You can also say: list coffee with quantity 50 and price 3000.");
                     if (recognitionRef.current) { setIsListening(true); recognitionRef.current.start(); }
-                } else if (cmd.includes('search') || cmd.includes('buy')) {
+                } else if (cmd.includes('search') || cmd.includes('buy') || cmd.includes('find') || cmd.includes('noonya') || cmd.includes('gula')) {
                     setVoiceState('AWAITING_SEARCH_QUERY');
                     await speak("What are you looking to buy?");
                     if (recognitionRef.current) { setIsListening(true); recognitionRef.current.start(); }
-                } else if (cmd.includes('go to') || cmd.includes('navigate to')) {
+                } else if (cmd.includes('go to') || cmd.includes('navigate to') || cmd.includes('open') || cmd.includes('genda')) {
                     let destination: string | null = null;
                     if (cmd.includes('home') || cmd.includes('landing')) destination = '/';
                     else if (cmd.includes('market')) destination = '/marketplace';
@@ -88,6 +161,8 @@ const VoiceAssistant: React.FC = () => {
                     else if (cmd.includes('logistics') || cmd.includes('truck')) destination = '/logistics';
                     else if (cmd.includes('orders')) destination = '/orders';
                     else if (cmd.includes('profile') || cmd.includes('account')) destination = '/profile';
+                    else if (cmd.includes('photo') || cmd.includes('picture') || cmd.includes('camera')) destination = '/dashboard';
+                    else if (cmd.includes('quality') || cmd.includes('analyse') || cmd.includes('analyze')) destination = '/marketplace';
 
                     if (destination) {
                         navigate(destination);
@@ -100,7 +175,7 @@ const VoiceAssistant: React.FC = () => {
                     const h1 = document.querySelector('h1')?.innerText || '';
                     await speak(`You are currently on ${h1 || pageTitle}. This platform helps you connect with local and international agricultural markets.`);
                 } else {
-                    await speak("Command not recognized. Say 'list harvest' or 'search market'.");
+                    await speak("Command not recognized. Say list coffee with quantity and price, search market, upload product photo, or go to dashboard.");
                 }
                 break;
 
@@ -112,11 +187,11 @@ const VoiceAssistant: React.FC = () => {
                 break;
 
             case 'AWAITING_QUANTITY': {
-                const qtyMatch = cmd.match(/\d+/);
-                if (qtyMatch) {
-                    setPendingProduct(prev => ({ ...prev, quantity: parseInt(qtyMatch[0]) }));
+                const qty = extractNumber(cmd);
+                if (qty) {
+                    setPendingProduct(prev => ({ ...prev, quantity: qty }));
                     setVoiceState('AWAITING_PRICE');
-                    await speak(`Okay, ${qtyMatch[0]} kilograms. What is your asking price per kilogram in shillings?`);
+                    await speak(`Okay, ${qty} kilograms. What is your asking price per kilogram in shillings?`);
                     if (recognitionRef.current) { setIsListening(true); recognitionRef.current.start(); }
                 } else {
                     await speak("I didn't catch the number. Please say the amount in kilograms.");
@@ -126,11 +201,11 @@ const VoiceAssistant: React.FC = () => {
             }
 
             case 'AWAITING_PRICE': {
-                const priceMatch = cmd.match(/\d+/);
-                if (priceMatch) {
-                    setPendingProduct(prev => ({ ...prev, price: parseInt(priceMatch[0]) }));
+                const price = extractNumber(cmd);
+                if (price) {
+                    setPendingProduct(prev => ({ ...prev, price }));
                     setVoiceState('AWAITING_CONFIRMATION');
-                    await speak(`Listing ${pendingProduct.quantity} kilograms of ${pendingProduct.name} at ${priceMatch[0]} shillings. Say Yes to confirm or No to cancel.`);
+                    await speak(`Listing ${pendingProduct.quantity} kilograms of ${pendingProduct.name} at ${price} shillings. Say Yes to confirm or No to cancel.`);
                     if (recognitionRef.current) { setIsListening(true); recognitionRef.current.start(); }
                 } else {
                     await speak("I didn't catch the price. Please state the price clearly.");
@@ -142,15 +217,7 @@ const VoiceAssistant: React.FC = () => {
             case 'AWAITING_CONFIRMATION':
                 if (cmd.includes('yes') || cmd.includes('yeah') || cmd.includes('correct') || cmd.includes('yep')) {
                     await speak("Listing confirmed. Saving to the market ledger.");
-                    api.post('/products', {
-                        name: pendingProduct.name,
-                        category: 'ORGANIC',
-                        quantity: pendingProduct.quantity,
-                        unit: 'kg',
-                        price: pendingProduct.price,
-                        origin: 'LOCAL',
-                        location: 'Voice Direct Listing'
-                    }).then(() => {
+                    submitVoiceProduct(pendingProduct).then(() => {
                         toast.success("Crop listed via Voice!");
                         setVoiceState('IDLE');
                         setPendingProduct({ name: '', quantity: 0, price: 0 });
@@ -178,7 +245,7 @@ const VoiceAssistant: React.FC = () => {
             const r = new SpeechRecognition();
             r.continuous = false;
             r.interimResults = true;
-            r.lang = 'en-US';
+            r.lang = recognitionLangs[language] || 'en-US';
 
             r.onresult = async (event: SpeechRecognitionEvent) => {
                 const current = event.resultIndex;
@@ -189,7 +256,7 @@ const VoiceAssistant: React.FC = () => {
                 if (event.results[current].isFinal) {
                     setIsListening(false); // prevent overlapping
                     
-                    // Route through Sunbird API for real-time local-language-to-english intent mapping
+                    // Route through translation/local dictionary so any supported language can become an English intent.
                     const text = await translateCommandAsync(rawText);
                     setTranscript(text);
                     
@@ -213,7 +280,7 @@ const VoiceAssistant: React.FC = () => {
         return () => {
             if (recognitionRef.current) recognitionRef.current.stop();
         };
-    }, [processCommand]);
+    }, [processCommand, language]);
 
     const toggleListening = () => {
         if (!recognitionRef.current) {
@@ -292,7 +359,7 @@ const VoiceAssistant: React.FC = () => {
                                 <Leaf className="h-4 w-4 text-emerald-600 animate-pulse" />
                             </div>
                             <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">Auto Listing</p>
-                            <p className="text-[10px] text-slate-300">{t('list_command_hint')}</p>
+                            <p className="text-[10px] text-slate-300">"List coffee qty 50 price 3000"</p>
                         </div>
                     </div>
 

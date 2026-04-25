@@ -16,7 +16,10 @@ import {
   Shield,
   TrendingUp,
   MessageSquare,
-  Navigation
+  Navigation,
+  UploadCloud,
+  Sparkles,
+  Image as ImageIcon
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import api from '../services/api';
@@ -25,6 +28,7 @@ import TrustBadge from "../components/TrustBadge";
 import { useTrustScore } from "../hooks/useTrustScore";
 import { QRCodeSVG } from 'qrcode.react';
 import LocationLink from '../components/LocationLink';
+import { getProductImageUrls } from '../utils/productImages';
 
 interface ProductDetails {
   id: string;
@@ -66,6 +70,22 @@ interface ProductDetails {
     price: number;
     date: string;
   }>;
+  images?: string | string[] | null;
+}
+
+interface QualityAnalysis {
+  score: number;
+  grade: string;
+  freshness: string;
+  sizeUniformity: string;
+  visibleDefects: string;
+  recommendations: string[];
+  specifications: {
+    imageSize: string;
+    fileType: string;
+    brightness: string;
+    estimatedCategory: string;
+  };
 }
 
 const TraceabilityJourney: React.FC<{
@@ -150,6 +170,9 @@ function ProductDetails() {
   const [trace, setTrace] = useState<{ batches: Array<{ id: string; batchCode: string; harvestedAt?: string | null; events: Array<{ id: string; type: string; note?: string | null; location?: string | null; createdAt: string }> }> } | null>(null);
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<QualityAnalysis | null>(null);
+  const [analysisPreview, setAnalysisPreview] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -216,6 +239,33 @@ function ProductDetails() {
     }
   };
 
+  const analyzeImage = async (file: File) => {
+    setAnalyzing(true);
+    setAnalysis(null);
+    setAnalysisPreview(URL.createObjectURL(file));
+    try {
+      const form = new FormData();
+      form.append('image', file);
+      form.append('productName', product?.name || '');
+      form.append('category', product?.category || '');
+      const res = await api.post('/products/analyze-image', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setAnalysis(res.data.analysis);
+      toast.success('AI quality analysis complete');
+    } catch (error) {
+      toast.error('Failed to analyze product image');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleAnalyzeDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) await analyzeImage(file);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -240,6 +290,8 @@ function ProductDetails() {
     );
   }
 
+  const productImages = getProductImageUrls(product.images);
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -255,8 +307,12 @@ function ProductDetails() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Product Image */}
           <div className="bg-white rounded-lg shadow">
-            <div className="h-96 bg-gradient-to-br from-green-100 to-green-200 rounded-t-lg flex items-center justify-center">
-              <Leaf className="h-32 w-32 text-green-600" />
+            <div className="h-96 bg-gradient-to-br from-green-100 to-green-200 rounded-t-lg flex items-center justify-center overflow-hidden">
+              {productImages[0] ? (
+                <img src={productImages[0]} alt={product.name} className="h-full w-full object-cover" />
+              ) : (
+                <Leaf className="h-32 w-32 text-green-600" />
+              )}
             </div>
             
             {/* Product Badges */}
@@ -277,6 +333,67 @@ function ProductDetails() {
                 </span>
               </div>
             </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6 border border-emerald-100">
+            <div className="flex items-center gap-3 mb-4">
+              <Sparkles className="h-5 w-5 text-emerald-600" />
+              <h3 className="text-lg font-bold text-gray-900">AI Product Quality Check</h3>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Buyers can drag a farmer photo or upload a fresh image to estimate visible quality, defects, and listing specifications.
+            </p>
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleAnalyzeDrop}
+              className="border-2 border-dashed border-emerald-200 rounded-2xl p-6 text-center bg-emerald-50/50"
+            >
+              {analysisPreview ? (
+                <img src={analysisPreview} alt="Analysis preview" className="mx-auto mb-4 max-h-40 rounded-xl object-cover" />
+              ) : productImages[0] ? (
+                <img src={productImages[0]} alt="Farmer product" className="mx-auto mb-4 max-h-40 rounded-xl object-cover" />
+              ) : (
+                <ImageIcon className="h-10 w-10 text-emerald-500 mx-auto mb-3" />
+              )}
+              <p className="text-sm font-semibold text-gray-700">Drag and drop an image here</p>
+              <label className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-emerald-700">
+                <UploadCloud className="h-4 w-4" />
+                Upload image
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => e.target.files?.[0] && analyzeImage(e.target.files[0])}
+                />
+              </label>
+            </div>
+            {analyzing && <p className="mt-4 text-sm font-bold text-emerald-700">Analyzing visible quality...</p>}
+            {analysis && (
+              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="p-4 rounded-xl bg-slate-50">
+                  <p className="text-xs uppercase font-black text-slate-400">Score</p>
+                  <p className="text-2xl font-black text-emerald-700">{analysis.score}/100 · {analysis.grade}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-50">
+                  <p className="text-xs uppercase font-black text-slate-400">Freshness</p>
+                  <p className="font-bold">{analysis.freshness}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-50">
+                  <p className="text-xs uppercase font-black text-slate-400">Uniformity</p>
+                  <p className="font-bold">{analysis.sizeUniformity}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-50">
+                  <p className="text-xs uppercase font-black text-slate-400">Visible defects</p>
+                  <p className="font-bold">{analysis.visibleDefects}</p>
+                </div>
+                <div className="sm:col-span-2 p-4 rounded-xl bg-amber-50 border border-amber-100">
+                  <p className="text-xs uppercase font-black text-amber-700 mb-2">AI recommendations</p>
+                  <ul className="list-disc list-inside text-amber-900 space-y-1">
+                    {analysis.recommendations.map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Product Info */}

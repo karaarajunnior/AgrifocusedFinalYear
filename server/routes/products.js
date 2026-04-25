@@ -14,6 +14,7 @@ import {
 	deleteProduct,
 	getMyProducts,
 	getNearbyProducts,
+	analyzeProductImage,
 	updateProduct,
 	uploadProductImages as uploadProductImagesHandler,
 } from "../controllers/productsController.js";
@@ -50,6 +51,12 @@ const uploadProductImages = multer({
 		}
 		cb(null, true);
 	},
+});
+
+const analyzeProductUpload = multer({
+	storage: multer.memoryStorage(),
+	limits: { fileSize: 5 * 1024 * 1024 },
+	fileFilter: uploadProductImages.fileFilter,
 });
 
 // Upload product images (farmers only, own product)
@@ -92,6 +99,14 @@ router.get(
 	authenticateToken,
 	requireRole(["FARMER", "SUPERMARKET"]),
 	getMyProducts,
+);
+
+// Analyze a product photo for buyer/farmer quality checks.
+router.post(
+	"/analyze-image",
+	authenticateToken,
+	analyzeProductUpload.single("image"),
+	analyzeProductImage,
 );
 
 // Get all products with filters
