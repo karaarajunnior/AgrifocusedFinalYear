@@ -1,9 +1,18 @@
 import tf from "@tensorflow/tfjs";
 import prisma from "../db/prisma.js";
+import OpenAI from "openai";
 
 class AIService {
 	constructor() {
 		this.isInitialized = false;
+		if (process.env.OPENAI_API_KEY) {
+			this.openai = new OpenAI({
+				apiKey: process.env.OPENAI_API_KEY
+			});
+		} else {
+			console.warn("OPENAI_API_KEY not found. AI features will be disabled.");
+			this.openai = null;
+		}
 		this.initializeModels();
 	}
 
@@ -759,7 +768,125 @@ class AIService {
 		];
 	}
 
+	// OpenAI Intelligence Features
+	async getAIGuidance(userId) {
+		try {
+			const user = await prisma.user.findUnique({
+				where: { id: userId },
+				include: { products: true, orders: true }
+			});
+
+			const prompt = `Act as a senior agricultural business advisor for the Agrifocused platform.
+Analyze this user's state:
+- Role: ${user.role}
+- Products: ${user.products?.length || 0}
+- Verified: ${user.verified}
+- Location: ${user.location}
+
+Provide exactly 3 proactive "Next Steps" to help them maximize profit or efficiency.
+Output as JSON: { "steps": [{ "title": "string", "description": "string", "priority": "HIGH|MEDIUM" }] }`;
+
+			if (!this.openai) {
+				return [{ title: "Update Profile", description: "Keep your farm details updated for better matches.", priority: "MEDIUM" }];
+			}
+
+			const response = await this.openai.chat.completions.create({
+				model: "gpt-4o",
+				messages: [{ role: "user", content: prompt }],
+				response_format: { type: "json_object" }
+			});
+
+			return JSON.parse(response.choices[0].message.content).steps;
+		} catch (error) {
+			return [{ title: "Update Profile", description: "Keep your farm details updated for better matches.", priority: "MEDIUM" }];
+		}
+	}
+
+	async getMarketIntelligence(commodity, location) {
+		try {
+			const prompt = `Provide the latest market trends and prices for ${commodity} in ${location}. 
+Include:
+- Current farmgate price range (UGX/kg)
+- Market demand (High/Medium/Low)
+- 1-week outlook.
+Output as JSON: { "priceRange": "string", "demand": "string", "outlook": "string" }`;
+
+			if (!this.openai) {
+				return { priceRange: "Unavailable", demand: "Stable", outlook: "Normal" };
+			}
+
+			const response = await this.openai.chat.completions.create({
+				model: "gpt-4o",
+				messages: [{ role: "user", content: prompt }],
+				response_format: { type: "json_object" }
+			});
+
+			return JSON.parse(response.choices[0].message.content);
+		} catch (error) {
+			return { priceRange: "Unavailable", demand: "Stable", outlook: "Normal" };
+		}
+	}
+
+	async generateMarketingContent(product) {
+		try {
+			const prompt = `Generate a compelling, professional social media marketing snippet for this product:
+- Name: ${product.name}
+- Origin: ${product.location}
+- Quality: ${product.organic ? 'Organic' : 'Premium'}
+The goal is to attract high-value international buyers and local importers.
+Output as JSON: { "heading": "string", "body": "string", "hashtags": ["string"] }`;
+
+			if (!this.openai) {
+				return { heading: "Fresh Harvest", body: product.name, hashtags: ["#agri"] };
+			}
+
+			const response = await this.openai.chat.completions.create({
+				model: "gpt-4o",
+				messages: [{ role: "user", content: prompt }],
+				response_format: { type: "json_object" }
+			});
+
+			return JSON.parse(response.choices[0].message.content);
+		} catch (error) {
+			return { heading: "Fresh Harvest", body: product.name, hashtags: ["#agri"] };
+		}
+	}
+
+	async getProactiveMatches(userId) {
+		try {
+			const user = await prisma.user.findUnique({ where: { id: userId } });
+			let matches = [];
+
+			if (user.role === "FARMER") {
+				// Find buyers interested in things this farmer sells
+				const farmerProducts = await prisma.product.findMany({ where: { farmerId: userId } });
+				const categories = [...new Set(farmerProducts.map(p => p.category))];
+				
+				const buyers = await prisma.user.findMany({
+					where: { 
+						role: "BUYER",
+						orders: { some: { product: { category: { in: categories } } } }
+					},
+					take: 5
+				});
+				matches = buyers.map(b => ({ id: b.id, name: b.name, location: b.location, reason: "Recently bought similar quality" }));
+			} else {
+				// Find farmers with available stock matching buyer history
+				const products = await prisma.product.findMany({ 
+					where: { available: true, quantity: { gt: 0 } },
+					take: 5,
+					include: { user: true }
+				});
+				matches = products.map(p => ({ id: p.user.id, name: p.user.name, productName: p.name, reason: "Fresh harvest available now" }));
+			}
+			return matches;
+		} catch (error) {
+			return [];
+		}
+	}
+
 	// Fallback methods
+
 	getFallbackPricePrediction(productData) {
 		const basePrice = this.getBasePriceForCategory(productData.category);
 		const organicMultiplier = productData.organic ? 1.3 : 1.0;

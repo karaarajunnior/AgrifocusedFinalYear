@@ -23,6 +23,7 @@ import axios from 'axios';
 import { saveToCache, getFromCache } from '../utils/offlineCache';
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import OfflineBadge from '../components/OfflineBadge';
+import AdminVerificationRules from '../components/AdminVerificationRules';
 
 interface DashboardData {
   overview: {
@@ -137,6 +138,7 @@ interface AdminAgroInput {
 interface AgroShop {
   id: string;
   name: string;
+  email?: string;
   location: string;
 }
 
@@ -499,7 +501,8 @@ function AdminDashboard() {
                 { id: 'products', name: 'Products', icon: Package },
                 { id: 'activity', name: 'Activity', icon: Activity },
                 { id: 'blockchain', name: 'Blockchain', icon: Link2 },
-                { id: 'agro', name: 'Agro-Inputs', icon: ShoppingBag }
+                { id: 'agro', name: 'Agro-Inputs', icon: ShoppingBag },
+                { id: 'verification', name: 'AI Verification', icon: Shield }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1181,6 +1184,9 @@ function AdminDashboard() {
                   </>
                 )}
               </div>
+            )}
+            {activeTab === 'verification' && (
+              <AdminVerificationRules />
             )}
           </div>
         </div>

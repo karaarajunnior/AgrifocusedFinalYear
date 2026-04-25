@@ -13,10 +13,12 @@ interface User {
 	id: string;
 	name: string;
 	email: string;
-	role: "FARMER" | "BUYER" | "ADMIN" | "AGRO_SHOP";
+	role: "FARMER" | "BUYER" | "ADMIN" | "AGRO_SHOP" | "SUPERMARKET";
 	phone?: string;
 	location?: string;
 	address?: string;
+	latitude?: number;
+	longitude?: number;
 	avatar?: string;
 	verified: boolean;
 	isExportVerified: boolean;
@@ -48,10 +50,12 @@ interface RegisterData {
 	name: string;
 	email: string;
 	password: string;
-	role: "FARMER" | "BUYER" | "ADMIN";
+	role: "FARMER" | "BUYER" | "ADMIN" | "SUPERMARKET" | "AGRO_SHOP";
 	phone?: string;
 	location?: string;
 	address?: string;
+	latitude?: number;
+	longitude?: number;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

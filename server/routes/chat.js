@@ -11,6 +11,44 @@ import prisma from "../db/prisma.js";
 
 const router = express.Router();
 
+// List potential new contacts (based on orders/interactions)
+router.get(
+	"/potential-contacts",
+	authenticateToken,
+	async (req, res) => {
+		try {
+			let userIds = [];
+			if (req.user.role === "BUYER") {
+				// Buyers can see farmers they ordered from
+				const orders = await prisma.order.findMany({
+					where: { buyerId: req.user.id },
+					select: { farmerId: true },
+					distinct: ["farmerId"],
+				});
+				userIds = orders.map(o => o.farmerId);
+			} else if (req.user.role === "FARMER" || req.user.role === "SUPERMARKET") {
+				// Farmers can see buyers who ordered from them
+				const orders = await prisma.order.findMany({
+					where: { farmerId: req.user.id },
+					select: { buyerId: true },
+					distinct: ["buyerId"],
+				});
+				userIds = orders.map(o => o.buyerId);
+			}
+
+			const users = await prisma.user.findMany({
+				where: { id: { in: userIds } },
+				select: { id: true, name: true, role: true, location: true, verified: true },
+			});
+
+			res.json({ users });
+		} catch (error) {
+			console.error("Potential contacts error:", error);
+			res.status(500).json({ error: "Failed to fetch potential contacts" });
+		}
+	}
+);
+
 // List conversation counterparts (best-effort, based on recent messages)
 router.get(
 	"/conversations",

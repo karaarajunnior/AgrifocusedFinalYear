@@ -10,7 +10,8 @@ import {
   Star,
   Eye,
   Filter,
-  QrCode
+  QrCode,
+  MapPin
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import api from '../services/api';
@@ -19,6 +20,7 @@ import SpeakButton from "../components/SpeakButton";
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import { enqueueOfflineHandover, getOfflineHandoverQueue } from '../utils/offlineHandoverQueue';
 import { QRCodeSVG } from 'qrcode.react';
+import { getCurrentPosition } from '../utils/geolocation';
 
 interface Order {
   id: string;
@@ -171,7 +173,18 @@ function OrdersPage() {
       return;
     }
     try {
-      const res = await api.post("/delivery-proof/generate", { orderId });
+      let gpsLocation = "";
+      try {
+        const coords = await getCurrentPosition();
+        gpsLocation = `${coords.latitude},${coords.longitude}`;
+      } catch (gpsErr) {
+        console.warn("GPS detection failed during proof generation:", gpsErr);
+      }
+
+      const res = await api.post("/delivery-proof/generate", { 
+        orderId,
+        gpsLocation: gpsLocation || undefined
+      });
       setGeneratedProof(res.data?.proof || null);
       toast.success("Delivery proof generated. Show the code/QR to buyer.");
     } catch (error: unknown) {
@@ -196,7 +209,19 @@ function OrdersPage() {
       return;
     }
     try {
-      await api.post("/delivery-proof/confirm", { orderId: deliveryOrder.id, code: deliveryCode });
+      let gpsLocation = "";
+      try {
+        const coords = await getCurrentPosition();
+        gpsLocation = `${coords.latitude},${coords.longitude}`;
+      } catch (gpsErr) {
+        console.warn("GPS detection failed during confirmation:", gpsErr);
+      }
+
+      await api.post("/delivery-proof/confirm", { 
+        orderId: deliveryOrder.id, 
+        code: deliveryCode,
+        gpsLocation: gpsLocation || undefined
+      });
       toast.success("Delivery confirmed");
       setShowDeliveryModal(false);
       setDeliveryOrder(null);

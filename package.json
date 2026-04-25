@@ -20,6 +20,7 @@
 		"@capacitor/android": "^8.2.0",
 		"@capacitor/cli": "^8.2.0",
 		"@capacitor/core": "^8.2.0",
+		"@google/generative-ai": "^0.24.1",
 		"@metamask/eth-sig-util": "^8.2.0",
 		"@prisma/client": "5.22.0",
 		"@tensorflow/tfjs": "^4.22.0",

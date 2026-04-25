@@ -15,10 +15,20 @@ import {
 	CreditCard,
 	Award,
 	Smartphone,
-	Check
+	Check,
+	Share2,
+	Users,
+	ExternalLink,
+	UserPlus,
+	Download,
+	Mic,
+	X,
+	MapPin
 } from "lucide-react";
+import { useLanguage } from "../contexts/LanguageContext";
+import { t } from "../utils/translation";
+import { generateMarketingCard } from "../utils/marketingCard";
 import LoadingSpinner from "../components/LoadingSpinner";
-import ProfitMaximizer from "../components/ProfitMaximizer";
 import { Link } from "react-router-dom";
 import api from "../services/api";
 import { toast } from "react-hot-toast";
@@ -38,6 +48,9 @@ import { saveToCache, getFromCache } from "../utils/offlineCache";
 import { useOfflineSync } from "../hooks/useOfflineSync";
 import OfflineBadge from "../components/OfflineBadge";
 import { getOfflineProductCount } from "../utils/offlineProductQueue";
+import DocumentVerification from "../components/DocumentVerification";
+import { AIAdvisor, MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
+import { getCurrentPosition } from "../utils/geolocation";
 
 interface Product {
 	id: string;
@@ -80,6 +93,7 @@ interface MarketPrice {
 
 function FarmerDashboard() {
 	const { user } = useAuth();
+	const { language, setLanguage } = useLanguage();
 
 	const [products, setProducts] = useState<Product[]>([]);
 	const [analytics, setAnalytics] = useState<Analytics | null>(null);
@@ -88,7 +102,11 @@ function FarmerDashboard() {
 	const [cacheTime, setCacheTime] = useState<string | undefined>();
 	const [showAddProduct, setShowAddProduct] = useState(false);
 	const [showAllProducts, setShowAllProducts] = useState(false);
-	const [marketPrices, setMarketPrices] = useState<MarketPrice[]>([]);
+	const [showVerification, setShowVerification] = useState(false);
+	const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+	const [marketingContent, setMarketingContent] = useState<{heading: string, body: string, hashtags: string[]} | null>(null);
+	const [generatingMarketing, setGeneratingMarketing] = useState(false);
+	const [showMarketingModal, setShowMarketingModal] = useState(false);
 
 	const { isOnline } = useOfflineSync(() => {
 		fetchData();
@@ -111,6 +129,7 @@ function FarmerDashboard() {
 		defaultProductFormDefinition(),
 	);
 	const [customFields, setCustomFields] = useState<Record<string, unknown>>({});
+	const [potentialBuyers, setPotentialBuyers] = useState<any[]>([]);
 
 	const [newProduct, setNewProduct] = useState({
 		name: "",
@@ -120,8 +139,30 @@ function FarmerDashboard() {
 		quantity: "",
 		unit: "kg",
 		location: user?.location || "",
+		latitude: user?.latitude || undefined as number | undefined,
+		longitude: user?.longitude || undefined as number | undefined,
 		organic: false,
+		origin: "LOCAL" as "LOCAL" | "INTERNATIONAL",
 	});
+	const [locating, setLocating] = useState(false);
+
+	const handleDetectExactLocation = async () => {
+		setLocating(true);
+		try {
+			const coords = await getCurrentPosition();
+			setNewProduct({
+				...newProduct,
+				latitude: coords.latitude,
+				longitude: coords.longitude,
+				location: `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`
+			});
+			toast.success("Exact coordinates captured");
+		} catch (err) {
+			toast.error("Failed to detect exact location");
+		} finally {
+			setLocating(false);
+		}
+	};
 
 	useEffect(() => {
 		fetchData();
@@ -136,16 +177,18 @@ function FarmerDashboard() {
 
 	const fetchData = async () => {
 		try {
-			const [p, a, m, c] = await Promise.all([
+			const [p, a, m, c, pc] = await Promise.all([
 				api.get("/products/farmer/my-products"),
 				api.get("/analytics/farmer"),
 				api.get("/analytics/market-prices"),
 				api.get("/analytics/credit-score"),
+				api.get("/chat/potential-contacts"),
 			]);
 			setProducts(p.data.products);
 			setAnalytics(a.data);
 			setMarketPrices(m.data);
 			setCredit(c.data);
+			setPotentialBuyers(pc.data.users || []);
 
 			// Save to cache
 			saveToCache('farmer.products', p.data.products);
@@ -178,7 +221,7 @@ function FarmerDashboard() {
 		}
 	};
 
-	const isLastStep = () => addStep >= (simpleMode ? 2 : 3);
+	const isLastStep = () => addStep >= (simpleMode ? 3 : 4);
 
 	const submitProduct = async () => {
 		const payload = {
@@ -189,7 +232,10 @@ function FarmerDashboard() {
 			quantity: Number(newProduct.quantity),
 			unit: newProduct.unit,
 			location: newProduct.location || user?.location || "",
+			latitude: newProduct.latitude,
+			longitude: newProduct.longitude,
 			organic: simpleMode ? false : newProduct.organic,
+			origin: newProduct.origin,
 			customFields,
 		};
 
@@ -285,6 +331,21 @@ function FarmerDashboard() {
 			toast.success("Report downloaded successfully", { id: toastId });
 		} catch (err) {
 			toast.error("Failed to generate report", { id: toastId });
+		}
+	};
+
+	const handleGenerateMarketing = async (product: Product) => {
+		setSelectedProduct(product);
+		setGeneratingMarketing(true);
+		setShowMarketingModal(true);
+		try {
+			const res = await api.post('/intelligence/marketing-content', { productId: product.id });
+			setMarketingContent(res.data.content);
+		} catch (error) {
+			toast.error("AI failed to generate marketing content.");
+			setShowMarketingModal(false);
+		} finally {
+			setGeneratingMarketing(false);
 		}
 	};
 
@@ -386,6 +447,31 @@ function FarmerDashboard() {
 					</div>
 				)}
 
+				{/* Voice Action Hub */}
+				<div className="glass-card p-10 bg-slate-900 text-white border-0 shadow-2xl relative overflow-hidden group mb-10">
+					<div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+						<Mic className="h-24 w-24 text-emerald-500" />
+					</div>
+					<div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
+						<div className="max-w-xl text-center md:text-left">
+							<div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-[9px] font-black uppercase tracking-widest mb-6">
+								<div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+								Automated Speech Handling
+							</div>
+							<h3 className="text-3xl font-black uppercase tracking-tight mb-4">Voice Assistant Dashboard</h3>
+							<p className="text-slate-400 font-medium leading-relaxed">
+								"List 50kg Bag of Coffee" — Your speech is automatically translated and listed on the global marketplace. Luganda & English supported.
+							</p>
+						</div>
+						<button 
+							onClick={() => toast.success("Listening for Luganda/English commands...")}
+							className="px-10 py-5 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-500 transition-all flex items-center gap-3 shadow-xl shadow-emerald-900/40 whitespace-nowrap"
+						>
+							<Mic className="h-4 w-4" /> Start Voice Entry
+						</button>
+					</div>
+				</div>
+
 				<div className="grid lg:grid-cols-3 gap-8 mb-10">
 					{/* Left Column: Analytics & Proof */}
 					<div className="lg:col-span-2 space-y-8">
@@ -439,12 +525,165 @@ function FarmerDashboard() {
 							</div>
 						)}
 
-						<ProfitMaximizer onSellDirect={() => setShowAddProduct(true)} />
+
+						{/* Digital Sales Hub */}
+						<div className="glass-card p-8 bg-slate-900 text-white border-0 overflow-hidden relative">
+							<div className="absolute top-0 right-0 p-12 opacity-5">
+								<Globe className="h-48 w-48" />
+							</div>
+							<div className="relative z-10">
+								<h3 className="text-xl font-black uppercase tracking-tight mb-8">Global Sales & Prospecting Hub</h3>
+								
+								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+									<div className="p-6 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-all cursor-pointer group"
+										onClick={() => generateMarketingCard(user)}
+									>
+										<div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20 group-hover:rotate-12 transition-transform">
+											<Share2 className="h-6 w-6 text-white" />
+										</div>
+										<h4 className="font-bold text-lg mb-2">Heritage Card</h4>
+										<p className="text-[9px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">Social Share Link</p>
+									</div>
+
+									<div className="p-6 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-all cursor-pointer group">
+										<div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/20 group-hover:rotate-12 transition-transform">
+											<Users className="h-6 w-6 text-white" />
+										</div>
+										<h4 className="font-bold text-lg mb-2">Digital Coop</h4>
+										<p className="text-[9px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">Bundle for Export</p>
+									</div>
+
+									<div className="p-6 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-all cursor-pointer group"
+										onClick={() => toast.success("Generating Professional Export Brochure...")}
+									>
+										<div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-amber-500/20 group-hover:rotate-12 transition-transform">
+											<Download className="h-6 w-6 text-white" />
+										</div>
+										<h4 className="font-bold text-lg mb-2">Export Brochure</h4>
+										<p className="text-[9px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">USD/English PDF Link</p>
+									</div>
+
+									<div className="p-6 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-all cursor-pointer group"
+										onClick={() => toast.success("Invite link copied: agrifocused.com/join?ref=" + user?.id)}
+									>
+										<div className="w-12 h-12 bg-purple-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-purple-500/20 group-hover:rotate-12 transition-transform">
+											<UserPlus className="h-6 w-6 text-white" />
+										</div>
+										<h4 className="font-bold text-lg mb-2">Invite Neighbor</h4>
+										<p className="text-[9px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">Earn Trade Pioneer Badge</p>
+									</div>
+								</div>
+
+								<div className="mt-8 pt-8 border-t border-white/10">
+									<div className="flex justify-between items-center mb-6">
+										<h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Global Importer Prospector</h4>
+										<span className="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-[9px] font-black uppercase">Vetted Leads</span>
+									</div>
+									<div className="space-y-4">
+										{[
+											{ name: "Seattle Roastery Co.", region: "USA", interest: "Premium Arabica" },
+											{ name: "Nordic Beans Importers", region: "Norway", interest: "Single Origin" }
+										].map((lead, i) => (
+											<div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-transparent hover:border-emerald-500/30 transition-all">
+												<div>
+													<p className="font-bold text-sm tracking-tight">{lead.name}</p>
+													<p className="text-[9px] font-black text-slate-500 uppercase">{lead.region} · {lead.interest}</p>
+												</div>
+												<button className="p-3 bg-emerald-600 rounded-xl hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/20 text-white">
+													<ExternalLink className="h-4 w-4" />
+												</button>
+											</div>
+										))}
+									</div>
+								</div>
+							</div>
+						</div>
+
+						{/* Language Selector */}
+						<div className="glass-card p-4 flex gap-4 items-center">
+							<Globe className="h-5 w-5 text-slate-400" />
+							<p className="text-xs font-black uppercase tracking-widest text-slate-500">Language:</p>
+							<div className="flex gap-2">
+								<button 
+									onClick={() => setLanguage('en')}
+									className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${language === 'en' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+								>
+									English
+								</button>
+								<button 
+									onClick={() => setLanguage('ug')}
+									className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${language === 'ug' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+								>
+									Luganda
+								</button>
+							</div>
+						</div>
+
+						{/* Proactive Leads */}
+						<div className="mb-8">
+							<ProactiveLeads />
+						</div>
+
+						{/* My Potential Buyers (Legacy) */}
+						{potentialBuyers.length > 0 && (
+							<div className="glass-card p-8">
+								<h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-6">{t('proactive_engagement')}</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									{potentialBuyers.map((b: any) => (
+										<div key={b.id} className="p-4 bg-slate-50 flex items-center justify-between group hover:bg-emerald-50 transition-all border border-transparent hover:border-emerald-100 rounded-[2rem]">
+											<div className="flex items-center gap-3">
+												<div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center font-bold text-slate-400 capitalize shadow-sm">
+													{b.name[0]}
+												</div>
+												<div>
+													<p className="text-sm font-bold text-slate-900">{b.name}</p>
+													<div className="flex items-center gap-2">
+														<p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{b.location}</p>
+														<div className="w-1 h-1 rounded-full bg-emerald-500" />
+														<span className="text-[9px] font-bold text-emerald-600 uppercase">Ready to Buy</span>
+													</div>
+												</div>
+											</div>
+											<div className="flex gap-2">
+												<Link
+													to={`/chat?userId=${b.id}`}
+													className="p-3 bg-white text-emerald-600 rounded-2xl shadow-sm group-hover:bg-emerald-600 group-hover:text-white transition-all"
+												>
+													<Smartphone className="h-4 w-4" />
+												</Link>
+											</div>
+										</div>
+									))}
+								</div>
+							</div>
+						)}
+
+						<div className="mb-8">
+							<AIAdvisor />
+						</div>
+
+						<div className="flex flex-wrap gap-4 mb-8">
+							<button
+								onClick={() => setShowVerification(!showVerification)}
+								className={`flex items-center space-x-2 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all ${
+									showVerification ? "bg-slate-900 text-white shadow-xl" : "bg-white text-slate-600 hover:bg-slate-50 border-2 border-slate-100"
+								}`}
+							>
+								<ShieldCheck className="h-4 w-4" />
+								<span>{t("Verification")}</span>
+							</button>
+						</div>
+
+						{showVerification && (
+							<div className="mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
+								<DocumentVerification />
+							</div>
+						)}
 
 						{/* My Listings */}
 						<div className="glass-card overflow-hidden">
 							<div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-								<h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">inventory ledger</h3>
+								<h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">{t('my_listings')}</h3>
 								<button 
 									onClick={() => setShowAllProducts(!showAllProducts)}
 									className="text-xs font-black text-emerald-600 hover:text-emerald-700 flex items-center gap-2 uppercase tracking-widest transition-colors"
@@ -465,8 +704,21 @@ function FarmerDashboard() {
 											</div>
 										</div>
 										<div className="text-right">
-											<p className="font-black text-slate-900">UGX {product.price.toLocaleString()}</p>
+											<div className="flex flex-col items-end gap-1 mb-1">
+												<p className="font-black text-slate-900 leading-none">UGX {product.price.toLocaleString()}</p>
+												<div className="flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded text-[10px] font-bold text-emerald-700 mt-1">
+													<TrendingUp className="h-3 w-3" />
+													~43% vs Middleman
+												</div>
+											</div>
 											<p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{product.category}</p>
+											<button 
+												onClick={() => handleGenerateMarketing(product)}
+												className="mt-2 flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all opacity-0 group-hover:opacity-100"
+											>
+												<Share2 className="h-3 w-3" />
+												Gen AI Post
+											</button>
 										</div>
 									</div>
 								)) : (
@@ -502,22 +754,7 @@ function FarmerDashboard() {
 
 						<ClimateAlertsCard location={user?.location || "Kampala"} />
 
-						<div className="glass-card p-8 bg-slate-900 text-white border-0 shadow-emerald-900/20">
-							<h4 className="font-black text-white mb-6 flex items-center gap-2 uppercase tracking-widest text-xs">
-								<Zap className="h-4 w-4 text-amber-400" />
-								Market Price Index
-							</h4>
-							<div className="space-y-4">
-								{marketPrices.length > 0 ? marketPrices.map((mp, i) => (
-									<div key={i} className="flex justify-between items-center text-sm border-b border-white/10 pb-3 last:border-0 last:pb-0">
-										<span className="text-slate-400 font-medium">{mp.item}</span>
-										<span className="font-black text-emerald-400">UGX {mp.price.toLocaleString()}</span>
-									</div>
-								)) : (
-									<p className="text-xs text-slate-500 italic">No price baseline available.</p>
-								)}
-							</div>
-						</div>
+						<MarketIntelligence commodity="Coffee" />
 
 						<div className="glass-card p-8">
 							<div className="flex justify-between items-center mb-6">
@@ -553,18 +790,6 @@ function FarmerDashboard() {
 							</div>
 						</div>
 
-						{/* USSD Simulation Trigger */}
-						<div className="bg-amber-50 border-2 border-dashed border-amber-200 rounded-2xl p-6 text-center">
-							<Smartphone className="h-10 w-10 text-amber-600 mx-auto mb-3" />
-							<h4 className="font-bold text-amber-900 mb-1">Feature Phone (USSD)</h4>
-							<p className="text-xs text-amber-700 mb-4">Simulate how farmers without internet list products via *284#</p>
-							<button 
-								onClick={() => setShowUSSD(true)}
-								className="w-full py-2 bg-amber-600 text-white rounded-lg font-bold text-xs hover:bg-amber-700 transition"
-							>
-								Open USSD Simulation
-							</button>
-						</div>
 					</div>
 				</div>
 
@@ -576,7 +801,7 @@ function FarmerDashboard() {
 								<div className="flex justify-between items-center">
 									<div>
 										<h2 className="text-2xl font-bold text-gray-900">List Your Harvest</h2>
-										<p className="text-sm text-gray-500 mt-1">Step {addStep + 1} of {simpleMode ? 3 : 4}</p>
+										<p className="text-sm text-gray-500 mt-1">Step {addStep + 1} of {simpleMode ? 4 : 5}</p>
 									</div>
 									<button
 										onClick={() => { setShowAddProduct(false); setAddStep(0); }}
@@ -612,6 +837,17 @@ function FarmerDashboard() {
 												</button>
 											))}
 										</div>
+										<div className="pt-2">
+											<button
+												type="button"
+												onClick={handleDetectExactLocation}
+												disabled={locating}
+												className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:text-emerald-700 transition-colors"
+											>
+												<MapPin className={`h-4 w-4 ${locating ? 'animate-pulse' : ''}`} />
+												{newProduct.latitude ? 'Fine Location Captured' : 'Detect Fine Location'}
+											</button>
+										</div>
 									</div>
 								)}
 
@@ -636,6 +872,28 @@ function FarmerDashboard() {
 
 								{addStep === 2 && (
 									<div className="space-y-4">
+										<label className="block text-sm font-bold text-gray-700 uppercase tracking-wider">Product Origin</label>
+										<div className="flex gap-4">
+											<button
+												type="button"
+												onClick={() => setNewProduct({ ...newProduct, origin: "LOCAL" })}
+												className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border-2 transition ${newProduct.origin === "LOCAL" ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-gray-100 text-gray-500 hover:bg-gray-50'}`}
+											>
+												Local Market
+											</button>
+											<button
+												type="button"
+												onClick={() => setNewProduct({ ...newProduct, origin: "INTERNATIONAL" })}
+												className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border-2 transition ${newProduct.origin === "INTERNATIONAL" ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 text-gray-500 hover:bg-gray-50'}`}
+											>
+												International
+											</button>
+										</div>
+									</div>
+								)}
+
+								{addStep === 3 && (
+									<div className="space-y-4">
 										<label className="block text-sm font-bold text-gray-700 uppercase tracking-wider">Estimated Quantity</label>
 										<div className="relative">
 											<input
@@ -656,7 +914,7 @@ function FarmerDashboard() {
 									</div>
 								)}
 
-								{!simpleMode && addStep === 3 && (
+								{!simpleMode && addStep === 4 && (
 									<div className="space-y-6">
 										<div>
 											<label className="block text-sm font-bold text-gray-700 uppercase tracking-wider mb-2">Description</label>
@@ -763,9 +1021,72 @@ function FarmerDashboard() {
 						</div>
 					</div>
 				)}
-			</div>
+			{/* AI Marketing Modal */}
+			{showMarketingModal && (
+				<div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+					<div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+						<div className="p-10">
+							<div className="flex justify-between items-start mb-8">
+								<div className="flex items-center gap-3">
+									<div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600">
+										<Share2 className="h-6 w-6" />
+									</div>
+									<h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">AI Multi-Market Content</h3>
+								</div>
+								<button 
+									onClick={() => setShowMarketingModal(false)}
+									className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+								>
+									<X className="h-6 w-6 text-slate-400" />
+								</button>
+							</div>
+
+							{generatingMarketing ? (
+								<div className="py-20 text-center">
+									<div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+									<p className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] animate-pulse">Consulting Market Intelligence...</p>
+								</div>
+							) : marketingContent && (
+								<div className="space-y-8">
+									<div className="p-8 bg-slate-50 border border-slate-100 rounded-3xl">
+										<h4 className="text-base font-black text-slate-900 mb-4 uppercase leading-tight">{marketingContent.heading}</h4>
+										<p className="text-sm text-slate-600 font-medium leading-relaxed mb-6">{marketingContent.body}</p>
+										<div className="flex flex-wrap gap-2">
+											{marketingContent.hashtags.map((h, i) => (
+												<span key={i} className="text-[10px] font-bold text-emerald-600 bg-white px-2.5 py-1 rounded-lg border border-emerald-100">
+													{h}
+												</span>
+											))}
+										</div>
+									</div>
+									<div className="grid grid-cols-2 gap-4">
+										<button 
+											onClick={() => {
+												const content = `${marketingContent.heading}\n\n${marketingContent.body}\n\n${marketingContent.hashtags.join(' ')}`;
+												navigator.clipboard.writeText(content);
+												toast.success("Marketing content copied!");
+											}}
+											className="py-4 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
+										>
+											Copy text
+										</button>
+										<button 
+											onClick={() => toast.success("Connected to Facebook Business...")}
+											className="py-4 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-all"
+										>
+											Blast to Social
+										</button>
+									</div>
+									<p className="text-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">Powered by OpenAI GPT-4o Vision & Trade Search</p>
+								</div>
+							)}
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
-	);
+	</div>
+);
 }
 
 export default FarmerDashboard;

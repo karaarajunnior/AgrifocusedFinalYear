@@ -8,6 +8,7 @@ import {
 	setUserVerified,
 	updateUserProfile,
 	uploadAvatar,
+	getPublicPortfolio,
 } from "../controllers/usersController.js";
 import multer from "multer";
 import path from "path";
@@ -49,6 +50,9 @@ const router = express.Router();
 
 // Get user profile
 router.get("/profile/:id", authenticateToken, getUserProfile);
+
+// Public Portfolio (No token required)
+router.get("/public-portfolio/:id", getPublicPortfolio);
 
 // Update user profile
 router.put(

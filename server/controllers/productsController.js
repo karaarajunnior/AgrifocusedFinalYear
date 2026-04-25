@@ -72,7 +72,7 @@ export async function getNearbyProducts(req, res) {
 		const products = await prisma.product.findMany({
 			where,
 			include: {
-				farmer: { select: { id: true, name: true, location: true, verified: true } },
+				farmer: { select: { id: true, name: true, location: true, verified: true, latitude: true, longitude: true } },
 				reviews: { select: { rating: true } },
 				_count: { select: { orders: true, reviews: true } },
 			},
@@ -127,8 +127,11 @@ export async function createProduct(req, res) {
 			location,
 			images,
 			organic,
-
+			origin,
 			customFields,
+
+			latitude,
+			longitude,
 
 		} = req.body;
 
@@ -148,6 +151,9 @@ export async function createProduct(req, res) {
 				customFields: customFields ? JSON.stringify(customFields) : null,
 
 				organic: Boolean(organic),
+				origin: origin || "LOCAL",
+				latitude: latitude ? parseFloat(latitude) : null,
+				longitude: longitude ? parseFloat(longitude) : null,
 				farmerId: req.user.id,
 			},
 			include: {
@@ -199,10 +205,11 @@ export async function updateProduct(req, res) {
 			"expiryDate",
 			"location",
 			"organic",
+			"origin",
 			"available",
-
 			"customFields",
-
+			"latitude",
+			"longitude",
 		];
 
 		Object.keys(req.body || {}).forEach((key) => {

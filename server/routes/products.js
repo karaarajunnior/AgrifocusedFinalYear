@@ -56,7 +56,7 @@ const uploadProductImages = multer({
 router.post(
 	"/:id/images",
 	authenticateToken,
-	requireRole(["FARMER"]),
+	requireRole(["FARMER", "SUPERMARKET"]),
 	requireVerified,
 	uploadProductImages.array("images", 6),
 	uploadProductImagesHandler,
@@ -90,7 +90,7 @@ router.get(
 router.get(
 	"/farmer/my-products",
 	authenticateToken,
-	requireRole(["FARMER"]),
+	requireRole(["FARMER", "SUPERMARKET"]),
 	getMyProducts,
 );
 
@@ -112,6 +112,7 @@ router.get(
 				"PROCESSED",
 			]),
 		query("location").optional().isString(),
+		query("origin").optional().isIn(["LOCAL", "INTERNATIONAL"]),
 		query("minPrice").optional().isFloat({ min: 0 }),
 		query("maxPrice").optional().isFloat({ min: 0 }),
 		query("organic").optional().isBoolean(),
@@ -128,6 +129,7 @@ router.get(
 			const {
 				category,
 				location,
+				origin,
 				minPrice,
 				maxPrice,
 				organic,
@@ -143,6 +145,7 @@ router.get(
 
 			if (category) where.category = category;
 			if (location) where.location = { contains: location };
+			if (origin) where.origin = origin;
 			if (organic !== undefined) where.organic = organic === "true";
 			if (minPrice || maxPrice) {
 				where.price = {};
@@ -230,7 +233,7 @@ router.get(
 router.post(
 	"/",
 	authenticateToken,
-	requireRole(["FARMER"]),
+	requireRole(["FARMER", "SUPERMARKET"]),
 	requireVerified,
 	[
 		body("name").trim().isLength({ min: 2, max: 100 }),
@@ -250,6 +253,7 @@ router.post(
 		body("price").isFloat({ min: 0.01 }),
 		body("quantity").isInt({ min: 1 }),
 		body("location").trim().isLength({ min: 2 }),
+		body("origin").optional().isIn(["LOCAL", "INTERNATIONAL"]),
 		body("customFields").optional().isObject(),
 	],
 	createProduct,
@@ -340,7 +344,7 @@ router.get("/:id", async (req, res) => {
 router.put(
 	"/:id",
 	authenticateToken,
-	requireRole(["FARMER"]),
+	requireRole(["FARMER", "SUPERMARKET"]),
 	requireVerified,
 	[
 		body("name").optional().trim().isLength({ min: 2, max: 100 }),
@@ -366,6 +370,7 @@ router.put(
 		body("expiryDate").optional().isISO8601(),
 		body("location").optional().isString().trim().isLength({ min: 2, max: 120 }),
 		body("organic").optional().isBoolean(),
+		body("origin").optional().isIn(["LOCAL", "INTERNATIONAL"]),
 		body("available").optional().isBoolean(),
 		body("customFields").optional().isObject(),
 	],
@@ -376,7 +381,7 @@ router.put(
 router.delete(
 	"/:id",
 	authenticateToken,
-	requireRole(["FARMER"]),
+	requireRole(["FARMER", "SUPERMARKET"]),
 	requireVerified,
 	deleteProduct,
 );
@@ -385,7 +390,7 @@ router.delete(
 router.post(
 	"/:id/images",
 	authenticateToken,
-	requireRole(["FARMER"]),
+	requireRole(["FARMER", "SUPERMARKET"]),
 	requireVerified,
 	uploadProductImages.array("images", 6),
 	uploadProductImagesHandler,

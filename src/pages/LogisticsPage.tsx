@@ -15,6 +15,7 @@ import {
     ChevronDown,
     ChevronUp,
 } from 'lucide-react';
+import { getCurrentPosition } from '../utils/geolocation';
 
 interface CollectionSchedule {
     id: string;
@@ -40,7 +41,40 @@ interface CollectionRequest {
     status: string;
     createdAt: string;
     farmer: { id: string; name: string; phone: string; location: string };
+    orderId?: string;
 }
+
+const MapView: React.FC<{ subcounty: string }> = ({ subcounty }) => {
+    return (
+        <div className="relative w-full h-[300px] bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 mb-6">
+            <div className="absolute inset-0 opacity-20 pointer-events-none">
+                <svg width="100%" height="100%" viewBox="0 0 800 400">
+                    <path d="M50 200 Q 150 150 250 200 T 450 200 T 650 200" fill="none" stroke="#10b981" strokeWidth="4" strokeDasharray="8 4" />
+                    <circle cx="50" cy="200" r="6" fill="#10b981" />
+                    <circle cx="250" cy="200" r="6" fill="#10b981" />
+                    <circle cx="450" cy="200" r="6" fill="#10b981" />
+                    <circle cx="650" cy="200" r="6" fill="#10b981" />
+                </svg>
+            </div>
+            <div className="absolute top-1/2 left-1/4 -translate-y-1/2 flex flex-col items-center">
+                <div className="p-2 bg-white rounded-full shadow-lg border border-emerald-100 animate-bounce">
+                    <Truck className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div className="mt-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md shadow-xl">
+                    Truck in {subcounty}
+                </div>
+            </div>
+            <div className="absolute inset-x-8 bottom-8 flex justify-between">
+                {['Jinja Depot', 'Bugembe', 'Mpumudde', 'Mafubira'].map((stop, i) => (
+                    <div key={i} className="flex flex-col items-center">
+                        <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/20 mb-2" />
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{stop}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
 
 function LogisticsPage() {
     const { user } = useAuth();
@@ -49,6 +83,51 @@ function LogisticsPage() {
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [locating, setLocating] = useState(false);
+
+    const handleLocate = async (location: string) => {
+        try {
+            const res = await api.get(`/location/map-url?location=${encodeURIComponent(location)}`);
+            if (res.data.url) {
+                window.open(res.data.url, '_blank');
+            }
+        } catch (error) {
+            toast.error("Failed to generate map link");
+        }
+    };
+
+    const handleDetectCurrentLocation = async () => {
+        setLocating(true);
+        try {
+            // Try GPS first
+            try {
+                const coords = await getCurrentPosition();
+                setFormData({ 
+                    ...formData, 
+                    subcounty: `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`,
+                    district: 'Detected (GPS)'
+                });
+                toast.success("GPS Location Captured");
+                return;
+            } catch (gpsErr) {
+                console.warn("GPS failed, falling back to IP:", gpsErr);
+            }
+
+            const res = await api.get("/location/detect");
+            if (res.data && res.data.city) {
+                setFormData({ 
+                    ...formData, 
+                    subcounty: res.data.city,
+                    district: res.data.region || res.data.country || 'Uganda'
+                });
+                toast.success(`Detected: ${res.data.city}`);
+            }
+        } catch (error) {
+            toast.error("Failed to detect location");
+        } finally {
+            setLocating(false);
+        }
+    };
 
     // Form state for posting a schedule
     const [formData, setFormData] = useState({
@@ -215,7 +294,17 @@ function LogisticsPage() {
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Sub-county</label>
-                            <input type="text" required value={formData.subcounty} onChange={(e) => setFormData({ ...formData, subcounty: e.target.value })} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="e.g. Bugembe" />
+                            <div className="relative">
+                                <input type="text" required value={formData.subcounty} onChange={(e) => setFormData({ ...formData, subcounty: e.target.value })} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 pr-10" />
+                                <button
+                                    type="button"
+                                    onClick={handleDetectCurrentLocation}
+                                    disabled={locating}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-green-600 transition-colors disabled:opacity-50"
+                                >
+                                    <MapPin className={`h-4 w-4 ${locating ? 'animate-pulse text-green-500' : ''}`} />
+                                </button>
+                            </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">District</label>
@@ -295,7 +384,16 @@ function LogisticsPage() {
                                             </span>
                                         </div>
                                         <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-2">
-                                            <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {schedule.subcounty}, {schedule.district}</span>
+                                            <span className="flex items-center gap-1 group">
+                                                <MapPin className="h-4 w-4" /> 
+                                                {schedule.subcounty}, {schedule.district}
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); handleLocate(`${schedule.subcounty}, ${schedule.district}`); }}
+                                                    className="ml-1 text-[9px] font-black text-blue-600 uppercase tracking-tighter hover:underline opacity-0 group-hover:opacity-100 transition-all"
+                                                >
+                                                    Locate
+                                                </button>
+                                            </span>
                                             <span className="flex items-center gap-1"><Calendar className="h-4 w-4" /> {new Date(schedule.collectionDate).toLocaleDateString('en-UG', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
                                             <span className="flex items-center gap-1"><Users className="h-4 w-4" /> {schedule.requests.length} farmer{schedule.requests.length !== 1 ? 's' : ''}</span>
                                             {schedule.pricePerKg && (
@@ -326,7 +424,9 @@ function LogisticsPage() {
 
                             {/* Expanded Details */}
                             {isExpanded && (
-                                <div className="border-t px-5 py-4 bg-gray-50">
+                                <div className="border-t px-5 py-6 bg-gray-50/50">
+                                    <MapView subcounty={schedule.subcounty} />
+                                    
                                     {schedule.notes && (
                                         <p className="text-sm text-gray-600 mb-4 italic">"{schedule.notes}"</p>
                                     )}

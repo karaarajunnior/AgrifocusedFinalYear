@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import api from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from "react-hot-toast";
+import { Users, Plus, Globe } from "lucide-react";
 
 type Coop = {
   id: string;
@@ -118,9 +119,28 @@ export default function CoopPage() {
                   <div className="text-sm text-gray-600">You haven’t joined any yet.</div>
                 ) : (
                   myGroups.map((g) => (
-                    <div key={g.id} className="border rounded-lg p-3">
-                      <div className="font-medium text-gray-900">{g.name}</div>
-                      <div className="text-sm text-gray-600">{g.location || "—"}</div>
+                    <div key={g.id} className="bg-slate-900 text-white rounded-[2rem] p-6 relative overflow-hidden group mb-4">
+                      <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:rotate-12 transition-transform">
+                        <Globe className="h-16 w-16" />
+                      </div>
+                      <div className="relative z-10">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Active Export Pool</p>
+                            <h4 className="text-lg font-black">{g.name}</h4>
+                          </div>
+                          <span className="px-3 py-1 bg-white/10 rounded-full text-[9px] font-black uppercase">85% Full</span>
+                        </div>
+                        <div className="w-full bg-white/10 h-2 rounded-full mb-6">
+                          <div className="bg-emerald-500 h-full w-[85%] rounded-full" />
+                        </div>
+                        <button 
+                          onClick={() => toast.success("Committing harvest to export pool...")}
+                          className="w-full py-3 bg-white text-slate-900 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-emerald-100 transition-all"
+                        >
+                          Commit Harvest
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}

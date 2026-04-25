@@ -13,6 +13,7 @@ import { Toaster } from "react-hot-toast";
 import Navbar from "./components/Navbar";
 import LoadingSpinner from "./components/LoadingSpinner";
 import SplashScreen from "./components/SplashScreen";
+import VoiceAssistant from "./components/VoiceAssistant";
 
 // Pages
 import LandingPage from "./pages/LandingPage";
@@ -27,6 +28,8 @@ import MarketplacePage from "./pages/MarketplacePage";
 import OrdersPage from "./pages/OrdersPage";
 import AIModelPage from "./pages/AiModelpage";
 import ChatPage from "./pages/ChatPage";
+import PublicPortfolio from "./pages/PublicPortfolio";
+import RFPBoard from "./pages/RFPBoard";
 import CoopPage from "./pages/CoopPage";
 import FormBuilderPage from "./pages/FormBuilderPage";
 import LogisticsPage from "./pages/LogisticsPage";
@@ -69,12 +72,15 @@ function AppContent() {
 	return (
 		<div className="min-h-screen bg-gray-50">
 			<Navbar />
+			<VoiceAssistant />
 			<main>
 				<Routes>
 					{/* Public routes */}
 					<Route path="/" element={<LandingPage />} />
 					<Route path="/marketplace" element={<MarketplacePage />} />
 					<Route path="/product/:id" element={<ProductDetails />} />
+					<Route path="/portfolio/:id" element={<PublicPortfolio />} />
+					<Route path="/requests" element={<RFPBoard />} />
 					<Route path="/trace/:batchId" element={<TracePage />} />
 
 					{/* Auth routes */}
@@ -96,7 +102,7 @@ function AppContent() {
 						path="/dashboard"
 						element={
 							<ProtectedRoute>
-								{user?.role === "FARMER" && <FarmerDashboard />}
+								{(user?.role === "FARMER" || user?.role === "SUPERMARKET") && <FarmerDashboard />}
 								{user?.role === "BUYER" && <BuyerDashboard />}
 								{user?.role === "ADMIN" && <AdminDashboard />}
 							</ProtectedRoute>
@@ -250,13 +256,17 @@ function ProtectedRoute({ children, requireMfa = true }: { children: React.React
 	return <>{children}</>;
 }
 
+import { LanguageProvider } from "./contexts/LanguageContext";
+
 function App() {
 	return (
-		<AuthProvider>
-			<Router>
-				<AppContent />
-			</Router>
-		</AuthProvider>
+		<LanguageProvider>
+			<AuthProvider>
+				<Router>
+					<AppContent />
+				</Router>
+			</AuthProvider>
+		</LanguageProvider>
 	);
 }
 

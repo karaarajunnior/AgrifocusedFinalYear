@@ -6,6 +6,8 @@ import { useAuth } from "../contexts/AuthContext";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { toast } from "react-hot-toast";
 import { Mic, MessageCircle, Volume2, Globe, Square, Play, Trash2 } from "lucide-react";
+import { t, languageNames } from "../utils/translation";
+import { useLanguage } from "../contexts/LanguageContext";
 
 type UserSummary = {
 	id: string;
@@ -31,6 +33,7 @@ function ChatPage() {
 	const { user } = useAuth();
 	const [loading, setLoading] = useState(true);
 	const [conversations, setConversations] = useState<UserSummary[]>([]);
+	const [potentialContacts, setPotentialContacts] = useState<UserSummary[]>([]);
 	const [activeUserId, setActiveUserId] = useState<string | null>(null);
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [text, setText] = useState("");
@@ -40,8 +43,7 @@ function ChatPage() {
 	const [searchParams] = useSearchParams();
 	const initialUserId = searchParams.get("userId");
 
-	const [translations, setTranslations] = useState<{ [msgId: string]: string }>({});
-	const [targetLang, setTargetLang] = useState("luganda");
+	const { language } = useLanguage();
 	const [recording, setRecording] = useState(false);
 	const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
 	const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
@@ -72,6 +74,10 @@ function ChatPage() {
 				}
 
 				setConversations(fetchedConvs);
+				
+				const potentialRes = await api.get("/chat/potential-contacts");
+				setPotentialContacts(potentialRes.data.users || []);
+
 				setActiveUserId(initialUserId || fetchedConvs[0]?.id || null);
 			} catch (e) {
 				console.error(e);
@@ -146,14 +152,6 @@ function ChatPage() {
 		};
 	}, [socketUrl, activeUserId]);
 
-	useEffect(() => {
-		if (targetLang === "english") return; 
-		const lastMsg = messages[messages.length - 1];
-		if (lastMsg && !lastMsg.senderId.includes(user?.id || "---") && !translations[lastMsg.id]) {
-			translateMessage(lastMsg.id, lastMsg.content);
-		}
-	}, [messages, targetLang]);
-
 	const send = async () => {
 		if (!user || !activeUserId) return;
 		const content = text.trim();
@@ -225,18 +223,6 @@ function ChatPage() {
 		const utterance = new SpeechSynthesisUtterance(text);
 		utterance.rate = 0.9;
 		window.speechSynthesis.speak(utterance);
-	};
-
-	const translateMessage = async (msgId: string, text: string) => {
-		try {
-			const res = await api.post("/chat/translate", { text, targetLang });
-			if (res.data?.translated) {
-				setTranslations((prev) => ({ ...prev, [msgId]: res.data.translated }));
-			}
-		} catch (e) {
-			console.error(e);
-			toast.error("Translation failed");
-		}
 	};
 
 	const startRecording = async () => {
@@ -353,6 +339,33 @@ function ChatPage() {
 								))
 							)}
 						</div>
+						
+						{potentialContacts.length > 0 && (
+							<>
+								<h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 mt-10">
+									Potential Contacts
+								</h2>
+								<div className="space-y-2">
+									{potentialContacts.filter(pc => !conversations.some(c => c.id === pc.id)).map((c) => (
+										<button
+											key={c.id}
+											onClick={() => setActiveUserId(c.id)}
+											className={`w-full text-left px-3 py-2 rounded-lg border border-gray-100 hover:bg-gray-50 transition-all`}
+										>
+											<div className="flex items-center justify-between">
+												<div className="text-sm font-black text-slate-900 truncate">{c.name}</div>
+												{c.verified && (
+													<div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center shrink-0 ml-2 shadow-sm">
+														<span className="text-[10px] text-white font-bold">✓</span>
+													</div>
+												)}
+											</div>
+											<div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{c.role}</div>
+										</button>
+									))}
+								</div>
+							</>
+						)}
 					</div>
 
 					<div className="glass-card p-0 overflow-hidden lg:col-span-3 flex flex-col">
@@ -381,20 +394,15 @@ function ChatPage() {
 								<div className="h-[55vh] overflow-y-auto border border-gray-100 rounded-lg p-3 space-y-3">
 									{messages.map((m) => {
 										const isMine = m.senderId === user?.id;
-										const translated = translations[m.id];
+										const finalContent = t(m.content);
 										return (
 											<div key={m.id} className={`max-w-[85%] ${isMine ? "ml-auto text-right" : "mr-auto"}`}>
 												<div className={`inline-block px-3 py-2 rounded-lg relative group ${isMine ? "bg-green-600 text-white" : "bg-gray-100 text-gray-900"}`}>
-													<p className="text-sm whitespace-pre-wrap">{translated || m.content}</p>
+													<p className="text-sm whitespace-pre-wrap">{finalContent}</p>
 													<div className={`flex items-center gap-2 mt-2 pt-1 border-t ${isMine ? "border-green-500 justify-end" : "border-gray-200"}`}>
-														<button onClick={() => readAloud(translated || m.content)} className="p-1 hover:bg-black/10 rounded transition-colors" title="Read aloud">
+														<button onClick={() => readAloud(finalContent)} className="p-1 hover:bg-black/10 rounded transition-colors" title="Read aloud">
 															<Volume2 className="h-3.5 w-3.5" />
 														</button>
-														{!isMine && (
-															<button onClick={() => translateMessage(m.id, m.content)} className={`p-1 hover:bg-black/10 rounded transition-colors ${translated ? "text-blue-500" : ""}`} title={`Translate to ${targetLang}`}>
-																<Globe className="h-3.5 w-3.5" />
-															</button>
-														)}
 													</div>
 													{m.audioUrl && (
 														<div className="mt-2">
@@ -412,13 +420,10 @@ function ChatPage() {
 
 								<div className="mt-3 bg-gray-50 p-2 rounded-lg border border-gray-200 mb-2 flex items-center justify-between">
 									<div className="flex items-center gap-2">
-										<Globe className="h-4 w-4 text-gray-400" />
-										<select value={targetLang} onChange={(e) => setTargetLang(e.target.value)} className="text-xs bg-transparent border-none focus:ring-0 text-gray-600">
-											<option value="english">English (Default)</option>
-											<option value="luganda">Luganda (Central)</option>
-											<option value="runyankore">Runyankore (West)</option>
-											<option value="acholi">Acholi (North)</option>
-										</select>
+										<Globe className="h-4 w-4 text-emerald-500" />
+										<span className="text-xs text-gray-600 font-bold tracking-wide">
+											{language === 'en' ? 'Displaying raw English' : `Auto-Translating Chat to ${languageNames[language] || language}`}
+										</span>
 									</div>
 									<div className="text-[10px] text-gray-400 font-medium uppercase">Accessibility Tools</div>
 								</div>

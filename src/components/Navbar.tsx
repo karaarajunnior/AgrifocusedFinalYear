@@ -17,14 +17,16 @@ import {
 	ShoppingBag,
 	FileSignature,
 	Search,
-
 } from "lucide-react";
+import { t } from "../utils/translation";
+import { useLanguage } from "../contexts/LanguageContext";
 
 function Navbar() {
 	const { user, logout } = useAuth();
 	const navigate = useNavigate();
 	const location = useLocation();
 	const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+	const { language, setLanguage } = useLanguage();
 
 	const handleLogout = () => {
 		logout();
@@ -48,6 +50,21 @@ function Navbar() {
 						<span className="text-2xl font-black tracking-tight text-slate-900">DAFIS</span>
 					</Link>
 
+					{/* Language Toggle (Desktop Header) */}
+					<div className="hidden md:flex items-center ml-4 mr-auto">
+						<select 
+                            value={language}
+							onChange={(e) => setLanguage(e.target.value as any)}
+							className="px-3 py-1 text-xs font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer appearance-none">
+							<option value="en">English</option>
+							<option value="ug">Luganda</option>
+							<option value="ach">Acholi</option>
+							<option value="teo">Ateso</option>
+							<option value="lgg">Lugbara</option>
+							<option value="nyn">Runyankole</option>
+						</select>
+					</div>
+
 					{/* Desktop Navigation */}
 					<div className="hidden md:flex items-center space-x-6">
 						<Link
@@ -68,7 +85,7 @@ function Navbar() {
 										: "text-gray-600 hover:text-gray-900"
 										}`}>
 									<BarChart3 className="h-4 w-4" />
-									<span>Dashboard</span>
+									<span>{t('dashboard')}</span>
 								</Link>
 
 								<Link
@@ -78,7 +95,7 @@ function Navbar() {
 										: "text-gray-600 hover:text-gray-900"
 										}`}>
 									<Package className="h-4 w-4" />
-									<span>Orders</span>
+									<span>{t('orders')}</span>
 								</Link>
 
 								{(user.role === "FARMER" || user.role === "BUYER") && (
@@ -89,7 +106,7 @@ function Navbar() {
 											: "text-gray-600 hover:text-gray-900"
 											}`}>
 										<Truck className="h-4 w-4" />
-										<span>Logistics</span>
+										<span>{t('logistics')}</span>
 									</Link>
 								)}
 
@@ -160,7 +177,7 @@ function Navbar() {
 										: "text-gray-600 hover:text-gray-900"
 										}`}>
 									<MessageSquare className="h-4 w-4" />
-									<span>Chat</span>
+									<span>{t('chat')}</span>
 								</Link>
 
 								<div className="flex items-center space-x-6">
@@ -210,6 +227,22 @@ function Navbar() {
 				{/* Mobile menu */}
 				{isMenuOpen && (
 					<div className="md:hidden border-t border-gray-200 py-4">
+						<div className="px-4 mb-4">
+                            <select 
+                                value={language}
+                                onChange={(e) => {
+                                    setLanguage(e.target.value as any);
+                                    setIsMenuOpen(false);
+                                }}
+                                className="w-full text-center px-3 py-2 text-sm font-bold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors uppercase tracking-widest focus:outline-none cursor-pointer appearance-none">
+                                <option value="en">Switch Language: English</option>
+                                <option value="ug">Switch Language: Luganda</option>
+                                <option value="ach">Switch Language: Acholi</option>
+                                <option value="teo">Switch Language: Ateso</option>
+                                <option value="lgg">Switch Language: Lugbara</option>
+                                <option value="nyn">Switch Language: Runyankole</option>
+                            </select>
+						</div>
 						<div className="space-y-3">
 							<Link
 								to="/marketplace"

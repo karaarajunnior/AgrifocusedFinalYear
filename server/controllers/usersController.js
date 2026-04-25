@@ -16,6 +16,8 @@ export async function getUserProfile(req, res) {
 				email: req.user.id === id || req.user.role === "ADMIN" ? true : false,
 				role: true,
 				location: true,
+				latitude: true,
+				longitude: true,
 				phone: req.user.id === id || req.user.role === "ADMIN" ? true : false,
 				address: req.user.id === id || req.user.role === "ADMIN" ? true : false,
 				avatar: true,
@@ -83,6 +85,8 @@ export async function updateUserProfile(req, res) {
 			"notifyChat",
 			"notifyPayment",
 			"notifyOrder",
+			"latitude",
+			"longitude",
 		];
 
 		Object.keys(req.body).forEach((key) => {
@@ -106,6 +110,8 @@ export async function updateUserProfile(req, res) {
 				phone: true,
 				location: true,
 				address: true,
+				latitude: true,
+				longitude: true,
 				walletAddress: true,
 				avatar: true,
 				verified: true,
@@ -269,4 +275,35 @@ export async function uploadAvatar(req, res) {
 		res.status(500).json({ error: "Failed to upload avatar" });
 	}
 }
+export async function getPublicPortfolio(req, res) {
+	try {
+		const { id } = req.params;
 
+		const farmer = await prisma.user.findUnique({
+			where: { id },
+			select: {
+				id: true,
+				name: true,
+				location: true,
+				avatar: true,
+				verified: true,
+				role: true,
+				bio: true,
+			},
+		});
+
+		if (!farmer || farmer.role !== "FARMER") {
+			return res.status(404).json({ error: "Farmer portfolio not found" });
+		}
+
+		const products = await prisma.product.findMany({
+			where: { farmerId: id },
+			orderBy: { createdAt: "desc" },
+		});
+
+		res.json({ farmer, products });
+	} catch (error) {
+		console.error("Get public portfolio error:", error);
+		res.status(500).json({ error: "Failed to fetch public portfolio" });
+	}
+}

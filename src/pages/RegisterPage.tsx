@@ -10,8 +10,12 @@ import {
 	User,
 	Phone,
 	MapPin,
+	Target
 } from "lucide-react";
 import LoadingSpinner from "../components/LoadingSpinner";
+import api from "../services/api";
+import { toast } from "react-hot-toast";
+import { getCurrentPosition } from "../utils/geolocation";
 
 function RegisterPage() {
 	const [formData, setFormData] = useState({
@@ -19,14 +23,54 @@ function RegisterPage() {
 		email: "",
 		password: "",
 		confirmPassword: "",
-		role: "FARMER" as "FARMER" | "BUYER" | "ADMIN",
+		role: "FARMER" as "FARMER" | "BUYER" | "ADMIN" | "SUPERMARKET" | "AGRO_SHOP",
 		phone: "",
 		location: "",
 		address: "",
+		latitude: undefined as number | undefined,
+		longitude: undefined as number | undefined,
 	});
 	const [showPassword, setShowPassword] = useState(false);
 	const [countryCode, setCountryCode] = useState("+256");
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+	const [locating, setLocating] = useState(false);
+
+	const handleDetectLocation = async () => {
+		setLocating(true);
+		try {
+			// Try GPS first
+			try {
+				const coords = await getCurrentPosition();
+				setFormData({ 
+					...formData, 
+					latitude: coords.latitude, 
+					longitude: coords.longitude,
+					location: `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`
+				});
+				toast.success("GPS Location Captured");
+				return;
+			} catch (gpsErr) {
+				console.warn("GPS failed, falling back to IP:", gpsErr);
+			}
+
+			// Fallback to IP detect
+			const res = await api.get("/location/detect");
+			if (res.data && res.data.city) {
+				const locString = `${res.data.city}, ${res.data.country}`;
+				setFormData({ 
+					...formData, 
+					location: locString,
+					latitude: res.data.latitude,
+					longitude: res.data.longitude
+				});
+				toast.success(`Detected: ${locString}`);
+			}
+		} catch (error) {
+			toast.error("Failed to detect location");
+		} finally {
+			setLocating(false);
+		}
+	};
 	const [loading, setLoading] = useState(false);
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const { register } = useAuth();
@@ -77,6 +121,8 @@ function RegisterPage() {
 			phone: formData.phone ? `${countryCode}${formData.phone}` : undefined,
 			location: formData.location || undefined,
 			address: formData.address || undefined,
+			latitude: formData.latitude,
+			longitude: formData.longitude,
 		});
 
 		if (success) {
@@ -127,7 +173,7 @@ function RegisterPage() {
 							<label className="block text-sm font-medium text-gray-700 mb-2">
 								I am a
 							</label>
-							<div className="grid grid-cols-3 gap-3">
+							<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
 								<button
 									type="button"
 									onClick={() => setFormData({ ...formData, role: "FARMER" })}
@@ -147,6 +193,16 @@ function RegisterPage() {
 											: "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
 									}`}>
 									🛒 Buyer
+								</button>
+								<button
+									type="button"
+									onClick={() => setFormData({ ...formData, role: "SUPERMARKET" })}
+									className={`p-3 text-sm font-medium rounded-lg border-2 transition-colors ${
+										formData.role === "SUPERMARKET"
+											? "border-green-500 bg-green-50 text-green-700"
+											: "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+									}`}>
+									🏬 Market
 								</button>
 								<button
 									type="button"
@@ -364,9 +420,18 @@ function RegisterPage() {
 									type="text"
 									value={formData.location}
 									onChange={handleChange}
-									className="appearance-none relative block w-full pl-10 pr-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
+									className="appearance-none relative block w-full pl-10 pr-12 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
 									placeholder="City, State"
 								/>
+								<button
+									type="button"
+									onClick={handleDetectLocation}
+									disabled={locating}
+									className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-green-600 transition-colors disabled:opacity-50"
+									title="Detect current location"
+								>
+									<Target className={`h-5 w-5 ${locating ? 'animate-pulse text-green-500' : ''}`} />
+								</button>
 							</div>
 						</div>
 

@@ -11,11 +11,13 @@ import {
 	X,
 	Shield,
 	Star,
+	Target
 } from "lucide-react";
 import LoadingSpinner from "../components/LoadingSpinner";
 import api from "../services/api";
 import { toast } from "react-hot-toast";
 import axios from "axios";
+import { getCurrentPosition } from "../utils/geolocation";
 
 function ProfilePage() {
 	const { user, updateProfile, refreshUser } = useAuth();
@@ -26,6 +28,8 @@ function ProfilePage() {
 		phone: user?.phone || "",
 		location: user?.location || "",
 		address: user?.address || "",
+		latitude: user?.latitude,
+		longitude: user?.longitude,
 	});
 
 	const [pwLoading, setPwLoading] = useState(false);
@@ -40,6 +44,44 @@ function ProfilePage() {
 	const [mfaCode, setMfaCode] = useState("");
 	const [mfaDisable, setMfaDisable] = useState({ password: "", code: "" });
 	const [automationLoading, setAutomationLoading] = useState(false);
+	const [locating, setLocating] = useState(false);
+
+	const handleDetectLocation = async () => {
+		setLocating(true);
+		try {
+			// Try GPS first
+			try {
+				const coords = await getCurrentPosition();
+				setFormData({ 
+					...formData, 
+					latitude: coords.latitude, 
+					longitude: coords.longitude,
+					location: `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`
+				});
+				toast.success("GPS Location Captured");
+				return;
+			} catch (gpsErr) {
+				console.warn("GPS failed, falling back to IP:", gpsErr);
+			}
+
+			// Fallback to IP detect
+			const res = await api.get("/location/detect");
+			if (res.data && res.data.city) {
+				const locString = `${res.data.city}, ${res.data.country}`;
+				setFormData({ 
+					...formData, 
+					location: locString,
+					latitude: res.data.latitude,
+					longitude: res.data.longitude
+				});
+				toast.success(`Detected: ${locString}`);
+			}
+		} catch (error) {
+			toast.error("Failed to detect location");
+		} finally {
+			setLocating(false);
+		}
+	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -59,6 +101,8 @@ function ProfilePage() {
 			phone: user?.phone || "",
 			location: user?.location || "",
 			address: user?.address || "",
+			latitude: user?.latitude,
+			longitude: user?.longitude,
 		});
 		setIsEditing(false);
 	};
@@ -400,15 +444,26 @@ function ProfilePage() {
 										Location
 									</label>
 									{isEditing ? (
-										<input
-											type="text"
-											value={formData.location}
-											onChange={(e) =>
-												setFormData({ ...formData, location: e.target.value })
-											}
-											className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-											placeholder="City, State"
-										/>
+										<div className="relative">
+											<input
+												type="text"
+												value={formData.location}
+												onChange={(e) =>
+													setFormData({ ...formData, location: e.target.value })
+												}
+												className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 pr-10"
+												placeholder="City, State"
+											/>
+											<button
+												type="button"
+												onClick={handleDetectLocation}
+												disabled={locating}
+												className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-green-600 transition-colors disabled:opacity-50"
+												title="Detect current location"
+											>
+												<Target className={`h-5 w-5 ${locating ? 'animate-pulse text-green-500' : ''}`} />
+											</button>
+										</div>
 									) : (
 										<div className="flex items-center py-2">
 											<MapPin className="h-4 w-4 text-gray-400 mr-3" />

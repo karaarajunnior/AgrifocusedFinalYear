@@ -2,17 +2,23 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
-  Users,
   TrendingUp,
   Shield,
   Leaf,
-  BarChart3,
   Truck,
   Star,
   CheckCircle,
-  Globe
+  ShoppingCart,
+  Zap,
+  Navigation,
+  ExternalLink,
+  Award,
+  Users,
+  Trophy,
+  Globe,
+  Mic,
+  MapPin
 } from 'lucide-react';
-import ProfitMaximizer from '../components/ProfitMaximizer';
 
 function LandingPage() {
   return (
@@ -28,8 +34,8 @@ function LandingPage() {
                 to Markets
               </h1>
               <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-                Eliminate middlemen, increase profits, and access quality coffee directly from farmers.
-                Our decentralized platform ensures fair prices and transparent transactions for Uganda's coffee sector.
+                Eliminate middlemen, increase profits, and access quality coffee directly from farmers or supermarkets.
+                Our decentralized platform offers local and international market filters, map-based traceability, and a global voice interface for a seamless agricultural experience.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-6">
@@ -49,17 +55,17 @@ function LandingPage() {
               </div>
 
               <div className="mt-12 grid grid-cols-3 gap-8">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600">5K+</div>
-                  <div className="text-sm text-gray-600">Active Farmers</div>
+                <div className="text-center group">
+                  <div className="text-3xl font-bold text-green-600 group-hover:scale-110 transition-transform">5K+</div>
+                  <div className="text-sm text-gray-600 font-bold uppercase tracking-widest text-[10px] mt-1">Active Farmers</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600">500+</div>
-                  <div className="text-sm text-gray-600">Buyers</div>
+                <div className="text-center group border-x border-gray-100">
+                  <div className="text-3xl font-bold text-blue-600 group-hover:scale-110 transition-transform">500+</div>
+                  <div className="text-sm text-gray-600 font-bold uppercase tracking-widest text-[10px] mt-1">Global Buyers</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600">UGX 2B+</div>
-                  <div className="text-sm text-gray-600">Transactions</div>
+                <div className="text-center group">
+                  <div className="text-3xl font-bold text-emerald-600 group-hover:scale-110 transition-transform">UGX 2M+</div>
+                  <div className="text-sm text-gray-600 font-bold uppercase tracking-widest text-[10px] mt-1">Middleman Savings</div>
                 </div>
               </div>
             </div>
@@ -86,6 +92,101 @@ function LandingPage() {
         </div>
       </section>
 
+      {/* Global Export Flow Section */}
+      <section className="py-24 bg-slate-900 text-white overflow-hidden relative">
+        <div className="absolute top-0 right-0 p-12 opacity-10">
+          <Globe className="h-64 w-64" />
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tight mb-4">
+              Real-Time <span className="text-emerald-400">Global Export</span> Flow
+            </h2>
+            <p className="text-xl text-slate-400 max-w-2xl mx-auto">
+              Connecting rural Uganda to the rest of the world. See our verified trade routes live.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="bg-slate-800 rounded-[3rem] p-8 border border-slate-700 shadow-2xl relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative z-10">
+                <div className="flex justify-between items-center mb-12">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                      <Navigation className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Live Trade Hub</p>
+                      <h4 className="text-xl font-black">Kampala Export Terminal</h4>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Active Connection
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {[
+                    { country: 'United States', city: 'Seattle, WA', status: 'In Transit', progress: '65%', icon: '🇺🇸' },
+                    { country: 'Germany', city: 'Hamburg Port', status: 'Export Clearance', progress: '92%', icon: '🇩🇪' },
+                    { country: 'United Arab Emirates', city: 'Dubai DMCC', status: 'Completed', progress: '100%', icon: '🇦🇪' }
+                  ].map((route, i) => (
+                    <div key={i} className="p-6 bg-slate-900/50 rounded-2xl border border-slate-700/50 hover:border-emerald-500/50 transition-all">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex gap-4">
+                          <span className="text-3xl">{route.icon}</span>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{route.country}</p>
+                            <h5 className="font-bold text-lg">{route.city}</h5>
+                          </div>
+                        </div>
+                        <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-md ${route.status === 'Completed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                          {route.status}
+                        </span>
+                      </div>
+                      <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500" style={{ width: route.progress }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-12">
+              <div className="glass-card !bg-white/5 !border-white/10 p-10">
+                <Zap className="h-10 w-10 text-emerald-400 mb-6" />
+                <h3 className="text-2xl font-black uppercase tracking-tight mb-4">Direct Roaster Access</h3>
+                <p className="text-slate-400 leading-relaxed text-lg italic mb-8">
+                  "Our goal is to ensure that a roaster in California can buy from a farmer in Mbale as easily as buying from a local shop. Zero middlemen, maximum transparency."
+                </p>
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-3xl font-black text-white">400+</p>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Verified Roasters</p>
+                  </div>
+                  <div className="border-l border-white/10 pl-6">
+                    <p className="text-3xl font-black text-emerald-400">14</p>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Export Nodes</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link to="/register" className="flex-1 py-5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest text-center transition-all shadow-xl shadow-emerald-600/20">
+                  List Your Harvest Globally
+                </Link>
+                <button className="flex-1 py-5 border-2 border-white/10 hover:border-white/30 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all">
+                  <ExternalLink className="h-4 w-4" /> Global Importer Portal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -101,78 +202,44 @@ function LandingPage() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             <FeatureCard
-              icon={<Users className="h-8 w-8 text-blue-600" />}
-              title="DIRECT NETWORK"
-              description="Connect farmers directly with institutional buyers, eliminating inefficient intermediaries."
+              icon={<Globe className="h-8 w-8 text-blue-600" />}
+              title="GLOBAL & LOCAL"
+              description="Filter products based on local or international origin to find exactly what your market needs."
             />
 
             <FeatureCard
-              icon={<BarChart3 className="h-8 w-8 text-emerald-600" />}
-              title="PRICE DISCOVERY"
-              description="Real-time market data feed ensures absolute transparency in asset valuation."
+              icon={<Mic className="h-8 w-8 text-emerald-600" />}
+              title="VOICE INTERFACE"
+              description="Navigate the entire platform using just your voice. Perfect for hands-free field use."
             />
 
             <FeatureCard
-              icon={<Shield className="h-8 w-8 text-purple-600" />}
-              title="IMMUTABLE LEDGER"
-              description="Tamper-proof transaction records providing institutional-grade security."
+              icon={<MapPin className="h-8 w-8 text-purple-600" />}
+              title="TRUE TRACEABILITY"
+              description="Trace every batch back to its origin farm with our immutable ledger and visual journey maps."
             />
 
             <FeatureCard
-              icon={<Truck className="h-8 w-8 text-orange-600" />}
+              icon={<ShoppingCart className="h-8 w-8 text-orange-600" />}
+              title="SUPERMARKET HUB"
+              description="Integrated supermarkets selling premium processed goods alongside fresh farm produce."
+            />
+
+            <FeatureCard
+              icon={<Truck className="h-8 w-8 text-rose-600" />}
               title="PRECISION LOGISTICS"
-              description="Asset tracking and delivery optimization ensuring supply chain integrity."
+              description="Real-time truck tracking and route optimization for guaranteed supply chain integrity."
             />
 
             <FeatureCard
-              icon={<TrendingUp className="h-8 w-8 text-rose-600" />}
-              title="MARKET ANALYTICS"
-              description="Deep intelligence on pricing trends, demand forecasting, and yield opportunities."
-            />
-
-            <FeatureCard
-              icon={<CheckCircle className="h-8 w-8 text-teal-600" />}
-              title="QUALITY PROTOCOLS"
-              description="Standardized grading systems and verified participants for reliable sourcing."
+              icon={<Shield className="h-8 w-8 text-teal-600" />}
+              title="IMMUTABLE SECURITY"
+              description="Tamper-proof transaction records providing institutional-grade security for all participants."
             />
           </div>
         </div>
       </section>
 
-      {/* Profit Proof Section */}
-      <section className="py-20 bg-gray-50 border-y">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-3 gap-12 items-center">
-            <div className="lg:col-span-1">
-              <div className="inline-flex items-center px-4 py-2 rounded-full bg-green-100 text-green-700 text-sm font-bold mb-6">
-                <Globe className="h-4 w-4 mr-2" />
-                Verified Results
-              </div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6 leading-tight">
-                Mathematically Proven <span className="text-green-600">Profit Gains</span>
-              </h2>
-              <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-                We don't just promise better prices—we prove it. Our analytics engine compares real-time local middleman rates against direct export contracts to maximize your harvest's value.
-              </p>
-              <ul className="space-y-4">
-                {[
-                  'Eliminate 40%+ middleman markups',
-                  'Direct access to Kampala & Regional hubs',
-                  'Export-ready contracts for verified farmers'
-                ].map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-3 text-gray-700 font-medium">
-                    <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="lg:col-span-2">
-              <ProfitMaximizer />
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* How It Works */}
       <section className="py-20 bg-gray-50">
@@ -244,6 +311,142 @@ function LandingPage() {
               rating={5}
               avatar="https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&fit=crop"
             />
+          </div>
+        </div>
+      </section>
+
+      {/* Global Roaster's Corner Section */}
+      <section className="py-24 bg-white overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col lg:flex-row justify-between items-end mb-16 gap-8">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-xs font-black uppercase tracking-[0.2em] mb-6">
+                <Award className="h-3 w-3" /> Global Discovery Hub
+              </div>
+              <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-slate-900 mb-4">
+                Global <span className="text-blue-600">Roaster's</span> Corner
+              </h2>
+              <p className="text-xl text-slate-500 font-medium leading-relaxed">
+                Exclusive portal for international bulk buyers to discover verified, export-grade harvests with full traceability.
+              </p>
+            </div>
+            <Link to="/marketplace?origin=INTERNATIONAL" className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl shadow-slate-900/10">
+              Explore Global Inventory
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              { name: "Premium Bugisu Arabica", grade: "AA", region: "Mbale, Mt. Elgon", quantity: "25 Tons", roaster: "Direct Trade" },
+              { name: "Single Origin Robusta", grade: "Fine", region: "Masaka Highlands", quantity: "18 Tons", roaster: "Heritage Batch" },
+              { name: "High-Altitude Honey Process", grade: "Micro-lot", region: "Kapchorwa", quantity: "2 Tons", roaster: "Specialty Only" }
+            ].map((crop, i) => (
+              <div key={i} className="glass-card overflow-hidden group hover:translate-y-[-8px] transition-all border-blue-50">
+                <div className="h-48 bg-slate-100 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-emerald-500/10" />
+                  <div className="absolute inset-0 flex items-center justify-center opacity-10 group-hover:scale-110 transition-transform">
+                    <Leaf className="h-32 w-32" />
+                  </div>
+                  <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-blue-600 shadow-sm">
+                    Verified {crop.grade} Grade
+                  </div>
+                </div>
+                <div className="p-8">
+                  <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">{crop.name}</h4>
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">
+                    <MapPin className="h-3 w-3" /> {crop.region}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-50">
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Available</p>
+                      <p className="font-bold text-slate-900">{crop.quantity}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Class</p>
+                      <p className="font-bold text-blue-600">{crop.roaster}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Social Proof Leaderboard Section */}
+      <section className="py-24 bg-slate-50 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-slate-900 mb-4">
+              Market <span className="text-emerald-600">Impact</span> Leaderboard
+            </h2>
+            <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium">
+              Real-time social proof of the direct trade revolution.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+            <div className="glass-card p-10 bg-slate-900 text-white border-0 shadow-2xl relative">
+              <div className="absolute top-6 right-6">
+                <Trophy className="h-10 w-10 text-amber-400 opacity-20" />
+              </div>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Savings Counter</p>
+              <h3 className="text-5xl font-black text-emerald-400 mb-6 tracking-tighter">UGX 2.4M+</h3>
+              <p className="text-slate-400 leading-relaxed font-bold italic">
+                Saved from middlemen commissions this month alone. Directly into the pockets of Ugandan farmers.
+              </p>
+            </div>
+
+            <div className="lg:col-span-2 space-y-4">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Top Export Nodes (This Week)</h4>
+              {[
+                { node: "Mbale Central -> Global Roasters (USA)", volume: "12.4 Tons", impact: "+18% Farmer Profit" },
+                { node: "Kapchorwa Specialty -> Hamburg Port", volume: "4.2 Tons", impact: "+24% Farmer Profit" },
+                { node: "Southwestern Cooperative -> Dubai DMCC", volume: "8.1 Tons", impact: "+15% Farmer Profit" }
+              ].map((item, i) => (
+                <div key={i} className="flex items-center justify-between p-6 bg-white rounded-3xl border border-slate-100 group hover:border-emerald-500/30 transition-all">
+                  <div className="flex items-center gap-6">
+                    <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center font-black text-xs text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-all shadow-sm">
+                      0{i+1}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-900 tracking-tight">{item.node}</p>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">{item.impact}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-black text-slate-900">{item.volume}</p>
+                    <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Verified Trade</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Referral/Viral Section */}
+      <section className="py-24 relative overflow-hidden bg-slate-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="bg-gradient-to-br from-emerald-600 to-blue-700 rounded-[4rem] p-12 md:p-20 text-center text-white shadow-2xl overflow-hidden relative group">
+            <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative z-10 max-w-3xl mx-auto">
+              <Users className="h-16 w-16 mx-auto mb-8 text-white opacity-20" />
+              <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tight mb-8">
+                Build the <span className="text-emerald-300">Viral</span> Network
+              </h2>
+              <p className="text-xl text-emerald-50 font-medium leading-relaxed mb-12">
+                Refer a fellow farmer or a global importer and unlock exclusive "Trade Pioneer" badges and reduced transaction fees.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-6 justify-center">
+                <Link to="/register" className="px-10 py-5 bg-white text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-100 transition-all">
+                  Join as Pioneer
+                </Link>
+                <button className="px-10 py-5 border-2 border-white/20 hover:border-white/50 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white transition-all">
+                  Learn About Rewards
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>

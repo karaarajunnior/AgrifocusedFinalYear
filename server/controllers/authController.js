@@ -18,7 +18,7 @@ export async function register(req, res) {
 			return res.status(400).json({ errors: errors.array() });
 		}
 
-		const { email, password, name, role, phone, location, address } = req.body;
+		const { email, password, name, role, phone, location, address, latitude, longitude } = req.body;
 
 		const existingUser = await prisma.user.findUnique({ where: { email } });
 		if (existingUser) {
@@ -44,6 +44,8 @@ export async function register(req, res) {
 				phone,
 				location,
 				address,
+				latitude,
+				longitude,
 				verified: role === "ADMIN" ? true : false,
 				passwordChangedAt: new Date(),
 			},
@@ -372,6 +374,8 @@ export async function me(req, res) {
 				notifyChat: true,
 				notifyPayment: true,
 				notifyOrder: true,
+				latitude: true,
+				longitude: true,
 				createdAt: true,
 			},
 		});

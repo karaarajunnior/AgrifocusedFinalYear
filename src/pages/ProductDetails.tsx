@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { t } from '../utils/translation';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import { 
@@ -14,7 +15,8 @@ import {
   Leaf,
   Shield,
   TrendingUp,
-  MessageSquare
+  MessageSquare,
+  Navigation
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import api from '../services/api';
@@ -41,6 +43,8 @@ interface ProductDetails {
     id: string;
     name: string;
     location: string;
+    latitude: number | null;
+    longitude: number | null;
     phone: string;
     verified: boolean;
     createdAt: string;
@@ -60,6 +64,52 @@ interface ProductDetails {
     date: string;
   }>;
 }
+
+const TraceabilityJourney: React.FC<{ origin: string, location: string }> = ({ origin, location }) => {
+    return (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 mb-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-5">
+                <Navigation className="h-24 w-24" />
+            </div>
+            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-8">Product Journey Map</h3>
+            <div className="relative flex justify-between items-center px-4">
+                {/* Connecting Line */}
+                <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 -translate-y-1/2 z-0">
+                    <div className="h-full bg-emerald-500 w-full animate-progress" />
+                </div>
+                
+                {/* Points */}
+                <div className="relative z-10 flex flex-col items-center group">
+                    <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
+                        <Leaf className="h-6 w-6" />
+                    </div>
+                    <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('origin')}</p>
+                    <p className="text-xs font-bold text-slate-900">{origin || 'Local Farm'}</p>
+                    <div className="mt-2 p-2 bg-emerald-50 rounded-lg border border-emerald-100 flex flex-col items-center">
+                        <span className="text-[8px] font-black text-emerald-800 uppercase leading-none mb-1">{t('exact_origin')}</span>
+                        <span className="text-[7px] text-emerald-600 tabular-nums font-bold">0°20'44.2"N 32°35'44.4"E</span>
+                    </div>
+                </div>
+
+                <div className="relative z-10 flex flex-col items-center group">
+                    <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
+                        <Package className="h-6 w-6" />
+                    </div>
+                    <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('processing')}</p>
+                    <p className="text-xs font-bold text-slate-900">KAWA Verified</p>
+                </div>
+
+                <div className="relative z-10 flex flex-col items-center group">
+                    <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-slate-900/20 group-hover:scale-110 transition-transform">
+                        <MapPin className="h-6 w-6" />
+                    </div>
+                    <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('current')}</p>
+                    <p className="text-xs font-bold text-slate-900">{location}</p>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 function ProductDetails() {
   const { id } = useParams<{ id: string }>();
@@ -138,6 +188,18 @@ function ProductDetails() {
       }
       toast.error(message);
     }
+  };
+
+  const handleLocateFarmer = (farmer: ProductDetails['farmer']) => {
+    let url: string;
+    if (farmer.latitude && farmer.longitude) {
+      // Exact GPS pin — opens a precise marker on Google Maps
+      url = `https://www.google.com/maps?q=${farmer.latitude},${farmer.longitude}&z=16`;
+    } else {
+      // Fallback: text search
+      url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(farmer.location)}`;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   if (loading) {
@@ -242,10 +304,18 @@ function ProductDetails() {
                   <span className="ml-1 font-medium">{product.quantity} {product.unit}</span>
                 </div>
                 
-                <div className="flex items-center">
-                  <MapPin className="h-4 w-4 text-gray-400 mr-2" />
-                  <span className="text-gray-600">Location:</span>
-                  <span className="ml-1 font-medium">{product.location}</span>
+                <div className="flex items-center justify-between col-span-2 sm:col-span-1">
+                  <div className="flex items-center">
+                    <MapPin className="h-4 w-4 text-gray-400 mr-2" />
+                    <span className="text-gray-600">Location:</span>
+                    <span className="ml-1 font-medium">{product.location}</span>
+                  </div>
+                  <button 
+                    onClick={() => handleLocateFarmer(product.farmer)}
+                    className="text-[10px] font-black text-green-600 uppercase tracking-widest hover:underline px-2 py-1"
+                  >
+                    Locate
+                  </button>
                 </div>
                 
                 {product.harvestDate && (
@@ -269,6 +339,8 @@ function ProductDetails() {
                 )}
               </div>
             </div>
+
+            <TraceabilityJourney origin={product.farmer.location} location={product.location} />
 
             {/* Traceability */}
             {trace?.batches?.length ? (
@@ -373,7 +445,7 @@ function ProductDetails() {
                   <div className="flex-1">
                     <div className="text-sm text-gray-600 mb-1">Total Price</div>
                     <div className="text-xl font-bold text-green-600">
-                      ₹{(product.price * orderQuantity).toLocaleString()}
+                      UGX {(product.price * orderQuantity).toLocaleString()}
                     </div>
                   </div>
                 </div>
@@ -457,7 +529,7 @@ function ProductDetails() {
                     <span className="text-sm text-gray-600">
                       {new Date(entry.date).toLocaleDateString()}
                     </span>
-                    <span className="font-medium">₹{entry.price}</span>
+                    <span className="font-medium">UGX {entry.price.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
@@ -477,7 +549,7 @@ function ProductDetails() {
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h3 className="font-medium text-gray-900">{product.name}</h3>
                   <p className="text-sm text-gray-600">
-                    {orderQuantity} {product.unit} × ₹{product.price} = ₹{(product.price * orderQuantity).toLocaleString()}
+                    {orderQuantity} {product.unit} × UGX {product.price} = UGX {(product.price * orderQuantity).toLocaleString()}
                   </p>
                 </div>
                 

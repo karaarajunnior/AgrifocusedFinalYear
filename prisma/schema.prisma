@@ -34,6 +34,8 @@ model User {
   notifyWhatsapp          Boolean              @default(true)
   passwordChangedAt       DateTime             @default(now())
   walletAddress           String?              @db.VarChar(64)
+  latitude                Float?
+  longitude               Float?
   isExportVerified        Boolean              @default(false)
   agroInputs              AgroInput[]          @relation("ShopInputs")
   auditLogs               AuditLog[]           @relation("AuditLogActor")
@@ -88,8 +90,11 @@ model Product {
   chainListedAt    DateTime?
   chainProductId   Int?
   chainTxHash      String?        @db.VarChar(128)
-  country          String?        @db.VarChar(64)
-  listedOnChain    Boolean        @default(false)
+  country          String?              @db.VarChar(64)
+  origin           ProductOrigin        @default(LOCAL)
+  listedOnChain    Boolean              @default(false)
+  latitude         Float?
+  longitude        Float?
   customFields     String?        @db.LongText
   orders           Order[]
   priceHistory     PriceHistory[]
@@ -401,16 +406,18 @@ model Message {
 }
 
 model Document {
-  id            String   @id @default(cuid())
-  userId        String
-  originalName  String
-  mimeType      String
-  sizeBytes     Int
-  storagePath   String
-  extractedText String?  @db.LongText
-  aiSummary     String?  @db.LongText
-  createdAt     DateTime @default(now())
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String         @id @default(cuid())
+  userId          String
+  originalName    String
+  mimeType        String
+  sizeBytes       Int
+  storagePath     String
+  extractedText   String?        @db.LongText
+  aiSummary       String?        @db.LongText
+  status          DocumentStatus @default(PENDING)
+  verificationLog String?        @db.LongText
+  createdAt       DateTime       @default(now())
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId], map: "documents_userId_fkey")
   @@map("documents")
@@ -680,6 +687,7 @@ enum Role {
   BUYER
   ADMIN
   AGRO_SHOP
+  SUPERMARKET
 }
 
 enum Category {
@@ -731,3 +739,27 @@ enum LedgerAccountType {
   REVENUE
   EXPENSE
 }
+
+enum ProductOrigin {
+  LOCAL
+  INTERNATIONAL
+}
+
+model VerificationRule {
+  id              String   @id @default(cuid())
+  documentType    String   @db.VarChar(64)
+  criteria        String   @db.Text
+  isActive        Boolean  @default(true)
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("verification_rules")
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+

@@ -1,7 +1,8 @@
+import "dotenv/config";
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 import http from "http";
 import hpp from "hpp";
@@ -35,12 +36,14 @@ import inputRoutes from "./routes/inputs.js";
 import contractRoutes from "./routes/contracts.js";
 import gradingRoutes from "./routes/grading.js";
 import ussdRoutes from "./routes/ussd.js";
+import verificationRoutes from "./routes/verification.js";
+import intelligenceRoutes from "./routes/intelligence.js";
+import locationRoutes from "./routes/location.js";
+import translationRoutes from "./routes/translation.js";
 import cron from "node-cron";
 import { initSocket } from "./socket.js";
 import path from "path";
 import { fileURLToPath } from "url";
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -157,6 +160,10 @@ app.use("/api/inputs", inputRoutes);
 app.use("/api/contracts", contractRoutes);
 app.use("/api/grading", gradingRoutes);
 app.use("/api/ussd", ussdRoutes);
+app.use("/api/verification", verificationRoutes);
+app.use("/api/intelligence", intelligenceRoutes);
+app.use("/api/location", locationRoutes);
+app.use("/api/translate", translationRoutes);
 
 // Optional scheduled refresh of web market data
 if (String(process.env.MARKET_DATA_CRON_ENABLED || "false").toLowerCase() === "true") {
