@@ -172,7 +172,12 @@ function ProductDetails() {
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<QualityAnalysis | null>(null);
   const [analysisPreview, setAnalysisPreview] = useState<string | null>(null);
+  const [previewFailed, setPreviewFailed] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+
+  useEffect(() => () => {
+    if (analysisPreview) URL.revokeObjectURL(analysisPreview);
+  }, [analysisPreview]);
 
   useEffect(() => {
     if (id) {
@@ -242,7 +247,11 @@ function ProductDetails() {
   const analyzeImage = async (file: File) => {
     setAnalyzing(true);
     setAnalysis(null);
-    setAnalysisPreview(URL.createObjectURL(file));
+    setPreviewFailed(false);
+    setAnalysisPreview((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return URL.createObjectURL(file);
+    });
     try {
       const form = new FormData();
       form.append('image', file);
@@ -348,12 +357,24 @@ function ProductDetails() {
               onDrop={handleAnalyzeDrop}
               className="border-2 border-dashed border-emerald-200 rounded-2xl p-6 text-center bg-emerald-50/50"
             >
-              {analysisPreview ? (
-                <img src={analysisPreview} alt="Analysis preview" className="mx-auto mb-4 max-h-40 rounded-xl object-cover" />
-              ) : productImages[0] ? (
-                <img src={productImages[0]} alt="Farmer product" className="mx-auto mb-4 max-h-40 rounded-xl object-cover" />
+              {!previewFailed && analysisPreview ? (
+                <img
+                  src={analysisPreview}
+                  alt="Analysis preview"
+                  className="mx-auto mb-4 max-h-40 rounded-xl object-cover"
+                  onError={() => setPreviewFailed(true)}
+                />
+              ) : !previewFailed && productImages[0] ? (
+                <img
+                  src={productImages[0]}
+                  alt="Farmer product"
+                  className="mx-auto mb-4 max-h-40 rounded-xl object-cover"
+                  onError={() => setPreviewFailed(true)}
+                />
               ) : (
-                <ImageIcon className="h-10 w-10 text-emerald-500 mx-auto mb-3" />
+                <div className="mx-auto mb-4 flex h-28 w-28 items-center justify-center rounded-2xl bg-white border border-emerald-100">
+                  <ImageIcon className="h-10 w-10 text-emerald-500" />
+                </div>
               )}
               <p className="text-sm font-semibold text-gray-700">Drag and drop an image here</p>
               <label className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-emerald-700">
