@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import {
-	Zap,
 	ShieldCheck,
 	ArrowRight,
 	Globe,
@@ -15,7 +14,6 @@ import {
 	CreditCard,
 	Award,
 	Smartphone,
-	Check,
 	Share2,
 	Users,
 	ExternalLink,
@@ -25,8 +23,7 @@ import {
 	X,
 	MapPin,
 	Camera,
-	Upload,
-	Image as ImageIcon
+	Upload
 } from "lucide-react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { t } from "../utils/translation";
@@ -54,7 +51,6 @@ import { getOfflineProductCount } from "../utils/offlineProductQueue";
 import DocumentVerification from "../components/DocumentVerification";
 import { AIAdvisor, MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
 import { getCurrentPosition } from "../utils/geolocation";
-import { firstProductImage, resolveProductImageUrl } from "../utils/productImages";
 
 interface Product {
 	id: string;
@@ -845,7 +841,7 @@ function FarmerDashboard() {
 										<p className="text-sm text-gray-500 mt-1">Step {addStep + 1} of {simpleMode ? 4 : 5}</p>
 									</div>
 									<button
-										onClick={() => { setShowAddProduct(false); setAddStep(0); }}
+										onClick={resetAddProductModal}
 										className="p-2 hover:bg-gray-200 rounded-full transition"
 									>
 										<Plus className="h-6 w-6 rotate-45 text-gray-400" />
@@ -1015,12 +1011,61 @@ function FarmerDashboard() {
 									</div>
 								)}
 
+								<div
+									onDragOver={(e) => e.preventDefault()}
+									onDrop={(e) => {
+										e.preventDefault();
+										if (e.dataTransfer.files?.length) handleProductPhotos(e.dataTransfer.files);
+									}}
+									className="border-2 border-dashed border-emerald-200 rounded-3xl p-4 bg-emerald-50/60"
+								>
+									<div className="flex items-center justify-between gap-4">
+										<div className="flex items-center gap-3">
+											<div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center text-emerald-600 shadow-sm">
+												<Camera className="h-5 w-5" />
+											</div>
+											<div>
+												<p className="text-sm font-black text-slate-800 uppercase">Product photos</p>
+												<p className="text-xs text-slate-500">Take or upload harvest photos so buyers see the crop.</p>
+											</div>
+										</div>
+										<label className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-emerald-700 flex items-center gap-2">
+											<Upload className="h-4 w-4" />
+											Take photo
+											<input
+												type="file"
+												accept="image/*"
+												capture="environment"
+												multiple
+												className="hidden"
+												onChange={(e) => e.target.files && handleProductPhotos(e.target.files)}
+											/>
+										</label>
+									</div>
+									{photoPreviews.length > 0 && (
+										<div className="mt-4">
+											<div className="grid grid-cols-3 gap-2 mb-3">
+												{photoPreviews.map((url) => (
+													<img key={url} src={url} alt="Product preview" className="h-20 w-full object-cover rounded-xl border border-white" />
+												))}
+											</div>
+											<button
+												type="button"
+												onClick={clearProductPhotos}
+												className="text-[10px] font-black uppercase tracking-widest text-rose-600 hover:text-rose-700"
+											>
+												Remove photos
+											</button>
+										</div>
+									)}
+								</div>
+
 								<div className="flex gap-4 pt-4">
 									<button
 										type="button"
 										onClick={() => {
 											if (addStep > 0) setAddStep(s => s - 1);
-											else setShowAddProduct(false);
+											else resetAddProductModal();
 										}}
 										className="flex-1 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition"
 									>

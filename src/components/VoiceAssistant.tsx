@@ -7,6 +7,53 @@ import { t, translateCommandAsync } from '../utils/translation';
 import api from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
 
+const recognitionLangs: Record<string, string> = {
+    en: 'en-US',
+    ug: 'lg-UG',
+    ach: 'en-UG',
+    teo: 'en-UG',
+    lgg: 'en-UG',
+    nyn: 'en-UG',
+};
+
+const numberWords: Record<string, number> = {
+    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    eleven: 11, twelve: 12, twenty: 20, thirty: 30, forty: 40, fifty: 50, hundred: 100,
+};
+
+function extractNumber(text: string): number | null {
+    const numeric = text.replace(/,/g, '').match(/\d+(?:\.\d+)?/);
+    if (numeric) return Number(numeric[0]);
+    for (const [word, value] of Object.entries(numberWords)) {
+        if (text.includes(word)) return value;
+    }
+    return null;
+}
+
+function guessCategory(name: string) {
+    const normalized = name.toLowerCase();
+    if (normalized.includes('coffee') || normalized.includes('kaawa') || normalized.includes('emmwanyi')) return 'COFFEE';
+    if (normalized.includes('milk') || normalized.includes('dairy')) return 'DAIRY';
+    if (normalized.includes('chicken') || normalized.includes('egg') || normalized.includes('poultry')) return 'POULTRY';
+    if (normalized.includes('bean') || normalized.includes('pea')) return 'PULSES';
+    if (normalized.includes('rice') || normalized.includes('maize') || normalized.includes('grain')) return 'GRAINS';
+    if (normalized.includes('fruit') || normalized.includes('banana') || normalized.includes('mango')) return 'FRUITS';
+    return 'VEGETABLES';
+}
+
+function extractProductListing(cmd: string) {
+    const quantity = extractNumber(cmd.match(/(?:quantity|amount|stock|with)\s+(.+)/)?.[1] || cmd);
+    const priceText = cmd.match(/(?:price|at|for|costs?|ugx|shillings?)\s+([a-z0-9,\s.]+)/)?.[1] || '';
+    const price = extractNumber(priceText) || extractNumber(cmd.split(/price|at|for|ugx|shillings?/).pop() || '');
+    const productMatch = cmd.match(/(?:list|sell|add|teeka|tunda)\s+(?:this\s+)?(?:product\s+)?(.+?)(?:\s+(?:with|at|for|price|quantity|qty|kg|kilograms?|ugx|shillings?)\b|$)/);
+    const name = (productMatch?.[1] || cmd.replace(/i want to|please|list|sell|add|this product|with|price|quantity|kg|kilograms|ugx|shillings/gi, ' '))
+        .replace(/\d+/g, ' ')
+        .trim()
+        .replace(/\s+/g, ' ');
+    if (!name || !quantity || !price) return null;
+    return { name, quantity, price };
+}
+
 type SpeechRecognitionLike = {
     continuous: boolean;
     interimResults: boolean;
@@ -59,53 +106,6 @@ const VoiceAssistant: React.FC = () => {
     type VoiceState = 'IDLE' | 'AWAITING_PRODUCT_NAME' | 'AWAITING_QUANTITY' | 'AWAITING_PRICE' | 'AWAITING_CONFIRMATION' | 'AWAITING_SEARCH_QUERY';
     const [voiceState, setVoiceState] = useState<VoiceState>('IDLE');
     const [pendingProduct, setPendingProduct] = useState({ name: '', quantity: 0, price: 0 });
-
-    const recognitionLangs: Record<string, string> = {
-        en: 'en-US',
-        ug: 'lg-UG',
-        ach: 'en-UG',
-        teo: 'en-UG',
-        lgg: 'en-UG',
-        nyn: 'en-UG',
-    };
-
-    const numberWords: Record<string, number> = {
-        one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
-        eleven: 11, twelve: 12, twenty: 20, thirty: 30, forty: 40, fifty: 50, hundred: 100,
-    };
-
-    const extractNumber = (text: string): number | null => {
-        const numeric = text.replace(/,/g, '').match(/\d+(?:\.\d+)?/);
-        if (numeric) return Number(numeric[0]);
-        for (const [word, value] of Object.entries(numberWords)) {
-            if (text.includes(word)) return value;
-        }
-        return null;
-    };
-
-    const guessCategory = (name: string) => {
-        const normalized = name.toLowerCase();
-        if (normalized.includes('coffee') || normalized.includes('kaawa') || normalized.includes('emmwanyi')) return 'COFFEE';
-        if (normalized.includes('milk') || normalized.includes('dairy')) return 'DAIRY';
-        if (normalized.includes('chicken') || normalized.includes('egg') || normalized.includes('poultry')) return 'POULTRY';
-        if (normalized.includes('bean') || normalized.includes('pea')) return 'PULSES';
-        if (normalized.includes('rice') || normalized.includes('maize') || normalized.includes('grain')) return 'GRAINS';
-        if (normalized.includes('fruit') || normalized.includes('banana') || normalized.includes('mango')) return 'FRUITS';
-        return 'VEGETABLES';
-    };
-
-    const extractProductListing = (cmd: string) => {
-        const quantity = extractNumber(cmd.match(/(?:quantity|amount|stock|with)\s+(.+)/)?.[1] || cmd);
-        const priceText = cmd.match(/(?:price|at|for|costs?|ugx|shillings?)\s+([a-z0-9,\s.]+)/)?.[1] || '';
-        const price = extractNumber(priceText) || extractNumber(cmd.split(/price|at|for|ugx|shillings?/).pop() || '');
-        const productMatch = cmd.match(/(?:list|sell|add|teeka|tunda)\s+(?:this\s+)?(?:product\s+)?(.+?)(?:\s+(?:with|at|for|price|quantity|qty|kg|kilograms?|ugx|shillings?)\b|$)/);
-        const name = (productMatch?.[1] || cmd.replace(/i want to|please|list|sell|add|this product|with|price|quantity|kg|kilograms|ugx|shillings/gi, ' '))
-            .replace(/\d+/g, ' ')
-            .trim()
-            .replace(/\s+/g, ' ');
-        if (!name || !quantity || !price) return null;
-        return { name, quantity, price };
-    };
 
     const submitVoiceProduct = async (product: { name: string; quantity: number; price: number }) => {
         await api.post('/products', {
