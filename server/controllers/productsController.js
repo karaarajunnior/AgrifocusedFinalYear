@@ -4,6 +4,106 @@ import locationService from "../utils/locationService.js";
 import { writeAuditLog } from "../services/auditLogService.js";
 import path from "path";
 
+function readUInt24BE(buffer, offset) {
+	return (buffer[offset] << 16) + (buffer[offset + 1] << 8) + buffer[offset + 2];
+}
+
+function getImageDimensions(buffer, mimetype) {
+	try {
+		if (mimetype === "image/png" && buffer.toString("ascii", 1, 4) === "PNG") {
+			return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+		}
+
+		if (mimetype === "image/jpeg") {
+			let offset = 2;
+			while (offset < buffer.length) {
+				if (buffer[offset] !== 0xff) break;
+				const marker = buffer[offset + 1];
+				const length = buffer.readUInt16BE(offset + 2);
+				if (marker >= 0xc0 && marker <= 0xc3) {
+					return {
+						height: buffer.readUInt16BE(offset + 5),
+						width: buffer.readUInt16BE(offset + 7),
+					};
+				}
+				offset += 2 + length;
+			}
+		}
+
+		if (mimetype === "image/webp" && buffer.toString("ascii", 0, 4) === "RIFF") {
+			const chunk = buffer.toString("ascii", 12, 16);
+			if (chunk === "VP8X") {
+				return {
+					width: readUInt24BE(buffer, 24) + 1,
+					height: readUInt24BE(buffer, 27) + 1,
+				};
+			}
+			if (chunk === "VP8 ") {
+				return {
+					width: buffer.readUInt16LE(26) & 0x3fff,
+					height: buffer.readUInt16LE(28) & 0x3fff,
+				};
+			}
+			if (chunk === "VP8L") {
+				const bits = buffer.readUInt32LE(21);
+				return {
+					width: (bits & 0x3fff) + 1,
+					height: ((bits >> 14) & 0x3fff) + 1,
+				};
+			}
+		}
+	} catch {
+		return null;
+	}
+	return null;
+}
+
+function buildImageQualityReport(file, product = null) {
+	const dimensions = getImageDimensions(file.buffer, file.mimetype);
+	const megapixels = dimensions ? Number(((dimensions.width * dimensions.height) / 1_000_000).toFixed(2)) : null;
+	const recommendations = [];
+	let score = 58;
+
+	if (dimensions) {
+		if (dimensions.width >= 1200 && dimensions.height >= 900) score += 20;
+		else recommendations.push("Retake closer or use a higher resolution camera for buyer inspection.");
+
+		const ratio = dimensions.width / dimensions.height;
+		if (ratio >= 0.75 && ratio <= 1.8) score += 8;
+		else recommendations.push("Crop the product so the harvest fills most of the frame.");
+	} else {
+		recommendations.push("Could not read image dimensions; upload JPEG, PNG, or WEBP.");
+	}
+
+	if (file.size >= 120_000 && file.size <= 5_000_000) score += 10;
+	else if (file.size < 120_000) recommendations.push("Image file is very small; details may not be visible to buyers.");
+
+	if (["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) score += 4;
+	const finalScore = Math.max(0, Math.min(100, score));
+
+	return {
+		score: finalScore,
+		grade: finalScore >= 85 ? "Export-ready" : finalScore >= 70 ? "Market-ready" : "Needs clearer photo",
+		specifications: {
+			productName: product?.name || "Uploaded sample",
+			category: product?.category || "Unknown",
+			format: file.mimetype.replace("image/", "").toUpperCase(),
+			fileSizeKb: Math.round(file.size / 1024),
+			width: dimensions?.width || null,
+			height: dimensions?.height || null,
+			megapixels,
+		},
+		signals: [
+			dimensions ? `${dimensions.width}x${dimensions.height} image captured` : "Image dimensions unavailable",
+			product ? `Compared against listing: ${product.name}` : "Standalone buyer sample",
+			"AI estimate uses photo metadata and listing context; confirm final grade physically.",
+		],
+		recommendations: recommendations.length
+			? recommendations
+			: ["Photo is clear enough for marketplace review.", "Add a close-up and a full-batch photo for stronger buyer trust."],
+	};
+}
+
 export async function uploadProductImages(req, res) {
 	try {
 		const { id } = req.params;
@@ -47,6 +147,26 @@ export async function uploadProductImages(req, res) {
 	} catch (error) {
 		console.error("Upload product images error:", error);
 		res.status(500).json({ error: "Failed to upload images" });
+	}
+}
+
+export async function analyzeProductImage(req, res) {
+	try {
+		const file = req.file;
+		if (!file) return res.status(400).json({ error: "No image uploaded" });
+
+		let product = null;
+		if (req.body?.productId) {
+			product = await prisma.product.findUnique({
+				where: { id: String(req.body.productId) },
+				select: { id: true, name: true, category: true, price: true, quantity: true, unit: true, images: true },
+			});
+		}
+
+		res.json({ analysis: buildImageQualityReport(file, product) });
+	} catch (error) {
+		console.error("Analyze product image error:", error);
+		res.status(500).json({ error: "Failed to analyze image" });
 	}
 }
 

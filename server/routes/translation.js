@@ -1,6 +1,6 @@
 import express from 'express';
 import { translateText } from '../services/translate.service.js';
-import { normalizeLanguageCode } from '../services/translationService.js';
+import { normalizeLocalLanguage } from '../services/translationService.js';
 
 const router = express.Router();
 
@@ -16,8 +16,8 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: 'Text is required for translation' });
         }
 
-        const source = normalizeLanguageCode(sourceLanguage || 'en');
-        const target = normalizeLanguageCode(targetLanguage || 'ug');
+        const source = normalizeLocalLanguage(sourceLanguage || 'en');
+        const target = normalizeLocalLanguage(targetLanguage || 'ug');
         const translated = await translateText(text, source, target);
         
         res.json({ original: text, translated, sourceLanguage: source, targetLanguage: target });

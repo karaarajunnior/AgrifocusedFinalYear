@@ -3,8 +3,8 @@ import { body, validationResult } from "express-validator";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import {
 	changePassword,
-	getAccountReview,
 	getUserProfile,
+	listAccountReviewAlerts,
 	listUsers,
 	setUserVerified,
 	updateAccountStatus,
@@ -100,7 +100,7 @@ router.get(
 	"/account-review/alerts",
 	authenticateToken,
 	requireRole(["ADMIN"]),
-	getAccountReview,
+	listAccountReviewAlerts,
 );
 
 // Toggle user verification (admin only)
