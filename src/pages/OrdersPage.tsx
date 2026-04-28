@@ -444,7 +444,7 @@ function OrdersPage() {
 
                     <div>
                       <p className="text-sm text-gray-600">Total Price</p>
-                      <p className="font-medium text-green-600">₹{order.totalPrice.toLocaleString()}</p>
+                      <p className="font-medium text-green-600">UGX {order.totalPrice.toLocaleString()}</p>
                     </div>
 
                     <div>

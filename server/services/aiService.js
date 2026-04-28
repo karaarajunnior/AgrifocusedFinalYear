@@ -488,15 +488,15 @@ class AIService {
 	}
 
 	analyzeMarketConditions(productData) {
-		const conditions = [
-			"Market showing stable growth trends",
-			"Seasonal demand patterns detected",
-			"Supply chain optimization opportunities available",
-			"Price volatility within normal ranges",
-			"Consumer preference shifting towards quality",
-		];
-
-		return conditions[Math.floor(Math.random() * conditions.length)];
+		const category = String(productData.category || "").toUpperCase();
+		if (productData.organic) return "Organic quality can support a price premium";
+		if (["VEGETABLES", "FRUITS", "DAIRY"].includes(category)) {
+			return "Fresh produce should move quickly to protect quality and price";
+		}
+		if (["GRAINS", "PULSES"].includes(category)) {
+			return "Stored produce can be timed around buyer demand and transport availability";
+		}
+		return "Use recent orders and active listings to confirm the final asking price";
 	}
 
 	generatePriceRecommendations(productData, predictedPrice) {
@@ -690,15 +690,18 @@ class AIService {
 			score += 0.2;
 		}
 
-		// Random factor for demonstration
-		score += (Math.random() - 0.5) * 0.2;
+		if (farmerData.farmSize >= 2) score += 0.05;
+		if (Array.isArray(farmerData.previousCrops) && farmerData.previousCrops.includes(crop.name)) {
+			score += 0.05;
+		}
 
 		return Math.min(0.95, Math.max(0.1, score));
 	}
 
 	assessMarketPotential(crop, location) {
-		const basePotential = 0.6 + Math.random() * 0.3;
-		return Math.min(0.95, basePotential);
+		const locationSignal = String(location || "").trim() ? 0.08 : 0;
+		const basePotential = crop.category === "VEGETABLES" ? 0.72 : 0.64;
+		return Math.min(0.95, basePotential + locationSignal + (crop.profitMargin || 0) * 0.2);
 	}
 
 	calculateProfitability(crop, farmSize) {
@@ -949,14 +952,13 @@ Output as JSON: { "heading": "string", "body": "string", "hashtags": ["string"] 
 	}
 
 	extractPriceFeatures(productData) {
-		// Feature extraction for ML model (simplified)
 		return [
 			this.encodeCategoryToNumber(productData.category),
 			new Date().getMonth() / 12,
 			Math.min(productData.quantity / 1000, 1),
 			this.encodeLocationToNumber(productData.location || ""),
 			productData.organic ? 1 : 0,
-			Math.random(), // Placeholder for additional features
+			this.getCategoryStability(productData.category),
 		];
 	}
 

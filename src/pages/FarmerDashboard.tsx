@@ -1191,11 +1191,15 @@ function FarmerDashboard() {
 										>
 											Copy text
 										</button>
-										<button 
-											onClick={() => toast.success("Connected to Facebook Business...")}
+										<button
+											onClick={() => {
+												const content = `${marketingContent.heading}\n\n${marketingContent.body}\n\n${marketingContent.hashtags.join(' ')}`;
+												navigator.clipboard.writeText(content);
+												toast.success("Content copied for sharing.");
+											}}
 											className="py-4 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-all"
 										>
-											Blast to Social
+											Copy for social
 										</button>
 									</div>
 									<p className="text-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">Powered by OpenAI GPT-4o Vision & Trade Search</p>

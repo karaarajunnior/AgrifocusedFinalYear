@@ -53,7 +53,7 @@ export async function getTopBuyers({ market = "local", country = "Uganda", limit
 
 			// Score components (0..1)
 			const activity = score01(count / 20);
-			const volume = score01(spend / 5_000_000); // UGX scale placeholder
+			const volume = score01(spend / 5_000_000);
 			const recency =
 				count === 0
 					? 0
@@ -112,7 +112,7 @@ export async function getTopFarmers({ market = "local", country = "Uganda", limi
 				matchMarket({ market, userCountry: f.country || country, productCountry: p.country || country }),
 			).length;
 
-			const reliability = score01(1); // placeholder until cancellation/late metrics exist
+			const reliability = count > 0 ? score01(1 - Math.min(0.5, listings === 0 ? 0.2 : 0)) : 0;
 			const volume = score01(revenue / 10_000_000);
 			const activity = score01(count / 20);
 			const supply = score01(listings / 20);

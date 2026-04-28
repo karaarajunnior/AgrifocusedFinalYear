@@ -36,7 +36,7 @@ class LocationService {
 		}
 
 		try {
-			// For demo purposes, we'll use predefined coordinates for common Indian cities
+			// Use known Ugandan market centers before falling back to a broad text location.
 			const cityCoordinates = {
 				jinja: { lat: 0.4472, lon: 33.2027 },
 				mbale: { lat: 1.0716, lon: 34.1816 },

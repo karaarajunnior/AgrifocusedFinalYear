@@ -136,7 +136,7 @@ const TraceabilityJourney: React.FC<{
                         <Package className="h-6 w-6" />
                     </div>
                     <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('processing')}</p>
-                    <p className="text-xs font-bold text-slate-900">KAWA Verified</p>
+                    <p className="text-xs font-bold text-slate-900">Quality check recorded</p>
                 </div>
 
                 <div className="relative z-10 flex flex-col items-center group">

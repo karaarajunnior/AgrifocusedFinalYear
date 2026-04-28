@@ -190,34 +190,34 @@ function MarketplacePage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-slate-50 pb-16">
+		<div className="min-h-screen bg-gradient-to-b from-emerald-50 via-slate-50 to-white pb-16">
 			{/* Dynamic Hero Section */}
-			<div className="relative bg-emerald-900 overflow-hidden text-white pt-16 pb-24 md:pt-24 md:pb-32">
-				<div className="absolute inset-0 z-0 opacity-20 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-yellow-400 via-transparent to-transparent"></div>
+			<div className="relative bg-gradient-to-br from-emerald-950 via-emerald-800 to-teal-700 overflow-hidden text-white pt-10 pb-24 md:pt-20 md:pb-32">
+				<div className="absolute inset-0 z-0 opacity-30 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-yellow-300 via-transparent to-transparent"></div>
 				<div className="absolute inset-0 z-0 opacity-30 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PZyBmaWxsPSIjZmZmZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiIGQ9Ik0wIDIwaDIwdjIwaC0yMHonLz48L3N2Zz4=')]"></div>
 
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-					<div className="inline-flex items-center justify-center space-x-2 bg-emerald-800/50 backdrop-blur-md rounded-full px-4 py-1.5 mb-6 border border-emerald-700/50">
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-left md:text-center">
+					<div className="inline-flex items-center justify-center space-x-2 bg-white/10 backdrop-blur-md rounded-full px-4 py-2 mb-5 border border-white/15">
 						<Sprout className="w-5 h-5 text-emerald-400" />
 						<span className="text-sm font-semibold tracking-wide uppercase text-emerald-100">
 							{t('marketplace_title')}
 						</span>
 					</div>
-					<h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 tracking-tight drop-shadow-md">
+					<h1 className="text-3xl sm:text-5xl lg:text-6xl font-black mb-5 tracking-tight drop-shadow-md leading-tight">
 						{t('marketplace_title')}
 					</h1>
-					<p className="text-emerald-100/90 max-w-2xl mx-auto text-lg md:text-xl font-medium leading-relaxed drop-shadow-sm">
+					<p className="text-emerald-50/90 max-w-2xl md:mx-auto text-base md:text-xl font-medium leading-relaxed drop-shadow-sm">
 						{t('marketplace_subtitle')}
 					</p>
-					<div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto text-left">
+					<div className="mt-7 grid grid-cols-3 gap-2 md:gap-3 max-w-3xl md:mx-auto text-left">
 						{[
 							{ icon: Search, text: "1. Search crop name" },
 							{ icon: MapPin, text: "2. Choose nearby or outside Uganda" },
 							{ icon: ShoppingCart, text: "3. Tap Order or View" },
 						].map(({ icon: Icon, text }) => (
-							<div key={text} className="flex items-center gap-3 bg-white/10 border border-white/15 rounded-2xl px-4 py-3">
-								<Icon className="h-6 w-6 text-emerald-200 shrink-0" />
-								<span className="font-bold text-sm">{text}</span>
+							<div key={text} className="flex flex-col md:flex-row md:items-center gap-2 bg-white/10 border border-white/15 rounded-2xl px-3 py-3">
+								<Icon className="h-5 w-5 text-emerald-200 shrink-0" />
+								<span className="font-bold text-[11px] md:text-sm leading-tight">{text}</span>
 							</div>
 						))}
 					</div>
@@ -226,19 +226,19 @@ function MarketplacePage() {
 
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-20">
 				{/* Search and Filters - Glassmorphism floating bar */}
-				<div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl shadow-emerald-900/5 border border-white/40 mb-8 overflow-hidden transform transition-all">
+				<div className="bg-white/95 backdrop-blur-xl rounded-[2rem] shadow-2xl shadow-emerald-900/10 border border-white/70 mb-8 overflow-hidden transform transition-all">
 					<div className="p-4 md:p-6">
-						<div className="flex flex-col lg:flex-row gap-4">
+						<div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_auto_auto] gap-3 lg:gap-4">
 							{/* Search */}
 							<div className="flex-1">
 								<div className="relative group">
-									<Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 h-5 w-5 group-hover:text-emerald-500 transition-colors" />
+									<Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 h-6 w-6 group-hover:text-emerald-500 transition-colors" />
 									<input
 										type="text"
 										placeholder={t('search_placeholder')}
 										value={searchTerm}
 										onChange={(e) => setSearchTerm(e.target.value)}
-										className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-transparent hover:border-emerald-200 border-2 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700"
+										className="w-full pl-13 pr-4 py-4 bg-slate-50 border-transparent hover:border-emerald-200 border-2 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-bold text-slate-800 text-base"
 									/>
 								</div>
 							</div>
@@ -414,16 +414,21 @@ function MarketplacePage() {
 						</div>
 					</div>
 				) : (
-					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 xl:gap-8">
+					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 xl:gap-7">
 						{products.map((product) => (
 							(() => {
 								const primaryImage = imageFailures[product.id] ? undefined : getPrimaryProductImage(product.images);
 								return (
 							<div
 								key={product.id}
-								className="group bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-xl hover:shadow-emerald-900/10 hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative">
+								className="group bg-white rounded-[2rem] shadow-sm border border-emerald-100/70 overflow-hidden hover:shadow-2xl hover:shadow-emerald-900/10 hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative">
 								
 								{/* Image / Header Gradient */}
+								<div className="relative h-48 sm:h-56 bg-gradient-to-br from-emerald-100 via-teal-50 to-lime-100 flex items-center justify-center overflow-hidden">
+									<div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.35),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(250,204,21,0.35),_transparent_32%)] self-stretch z-0"></div>
+									<Sun className="absolute -top-10 -right-10 w-32 h-32 text-emerald-300/40 rotate-45 group-hover:rotate-90 transition-transform duration-700 ease-in-out" />
+									
+									<Leaf className="h-20 w-20 text-emerald-600/80 z-10 group-hover:scale-110 transition-transform duration-500 delay-100 drop-shadow-md" />
 								<div className="relative h-56 bg-gradient-to-br from-emerald-100 via-teal-50 to-emerald-200 flex items-center justify-center overflow-hidden">
 									{primaryImage ? (
 										<img
@@ -452,9 +457,19 @@ function MarketplacePage() {
 											</span>
 										</div>
 									)}
+									<div className="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between rounded-2xl bg-white/90 px-4 py-3 shadow-lg backdrop-blur-md">
+										<div>
+											<p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Fresh stock</p>
+											<p className="text-sm font-black text-slate-900">{product.quantity} {product.unit}</p>
+										</div>
+										<div className="rounded-xl bg-emerald-600 px-3 py-2 text-right text-xs font-black text-white">
+											UGX {product.price.toLocaleString()}
+											<span className="block text-[9px] font-bold opacity-80">/{product.unit}</span>
+										</div>
+									</div>
 								</div>
 
-								<div className="p-6 flex flex-col flex-grow">
+								<div className="p-5 flex flex-col flex-grow">
 									{/* Category Tag */}
 									<div className="mb-3">
 										<span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
@@ -469,14 +484,6 @@ function MarketplacePage() {
 									<h3 className="font-bold text-slate-800 text-xl leading-tight mb-2 group-hover:text-emerald-700 transition-colors line-clamp-2">
 										{product.name}
 									</h3>
-
-									{/* Price */}
-									<div className="mb-5 flex items-baseline">
-										<span className="text-3xl font-black text-emerald-600 tracking-tighter">
-											UGX {product.price.toLocaleString()}
-										</span>
-										<span className="text-sm font-semibold text-slate-500 ml-1">/{product.unit}</span>
-									</div>
 
 									{/* Product Metadata */}
 									<div className="space-y-3 test-sm text-slate-600 mb-6 font-medium bg-slate-50 p-4 rounded-2xl flex-grow">

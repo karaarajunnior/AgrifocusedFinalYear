@@ -24,7 +24,7 @@ class LocationService {
 			};
 		} catch (error) {
 			console.error('Location detection error:', error);
-			// Fallback mock for development if API fails
+			// Fallback to Kampala so callers still receive a valid map/search center.
 			return {
 				city: "Kampala",
 				country: "Uganda",
