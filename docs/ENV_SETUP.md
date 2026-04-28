@@ -13,26 +13,16 @@ Edit `.env`:
 
 ## 2) Backend
 
-Create `server/.env` from the template:
+The backend also reads the root `.env` file.
 
-```bash
-cp server/.env.example server/.env
-```
-
-Edit `server/.env`:
+Edit `.env`:
 - Set `DATABASE_URL`
 - Set `JWT_SECRET`
 - (Optional) Configure Twilio, Airtel, OpenAI, Redis, Blockchain
 
 ## 3) Prisma / Database
 
-You can set `DATABASE_URL` either in `server/.env` or `prisma/.env`.
-
-If you prefer a Prisma-specific env file:
-
-```bash
-cp prisma/.env.example prisma/.env
-```
+Prisma reads `DATABASE_URL` from the root `.env` file.
 
 ## 4) Run migrations and start
 

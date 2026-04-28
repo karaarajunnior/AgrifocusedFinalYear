@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import {
 	Search,
@@ -24,6 +24,7 @@ import TrustBadge, { TrustScore } from "../components/TrustBadge";
 import { t } from "../utils/translation";
 import { useLanguage } from "../contexts/LanguageContext";
 import LocationLink from "../components/LocationLink";
+import { getPrimaryProductImage, getProductImages } from "../utils/productImages";
 
 interface Product {
 	id: string;
@@ -49,11 +50,14 @@ interface Product {
 		verified: boolean;
 	};
 	farmerTrust?: TrustScore;
+	images?: string | string[] | null;
 }
 
 function MarketplacePage() {
 	const { user } = useAuth();
-	const { language } = useLanguage(); // Triggers re-render on translation switch
+	useLanguage(); // Triggers re-render on translation switch
+	const [searchParams] = useSearchParams();
+	const [imageFailures, setImageFailures] = useState<Record<string, boolean>>({});
 	const [products, setProducts] = useState<Product[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [searchTerm, setSearchTerm] = useState("");
@@ -74,6 +78,11 @@ function MarketplacePage() {
 		"DAIRY",
 		"ORGANIC",
 	];
+
+	useEffect(() => {
+		const urlSearch = searchParams.get("search") || "";
+		setSearchTerm(urlSearch);
+	}, [searchParams]);
 
 	const categoryLabels: Record<string, string> = {
 		VEGETABLES: "Vegetables",
@@ -407,16 +416,34 @@ function MarketplacePage() {
 				) : (
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 xl:gap-8">
 						{products.map((product) => (
+							(() => {
+								const primaryImage = imageFailures[product.id] ? undefined : getPrimaryProductImage(product.images);
+								return (
 							<div
 								key={product.id}
 								className="group bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-xl hover:shadow-emerald-900/10 hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative">
 								
 								{/* Image / Header Gradient */}
 								<div className="relative h-56 bg-gradient-to-br from-emerald-100 via-teal-50 to-emerald-200 flex items-center justify-center overflow-hidden">
-									<div className="absolute inset-0 bg-white/20 backdrop-blur-sm self-stretch z-0"></div>
-									<Sun className="absolute -top-10 -right-10 w-32 h-32 text-emerald-300/40 rotate-45 group-hover:rotate-90 transition-transform duration-700 ease-in-out" />
-									
-									<Leaf className="h-20 w-20 text-emerald-600/70 z-10 group-hover:scale-110 transition-transform duration-500 delay-100 drop-shadow-md" />
+									{primaryImage ? (
+										<img
+											src={primaryImage}
+											alt={product.name}
+											className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+											onError={() => setImageFailures((prev) => ({ ...prev, [product.id]: true }))}
+										/>
+									) : (
+										<>
+											<div className="absolute inset-0 bg-white/20 backdrop-blur-sm self-stretch z-0"></div>
+											<Sun className="absolute -top-10 -right-10 w-32 h-32 text-emerald-300/40 rotate-45 group-hover:rotate-90 transition-transform duration-700 ease-in-out" />
+											<Leaf className="h-20 w-20 text-emerald-600/70 z-10 group-hover:scale-110 transition-transform duration-500 delay-100 drop-shadow-md" />
+										</>
+									)}
+									{getProductImages(product.images).length > 1 && (
+										<div className="absolute bottom-4 left-4 z-20 rounded-full bg-slate-900/80 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white">
+											{getProductImages(product.images).length} photos
+										</div>
+									)}
 									
 									{product.organic && (
 										<div className="absolute top-4 right-4 z-20">
@@ -514,6 +541,8 @@ function MarketplacePage() {
 									</div>
 								</div>
 							</div>
+								);
+							})()
 						))}
 					</div>
 				)}
