@@ -57,7 +57,7 @@ function AIModelPage() {
 	const { user } = useAuth();
 	const [activeTab, setActiveTab] = useState("price-prediction");
 	const [loading, setLoading] = useState(false);
-	const defaultLocation = user?.location || "Kampala, Uganda";
+	const defaultLocation = user?.location || "";
 
 	// Price Prediction State
 	const [priceData, setPriceData] = useState({
