@@ -44,7 +44,7 @@ const AdminVerificationRules: React.FC = () => {
 		try {
 			await api.post('/verification/rules/registration', registrationPolicy);
 			toast.success('Registration policy saved securely');
-		} catch (error) {
+		} catch {
 			toast.error('Failed to save registration policy');
 		} finally {
 			setSavingRegistration(false);
@@ -58,7 +58,7 @@ const AdminVerificationRules: React.FC = () => {
 			await api.post('/verification/rules', documentPolicy);
 			toast.success('Document policy saved securely');
 			setDocumentPolicy({ documentType: '', criteria: '' });
-		} catch (error) {
+		} catch {
 			toast.error('Failed to save document policy');
 		} finally {
 			setSavingDocument(false);

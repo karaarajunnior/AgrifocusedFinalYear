@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileCheck, XCircle, Loader2, Info, ChevronRight } from 'lucide-react';
+import { Upload, FileCheck, Loader2, Info, ChevronRight } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 
@@ -39,7 +39,7 @@ const DocumentVerification: React.FC = () => {
 			if (rulesRes.data.rules?.length > 0) {
 				setSelectedType(rulesRes.data.rules[0].documentType);
 			}
-		} catch (error) {
+		} catch {
 			console.error('Failed to load verification data');
 		} finally {
 			setLoading(false);
@@ -72,8 +72,11 @@ const DocumentVerification: React.FC = () => {
 			
 			setFile(null);
 			fetchData();
-		} catch (error: any) {
-			toast.error(error.response?.data?.error || 'Upload failed');
+		} catch (error: unknown) {
+			const message = typeof error === 'object' && error !== null && 'response' in error
+				? (error as { response?: { data?: { error?: string } } }).response?.data?.error || 'Upload failed'
+				: 'Upload failed';
+			toast.error(message);
 		} finally {
 			setUploading(false);
 		}

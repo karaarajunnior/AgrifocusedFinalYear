@@ -104,7 +104,6 @@ function FarmerDashboard() {
 	const [showAddProduct, setShowAddProduct] = useState(false);
 	const [showAllProducts, setShowAllProducts] = useState(false);
 	const [showVerification, setShowVerification] = useState(false);
-	const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 	const [marketingContent, setMarketingContent] = useState<{heading: string, body: string, hashtags: string[]} | null>(null);
 	const [generatingMarketing, setGeneratingMarketing] = useState(false);
 	const [showMarketingModal, setShowMarketingModal] = useState(false);
@@ -372,13 +371,12 @@ function FarmerDashboard() {
 	};
 
 	const handleGenerateMarketing = async (product: Product) => {
-		setSelectedProduct(product);
 		setGeneratingMarketing(true);
 		setShowMarketingModal(true);
 		try {
 			const res = await api.post('/intelligence/marketing-content', { productId: product.id });
 			setMarketingContent(res.data.content);
-		} catch (error) {
+		} catch {
 			toast.error("Failed to generate marketing content.");
 			setShowMarketingModal(false);
 		} finally {

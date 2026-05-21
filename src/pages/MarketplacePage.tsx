@@ -424,11 +424,6 @@ function MarketplacePage() {
 								className="group bg-white rounded-[2rem] shadow-sm border border-emerald-100/70 overflow-hidden hover:shadow-2xl hover:shadow-emerald-900/10 hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative">
 								
 								{/* Image / Header Gradient */}
-								<div className="relative h-48 sm:h-56 bg-gradient-to-br from-emerald-100 via-teal-50 to-lime-100 flex items-center justify-center overflow-hidden">
-									<div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.35),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(250,204,21,0.35),_transparent_32%)] self-stretch z-0"></div>
-									<Sun className="absolute -top-10 -right-10 w-32 h-32 text-emerald-300/40 rotate-45 group-hover:rotate-90 transition-transform duration-700 ease-in-out" />
-									
-									<Leaf className="h-20 w-20 text-emerald-600/80 z-10 group-hover:scale-110 transition-transform duration-500 delay-100 drop-shadow-md" />
 								<div className="relative h-56 bg-gradient-to-br from-emerald-100 via-teal-50 to-emerald-200 flex items-center justify-center overflow-hidden">
 									{primaryImage ? (
 										<img
