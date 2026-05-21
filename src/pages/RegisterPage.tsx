@@ -96,8 +96,14 @@ function RegisterPage() {
 		}
 
 		const fullPhone = formData.phone ? `${countryCode}${formData.phone}` : "";
-		if (fullPhone && !/^\+?[\d\s-()]+$/.test(fullPhone)) {
+		if (!formData.phone) {
+			newErrors.phone = "Phone number is required";
+		} else if (!/^\+?[\d\s-()]+$/.test(fullPhone)) {
 			newErrors.phone = "Please enter a valid phone number";
+		}
+
+		if (!formData.location.trim()) {
+			newErrors.location = "Location is required";
 		}
 
 		setErrors(newErrors);
@@ -362,7 +368,7 @@ function RegisterPage() {
 							<label
 								htmlFor="phone"
 								className="block text-sm font-medium text-gray-700">
-								Phone Number
+								Phone Number *
 							</label>
 							<div className="mt-1 relative flex rounded-md shadow-sm">
 								<div className="relative flex-none">
@@ -389,6 +395,7 @@ function RegisterPage() {
 										id="phone"
 										name="phone"
 										type="tel"
+										required
 										value={formData.phone}
 										onChange={handleChange}
 										className={`appearance-none block w-full pl-10 pr-3 py-3 border placeholder-gray-500 text-gray-900 rounded-r-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm ${
@@ -408,7 +415,7 @@ function RegisterPage() {
 							<label
 								htmlFor="location"
 								className="block text-sm font-medium text-gray-700">
-								Location
+								Location *
 							</label>
 							<div className="mt-1 relative">
 								<div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -418,6 +425,7 @@ function RegisterPage() {
 									id="location"
 									name="location"
 									type="text"
+									required
 									value={formData.location}
 									onChange={handleChange}
 									className="appearance-none relative block w-full pl-10 pr-12 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
@@ -433,6 +441,9 @@ function RegisterPage() {
 									<Target className={`h-5 w-5 ${locating ? 'animate-pulse text-green-500' : ''}`} />
 								</button>
 							</div>
+							{errors.location && (
+								<p className="mt-1 text-sm text-red-600">{errors.location}</p>
+							)}
 						</div>
 
 						{/* Address */}

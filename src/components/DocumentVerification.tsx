@@ -10,8 +10,8 @@ interface VerificationRule {
 
 interface UserDocument {
 	id: string;
-	title: string;
-	type: string;
+	originalName: string;
+	aiSummary?: string | null;
 	status: 'PENDING' | 'APPROVED' | 'REJECTED';
 	verificationLog: string | null;
 	createdAt: string;
@@ -62,11 +62,11 @@ const DocumentVerification: React.FC = () => {
 				headers: { 'Content-Type': 'multipart/form-data' }
 			});
 			
-			const { approved, reason } = res.data.aiFeedback;
+			const { approved, reason } = res.data.feedback || res.data.aiFeedback;
 			if (approved) {
-				toast.success('Document Verified Successfully!');
+				toast.success('Document verified successfully');
 			} else {
-				toast.error(`Verification Rejected: ${reason}`);
+				toast.error(`Verification rejected: ${reason}`);
 			}
 			
 			setFile(null);
@@ -122,7 +122,7 @@ const DocumentVerification: React.FC = () => {
 									<>
 										<FileCheck className="h-10 w-10 text-green-600 mb-2" />
 										<span className="text-sm font-bold text-green-800">{file.name}</span>
-										<span className="text-xs text-green-600 font-medium mt-1">Ready for AI processing</span>
+										<span className="text-xs text-green-600 font-medium mt-1">Ready for review</span>
 									</>
 								) : (
 									<>
@@ -142,9 +142,9 @@ const DocumentVerification: React.FC = () => {
 						>
 							{uploading ? (
 								<div className="flex items-center justify-center">
-									<Loader2 className="h-5 w-5 mr-2 animate-spin" /> AI Analyzing...
+									<Loader2 className="h-5 w-5 mr-2 animate-spin" /> Reviewing...
 								</div>
-							) : 'Start AI Verification'}
+							) : 'Start Verification'}
 						</button>
 					</form>
 				</div>
@@ -169,7 +169,7 @@ const DocumentVerification: React.FC = () => {
 										}`}>
 											<FileCheck className="h-4 w-4" />
 										</div>
-										<span>{doc.type}</span>
+										<span>{doc.aiSummary || doc.originalName}</span>
 									</div>
 									<div className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
 										doc.status === 'APPROVED' ? 'bg-green-50 text-green-700 border-green-100' :
@@ -183,7 +183,7 @@ const DocumentVerification: React.FC = () => {
 									<div className="flex items-start bg-slate-50 p-3 rounded-lg">
 										<Info className="h-4 w-4 text-slate-400 mr-2 mt-0.5 shrink-0" />
 										<p className="text-xs text-slate-600 font-medium italic leading-relaxed">
-											AI Feedback: "{doc.verificationLog}"
+											Review note: "{doc.verificationLog}"
 										</p>
 									</div>
 								)}

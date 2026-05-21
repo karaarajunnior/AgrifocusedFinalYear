@@ -40,7 +40,7 @@ export const AIAdvisor: React.FC = () => {
 				<Zap className="h-5 w-5 fill-amber-400" />
 				<div>
 					<h3 className="text-lg font-black text-slate-900">What to do next</h3>
-					<p className="text-sm text-slate-600">Short AI tips in simple words.</p>
+					<p className="text-sm text-slate-600">Short tips in simple words.</p>
 				</div>
 			</div>
 			<div className="space-y-4">
@@ -101,7 +101,7 @@ export const MarketIntelligence: React.FC<{ commodity: string }> = ({ commodity 
 					<span className="text-sm font-black text-white">{trends?.outlook}</span>
 				</div>
 			</div>
-			<p className="mt-6 text-xs font-bold text-slate-400">AI checks app sales and market signals.</p>
+			<p className="mt-6 text-xs font-bold text-slate-400">Based on app sales and market signals.</p>
 		</div>
 	);
 };

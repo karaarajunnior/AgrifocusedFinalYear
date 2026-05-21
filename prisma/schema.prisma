@@ -760,6 +760,18 @@ model VerificationRule {
   @@map("verification_rules")
 }
 
+model RegistrationRule {
+  id              String   @id @default(cuid())
+  name            String   @db.VarChar(80)
+  criteria        String   @db.Text
+  isActive        Boolean  @default(true)
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("registration_rules")
+}
+
 enum DocumentStatus {
   PENDING
   APPROVED
