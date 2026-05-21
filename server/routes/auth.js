@@ -39,7 +39,7 @@ router.post(
 		body("email").isEmail().normalizeEmail(),
 		body("password").isLength({ min: 6 }),
 		body("name").trim().isLength({ min: 2 }),
-		body("role").isIn(["FARMER", "BUYER", "ADMIN"]),
+		body("role").isIn(["FARMER", "BUYER", "ADMIN", "SUPERMARKET", "AGRO_SHOP"]),
 	],
 	register,
 );

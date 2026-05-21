@@ -379,7 +379,7 @@ function FarmerDashboard() {
 			const res = await api.post('/intelligence/marketing-content', { productId: product.id });
 			setMarketingContent(res.data.content);
 		} catch (error) {
-			toast.error("AI failed to generate marketing content.");
+			toast.error("Failed to generate marketing content.");
 			setShowMarketingModal(false);
 		} finally {
 			setGeneratingMarketing(false);
@@ -754,7 +754,7 @@ function FarmerDashboard() {
 												className="mt-2 flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all opacity-0 group-hover:opacity-100"
 											>
 												<Share2 className="h-3 w-3" />
-												Gen AI Post
+												Create promo copy
 											</button>
 										</div>
 									</div>
@@ -1142,7 +1142,7 @@ function FarmerDashboard() {
 						</div>
 					</div>
 				)}
-			{/* AI Marketing Modal */}
+			{/* Marketing Copy Modal */}
 			{showMarketingModal && (
 				<div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
 					<div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
@@ -1152,7 +1152,7 @@ function FarmerDashboard() {
 									<div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600">
 										<Share2 className="h-6 w-6" />
 									</div>
-									<h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">AI Multi-Market Content</h3>
+									<h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Market-ready content</h3>
 								</div>
 								<button 
 									onClick={() => setShowMarketingModal(false)}
@@ -1202,7 +1202,7 @@ function FarmerDashboard() {
 											Copy for social
 										</button>
 									</div>
-									<p className="text-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">Powered by OpenAI GPT-4o Vision & Trade Search</p>
+									<p className="text-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">Generated from current listing and market data</p>
 								</div>
 							)}
 						</div>
