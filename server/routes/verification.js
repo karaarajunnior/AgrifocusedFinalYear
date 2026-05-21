@@ -156,28 +156,15 @@ router.post("/upload", authenticateToken, upload.single("document"), async (req,
 	}
 });
 
-// Admin Route: Create new verification rule
-router.post("/rules", authenticateToken, async (req, res) => {
-	if (req.user.role !== "ADMIN") return res.status(403).json({ error: "Access denied" });
-	try {
-		const { documentType, criteria } = req.body;
-		const rule = await prisma.verificationRule.create({
-			data: {
-				documentType,
-				criteria,
-				createdByUserId: req.user.id
-			}
-		});
-		res.json({ success: true, rule });
-	} catch (err) {
-		res.status(500).json({ error: err.message });
-	}
-});
-
-// Get all rules (for Admin dashboard or lookup)
+// Lightweight public-ish list of acceptable document types only.
+// Criteria are intentionally never exposed: rules live in the DB and are
+// configured by admins through internal endpoints, not through any UI.
 router.get("/rules", authenticateToken, async (req, res) => {
 	try {
-		const rules = await prisma.verificationRule.findMany();
+		const rules = await prisma.verificationRule.findMany({
+			where: { isActive: true },
+			select: { id: true, documentType: true },
+		});
 		res.json({ success: true, rules });
 	} catch (err) {
 		res.status(500).json({ error: err.message });

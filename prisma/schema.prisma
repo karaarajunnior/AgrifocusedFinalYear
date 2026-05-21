@@ -760,6 +760,40 @@ model VerificationRule {
   @@map("verification_rules")
 }
 
+model RegistrationRule {
+  id              String   @id @default(cuid())
+  name            String   @db.VarChar(120)
+  ruleType        String   @db.VarChar(48)
+  appliesToRole   String?  @db.VarChar(32)
+  config          String   @db.Text
+  action          String   @default("APPROVE") @db.VarChar(16)
+  reason          String?  @db.Text
+  priority        Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive, priority])
+  @@map("registration_rules")
+}
+
+model RegistrationDecision {
+  id            String   @id @default(cuid())
+  userId        String   @db.VarChar(64)
+  email         String   @db.VarChar(255)
+  role          String   @db.VarChar(32)
+  decision      String   @db.VarChar(16)
+  matchedRuleId String?  @db.VarChar(64)
+  reason        String?  @db.Text
+  payloadSnap   String?  @db.LongText
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([decision, createdAt])
+  @@map("registration_decisions")
+}
+
 enum DocumentStatus {
   PENDING
   APPROVED

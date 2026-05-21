@@ -32,8 +32,49 @@ export async function register(req, res) {
 			}
 		}
 
+		// Automatic registration review against admin-configured rules.
+		// Rules live in the database and are never exposed in any UI; they
+		// run silently here to approve / reject / flag the new account.
+		let decision = { decision: "APPROVE", reason: null, matchedRuleId: null };
+		if (role !== "ADMIN") {
+			try {
+				decision = await evaluateRegistration({
+					email,
+					password,
+					name,
+					role,
+					phone,
+					location,
+					address,
+					latitude,
+					longitude,
+				});
+			} catch (err) {
+				console.warn(
+					"Registration rule evaluation failed:",
+					err?.message || err,
+				);
+				decision = {
+					decision: "REVIEW",
+					reason: "Rule engine unavailable; queued for admin review",
+					matchedRuleId: null,
+				};
+			}
+		}
+
+		if (decision.decision === "REJECT") {
+			return res.status(403).json({
+				error:
+					decision.reason ||
+					"Registration could not be completed at this time.",
+			});
+		}
+
 		const salt = await bcrypt.genSalt(12);
 		const hashedPassword = await bcrypt.hash(password, salt);
+
+		const willAutoApprove =
+			role === "ADMIN" || decision.decision === "APPROVE";
 
 		const user = await prisma.user.create({
 			data: {
@@ -46,7 +87,8 @@ export async function register(req, res) {
 				address,
 				latitude,
 				longitude,
-				verified: role === "ADMIN" ? true : false,
+				verified: willAutoApprove,
+				accountStatus: "ACTIVE",
 				passwordChangedAt: new Date(),
 			},
 			select: {
@@ -61,6 +103,21 @@ export async function register(req, res) {
 			},
 		});
 
+		await recordRegistrationDecision({
+			userId: user.id,
+			email: user.email,
+			role: user.role,
+			decision: role === "ADMIN" ? "APPROVE" : decision.decision,
+			matchedRuleId: decision.matchedRuleId,
+			reason: decision.reason,
+			payloadSnap: {
+				hasPhone: Boolean(phone),
+				hasLocation: Boolean(location),
+				hasAddress: Boolean(address),
+				hasCoordinates: Boolean(latitude && longitude),
+			},
+		});
+
 		const token = issueAccessToken({ userId: user.id });
 		const refresh = await issueRefreshToken({ userId: user.id });
 
@@ -71,7 +128,11 @@ export async function register(req, res) {
 			targetId: user.id,
 			ip: req.ip,
 			userAgent: req.get("User-Agent"),
-			metadata: { role: user.role },
+			metadata: {
+				role: user.role,
+				decision: role === "ADMIN" ? "APPROVE" : decision.decision,
+				matchedRuleId: decision.matchedRuleId,
+			},
 		});
 
 		res.status(201).json({
