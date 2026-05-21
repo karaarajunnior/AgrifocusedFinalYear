@@ -69,7 +69,7 @@ async function notifyAdminsOnce({ user, type, body, actorUserId, metadata }) {
 					channel: "in_app",
 					to: "admin",
 					body,
-					provider: "account_review_ai",
+		provider: "account_review",
 					status: "delivered",
 				},
 			}),
@@ -151,7 +151,7 @@ export async function evaluateUserForAccountReview({
 	const alertsSent = await notifyAdminsOnce({
 		user,
 		type: "account_review_non_compliance",
-		body: `AI account review needed for ${user.name} (${user.id}). Reason: ${summary}. Admin can disable the account during review if needed.`,
+		body: `Account review needed for ${user.name} (${user.id}). Reason: ${summary}. Admin can disable the account during review if needed.`,
 		actorUserId: actorUserId || user.id,
 		metadata: { reason, signals },
 	});
@@ -216,7 +216,7 @@ export async function scanInactiveUsers({ inactiveDays = DEFAULT_INACTIVE_DAYS, 
 		alertsSent += await notifyAdminsOnce({
 			user,
 			type: "account_review_inactive",
-			body: `AI noticed inactive account ${user.name} (${user.id}). ${reason}. Admin can disable the account if appropriate.`,
+			body: `Inactive account review needed for ${user.name} (${user.id}). ${reason}. Admin can disable the account if appropriate.`,
 			actorUserId: user.id,
 			metadata: { inactiveDays, lastLoginAt },
 		});

@@ -96,8 +96,18 @@ function RegisterPage() {
 		}
 
 		const fullPhone = formData.phone ? `${countryCode}${formData.phone}` : "";
-		if (fullPhone && !/^\+?[\d\s-()]+$/.test(fullPhone)) {
+		if (!formData.phone) {
+			newErrors.phone = "Phone number is required";
+		} else if (!/^\+?[\d\s-()]+$/.test(fullPhone)) {
 			newErrors.phone = "Please enter a valid phone number";
+		}
+
+		if (!formData.location.trim()) {
+			newErrors.location = "Location is required";
+		}
+
+		if (!formData.address.trim()) {
+			newErrors.address = "Address is required";
 		}
 
 		setErrors(newErrors);
@@ -362,7 +372,7 @@ function RegisterPage() {
 							<label
 								htmlFor="phone"
 								className="block text-sm font-medium text-gray-700">
-								Phone Number
+								Phone Number *
 							</label>
 							<div className="mt-1 relative flex rounded-md shadow-sm">
 								<div className="relative flex-none">
@@ -408,7 +418,7 @@ function RegisterPage() {
 							<label
 								htmlFor="location"
 								className="block text-sm font-medium text-gray-700">
-								Location
+								Location *
 							</label>
 							<div className="mt-1 relative">
 								<div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -420,7 +430,9 @@ function RegisterPage() {
 									type="text"
 									value={formData.location}
 									onChange={handleChange}
-									className="appearance-none relative block w-full pl-10 pr-12 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
+									className={`appearance-none relative block w-full pl-10 pr-12 py-3 border placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm ${
+										errors.location ? "border-red-300" : "border-gray-300"
+									}`}
 									placeholder="City, State"
 								/>
 								<button
@@ -433,6 +445,9 @@ function RegisterPage() {
 									<Target className={`h-5 w-5 ${locating ? 'animate-pulse text-green-500' : ''}`} />
 								</button>
 							</div>
+							{errors.location && (
+								<p className="mt-1 text-sm text-red-600">{errors.location}</p>
+							)}
 						</div>
 
 						{/* Address */}
@@ -440,17 +455,23 @@ function RegisterPage() {
 							<label
 								htmlFor="address"
 								className="block text-sm font-medium text-gray-700">
-								Address
+								Address *
 							</label>
 							<textarea
 								id="address"
 								name="address"
 								rows={3}
+								required
 								value={formData.address}
 								onChange={handleChange}
-								className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-								placeholder="Full address (optional)"
+								className={`appearance-none relative block w-full px-3 py-3 border placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm ${
+									errors.address ? "border-red-300" : "border-gray-300"
+								}`}
+								placeholder="Full address"
 							/>
+							{errors.address && (
+								<p className="mt-1 text-sm text-red-600">{errors.address}</p>
+							)}
 						</div>
 					</div>
 

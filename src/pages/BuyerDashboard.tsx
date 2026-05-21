@@ -27,7 +27,7 @@ import { useOfflineSync } from "../hooks/useOfflineSync";
 import OfflineBadge from "../components/OfflineBadge";
 import { enqueueOfflineOrderDraft, getOfflineOrderCount } from "../utils/offlineOrderQueue";
 import DocumentVerification from "../components/DocumentVerification";
-import { AIAdvisor, MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
+import { MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
 import { t } from "../utils/translation";
 import LocationLink from "../components/LocationLink";
 
@@ -469,9 +469,6 @@ function BuyerDashboard() {
 			</div>
 		</div>
 
-				<div className="mb-8">
-					<AIAdvisor />
-				</div>
 
 				<div className="mb-8">
 					<ProactiveLeads />

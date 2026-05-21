@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Upload, FileCheck, XCircle, Loader2, Info, ChevronRight } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 
 interface VerificationRule {
 	id: string;
@@ -10,14 +11,15 @@ interface VerificationRule {
 
 interface UserDocument {
 	id: string;
-	title: string;
-	type: string;
+	originalName: string;
+	aiSummary?: string | null;
 	status: 'PENDING' | 'APPROVED' | 'REJECTED';
 	verificationLog: string | null;
 	createdAt: string;
 }
 
 const DocumentVerification: React.FC = () => {
+	const { refreshUser } = useAuth();
 	const [rules, setRules] = useState<VerificationRule[]>([]);
 	const [myDocs, setMyDocs] = useState<UserDocument[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -62,11 +64,14 @@ const DocumentVerification: React.FC = () => {
 				headers: { 'Content-Type': 'multipart/form-data' }
 			});
 			
-			const { approved, reason } = res.data.aiFeedback;
-			if (approved) {
-				toast.success('Document Verified Successfully!');
+			const decision = res.data.decision || res.data.aiFeedback;
+			if (decision?.approved || decision?.status === 'APPROVED') {
+				toast.success('Document approved successfully');
+				refreshUser();
+			} else if (decision?.status === 'PENDING') {
+				toast.success('Document submitted for review');
 			} else {
-				toast.error(`Verification Rejected: ${reason}`);
+				toast.error(`Document rejected: ${decision?.reason || 'It did not meet the review requirements.'}`);
 			}
 			
 			setFile(null);
@@ -86,7 +91,7 @@ const DocumentVerification: React.FC = () => {
 			<div className="space-y-6">
 				<div className="glass-card p-6 bg-white/80 border-t-4 border-green-600">
 					<h3 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">Verify Identity</h3>
-					<p className="text-sm text-slate-500 font-medium mb-6">Upload official documents to gain platform trust and unlock premium features.</p>
+					<p className="text-sm text-slate-500 font-medium mb-6">Upload official documents to complete account verification.</p>
 					
 					<form onSubmit={handleUpload} className="space-y-4">
 						<div>
@@ -122,7 +127,7 @@ const DocumentVerification: React.FC = () => {
 									<>
 										<FileCheck className="h-10 w-10 text-green-600 mb-2" />
 										<span className="text-sm font-bold text-green-800">{file.name}</span>
-										<span className="text-xs text-green-600 font-medium mt-1">Ready for AI processing</span>
+									<span className="text-xs text-green-600 font-medium mt-1">Ready to submit</span>
 									</>
 								) : (
 									<>
@@ -142,9 +147,9 @@ const DocumentVerification: React.FC = () => {
 						>
 							{uploading ? (
 								<div className="flex items-center justify-center">
-									<Loader2 className="h-5 w-5 mr-2 animate-spin" /> AI Analyzing...
+									<Loader2 className="h-5 w-5 mr-2 animate-spin" /> Reviewing...
 								</div>
-							) : 'Start AI Verification'}
+							) : 'Submit for Verification'}
 						</button>
 					</form>
 				</div>
@@ -169,7 +174,7 @@ const DocumentVerification: React.FC = () => {
 										}`}>
 											<FileCheck className="h-4 w-4" />
 										</div>
-										<span>{doc.type}</span>
+										<span>{doc.aiSummary || doc.originalName}</span>
 									</div>
 									<div className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
 										doc.status === 'APPROVED' ? 'bg-green-50 text-green-700 border-green-100' :
@@ -183,7 +188,7 @@ const DocumentVerification: React.FC = () => {
 									<div className="flex items-start bg-slate-50 p-3 rounded-lg">
 										<Info className="h-4 w-4 text-slate-400 mr-2 mt-0.5 shrink-0" />
 										<p className="text-xs text-slate-600 font-medium italic leading-relaxed">
-											AI Feedback: "{doc.verificationLog}"
+											Review note: "{doc.verificationLog}"
 										</p>
 									</div>
 								)}

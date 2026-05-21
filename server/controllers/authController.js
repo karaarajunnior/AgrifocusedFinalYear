@@ -10,6 +10,7 @@ import {
 } from "../services/tokenService.js";
 import { writeAuditLog } from "../services/auditLogService.js";
 import { notifyUser } from "../services/smsWhatsappService.js";
+import { evaluateRegistrationApplication } from "../services/approvalRulesService.js";
 
 export async function register(req, res) {
 	try {
@@ -32,6 +33,26 @@ export async function register(req, res) {
 			}
 		}
 
+		let approvalDecision = { status: "APPROVED", approved: true, reason: "Admin account approved." };
+		if (role !== "ADMIN") {
+			approvalDecision = await evaluateRegistrationApplication({
+				name,
+				email,
+				role,
+				phone,
+				location,
+				address,
+				latitude,
+				longitude,
+			});
+
+			if (approvalDecision.status === "REJECTED") {
+				return res.status(400).json({
+					error: `Registration could not be approved. ${approvalDecision.reason}`,
+				});
+			}
+		}
+
 		const salt = await bcrypt.genSalt(12);
 		const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -46,7 +67,10 @@ export async function register(req, res) {
 				address,
 				latitude,
 				longitude,
-				verified: role === "ADMIN" ? true : false,
+				verified: role === "ADMIN" || approvalDecision.status === "APPROVED",
+				accountStatus: approvalDecision.status === "PENDING" ? "REVIEW_REQUESTED" : "ACTIVE",
+				accountStatusReason: approvalDecision.status === "PENDING" ? approvalDecision.reason : null,
+				accountStatusChangedAt: approvalDecision.status === "PENDING" ? new Date() : null,
 				passwordChangedAt: new Date(),
 			},
 			select: {
@@ -75,7 +99,9 @@ export async function register(req, res) {
 		});
 
 		res.status(201).json({
-			message: "User registered successfully",
+			message: user.verified
+				? "User registered and approved successfully"
+				: "User registered successfully and is pending review",
 			user,
 			token,
 			refreshToken: refresh.token,
