@@ -291,21 +291,66 @@ class AIService {
 	async getRecentPricesForSignal(productData) {
 		try {
 			const since90d = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+			const productFilter = {};
+			if (productData.category) productFilter.category = productData.category;
+			if (productData.location) productFilter.location = { contains: productData.location };
+
 			const rows = await prisma.priceHistory.findMany({
 				where: {
 					date: { gte: since90d },
-					product: {
-						category: productData.category || undefined,
-						location: productData.location
-							? { contains: productData.location }
-							: undefined,
-					},
+					...(Object.keys(productFilter).length ? { product: productFilter } : {}),
 				},
 				orderBy: { date: "desc" },
 				take: 30,
 				select: { price: true },
 			});
-			return rows.map((r) => r.price).filter((p) => typeof p === "number");
+			const supplementalSignals = await this.getSupplementalPriceSignals(
+				productData.category,
+				productData.location,
+			);
+			return [
+				...rows.map((r) => r.price),
+				...supplementalSignals,
+			].filter((p) => typeof p === "number" && Number.isFinite(p));
+		} catch {
+			return [];
+		}
+	}
+
+	async getSupplementalPriceSignals(category, location) {
+		try {
+			const canonicalCategory = this.getCanonicalCategory(category);
+			const terms = this.getCommoditySearchTerms(category, canonicalCategory);
+			const marketPriceWhere = terms.length
+				? { OR: terms.map((term) => ({ commodity: { contains: term } })) }
+				: {};
+			const webPriceOr = [];
+			if (canonicalCategory) webPriceOr.push({ category: canonicalCategory });
+			for (const term of terms) {
+				webPriceOr.push({ commodity: { contains: term } });
+			}
+			const webPriceWhere = webPriceOr.length ? { OR: webPriceOr } : {};
+
+			const [marketRows, webRows] = await Promise.all([
+				prisma.marketPrice.findMany({
+					where: marketPriceWhere,
+					orderBy: { timestamp: "desc" },
+					take: 12,
+					select: { pricePerKg: true, region: true },
+				}),
+				prisma.marketWebPrice.findMany({
+					where: webPriceWhere,
+					orderBy: { collectedAt: "desc" },
+					take: 6,
+					select: { price: true, location: true },
+				}),
+			]);
+
+			const marketSignals = this.preferLocationRows(marketRows, location, "region")
+				.map((row) => row.pricePerKg);
+			const webSignals = this.preferLocationRows(webRows, location, "location")
+				.map((row) => row.price);
+			return [...marketSignals, ...webSignals];
 		} catch {
 			return [];
 		}
@@ -393,17 +438,18 @@ class AIService {
 	// Helper methods
 	getBasePriceForCategory(category) {
 		const basePrices = {
-			VEGETABLES: 25,
-			FRUITS: 35,
-			GRAINS: 20,
-			PULSES: 45,
-			SPICES: 150,
-			DAIRY: 40,
-			POULTRY: 120,
-			ORGANIC: 60,
-			PROCESSED: 80,
+			COFFEE: 6500,
+			VEGETABLES: 1600,
+			FRUITS: 2200,
+			GRAINS: 1400,
+			PULSES: 4200,
+			SPICES: 9000,
+			DAIRY: 2500,
+			POULTRY: 12000,
+			ORGANIC: 4200,
+			PROCESSED: 6500,
 		};
-		return basePrices[category] || 30;
+		return basePrices[category] || 3000;
 	}
 
 	getSeasonalFactor(category) {
@@ -429,7 +475,7 @@ class AIService {
 			kamuli: 1.05,
 		};
 
-		const city = location.toLowerCase();
+		const city = String(location || "").toLowerCase();
 		for (const [key, factor] of Object.entries(locationFactors)) {
 			if (city.includes(key)) {
 				return factor;
@@ -807,27 +853,300 @@ Output as JSON: { "steps": [{ "title": "string", "description": "string", "prior
 
 	async getMarketIntelligence(commodity, location) {
 		try {
-			const prompt = `Provide the latest market trends and prices for ${commodity} in ${location}. 
-Include:
-- Current farmgate price range (UGX/kg)
-- Market demand (High/Medium/Low)
-- 1-week outlook.
-Output as JSON: { "priceRange": "string", "demand": "string", "outlook": "string" }`;
+			const category = this.getCanonicalCategory(commodity);
+			const [priceSignal, marketAnalysis] = await Promise.all([
+				this.getBestMarketPriceSignal(commodity, location, category),
+				this.analyzeMarket(category, location),
+			]);
+			const priceRange = this.formatMarketPriceRange(priceSignal);
+			const baseTrends = {
+				priceRange,
+				demand: this.deriveDemandLabel(marketAnalysis.signals),
+				outlook: this.deriveOutlookLabel(marketAnalysis.signals, priceSignal),
+				source: priceSignal.source,
+				sourceType: priceSignal.sourceType,
+				lastUpdated: priceSignal.lastUpdated,
+				confidence: priceSignal.confidence,
+			};
 
 			if (!this.openai) {
-				return { priceRange: "Unavailable", demand: "Stable", outlook: "Normal" };
+				return baseTrends;
 			}
+
+			const prompt = `Act as an agricultural market analyst for Uganda.
+Use this verified price signal without changing the price:
+- Commodity: ${commodity}
+- Location: ${location || "Uganda"}
+- Price range: ${priceRange}
+- Source: ${priceSignal.source}
+- Last updated: ${priceSignal.lastUpdated}
+- 30-day platform signals: ${JSON.stringify(marketAnalysis.signals)}
+
+Return JSON only: { "demand": "High|Medium|Low|Stable", "outlook": "short 1-week outlook" }`;
 
 			const response = await this.openai.chat.completions.create({
 				model: "gpt-4o",
 				messages: [{ role: "user", content: prompt }],
 				response_format: { type: "json_object" }
 			});
+			const narrative = JSON.parse(response.choices[0]?.message?.content || "{}");
 
-			return JSON.parse(response.choices[0].message.content);
+			return {
+				...baseTrends,
+				demand: typeof narrative.demand === "string" ? narrative.demand : baseTrends.demand,
+				outlook: typeof narrative.outlook === "string" ? narrative.outlook : baseTrends.outlook,
+			};
 		} catch (error) {
-			return { priceRange: "Unavailable", demand: "Stable", outlook: "Normal" };
+			const fallback = this.getBaselineMarketPriceSignal(commodity);
+			return {
+				priceRange: this.formatMarketPriceRange(fallback),
+				demand: "Stable",
+				outlook: "Using benchmark price while live feeds refresh",
+				source: fallback.source,
+				sourceType: fallback.sourceType,
+				lastUpdated: fallback.lastUpdated,
+				confidence: fallback.confidence,
+			};
 		}
+	}
+
+	async getBestMarketPriceSignal(commodity, location, category = this.getCanonicalCategory(commodity)) {
+		const [webSignal, persistedSignal, platformSignal] = await Promise.all([
+			this.getLatestWebMarketPriceSignal(commodity, location, category),
+			this.getPersistedMarketPriceSignal(commodity, location, category),
+			this.getPlatformPriceHistorySignal(category, location),
+		]);
+
+		return (
+			webSignal ||
+			persistedSignal ||
+			platformSignal ||
+			this.getBaselineMarketPriceSignal(commodity, category)
+		);
+	}
+
+	async getLatestWebMarketPriceSignal(commodity, location, category) {
+		try {
+			const terms = this.getCommoditySearchTerms(commodity, category);
+			const or = [];
+			if (category) or.push({ category });
+			for (const term of terms) {
+				or.push({ commodity: { contains: term } });
+			}
+
+			const rows = await prisma.marketWebPrice.findMany({
+				where: or.length ? { OR: or } : {},
+				orderBy: { collectedAt: "desc" },
+				take: 12,
+			});
+			if (!rows.length) return null;
+
+			const preferredRows = this.preferLocationRows(rows, location, "location");
+			const freshest = preferredRows[0];
+			const comparableRows = preferredRows.filter((row) =>
+				row.currency === freshest.currency &&
+				(row.unit || "kg") === (freshest.unit || "kg"),
+			);
+			const prices = comparableRows.map((row) => row.price).filter((price) => Number.isFinite(price));
+			if (!prices.length) return null;
+
+			return {
+				minPrice: Math.min(...prices),
+				maxPrice: Math.max(...prices),
+				currency: freshest.currency || "UGX",
+				unit: freshest.unit || "kg",
+				source: freshest.source || "Web market feed",
+				sourceType: "web_market",
+				lastUpdated: freshest.collectedAt?.toISOString?.() || new Date().toISOString(),
+				confidence: 0.9,
+			};
+		} catch {
+			return null;
+		}
+	}
+
+	async getPersistedMarketPriceSignal(commodity, location, category) {
+		try {
+			const terms = this.getCommoditySearchTerms(commodity, category);
+			if (!terms.length) return null;
+
+			const rows = await prisma.marketPrice.findMany({
+				where: { OR: terms.map((term) => ({ commodity: { contains: term } })) },
+				orderBy: { timestamp: "desc" },
+				take: 30,
+			});
+			if (!rows.length) return null;
+
+			const preferredRows = this.preferLocationRows(rows, location, "region");
+			const farmgateRows = preferredRows.filter((row) => row.marketType !== "EXPORT");
+			const comparableRows = farmgateRows.length ? farmgateRows : preferredRows;
+			const prices = comparableRows
+				.map((row) => row.pricePerKg)
+				.filter((price) => Number.isFinite(price));
+			if (!prices.length) return null;
+
+			const freshest = comparableRows[0];
+			return {
+				minPrice: Math.min(...prices),
+				maxPrice: Math.max(...prices),
+				currency: freshest.currency || "UGX",
+				unit: "kg",
+				source: "Regional market prices",
+				sourceType: "market_prices",
+				lastUpdated: freshest.timestamp?.toISOString?.() || new Date().toISOString(),
+				confidence: 0.82,
+			};
+		} catch {
+			return null;
+		}
+	}
+
+	async getPlatformPriceHistorySignal(category, location) {
+		try {
+			const since90d = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+			const productFilter = {};
+			if (category) productFilter.category = category;
+			if (location) productFilter.location = { contains: location };
+
+			const rows = await prisma.priceHistory.findMany({
+				where: {
+					date: { gte: since90d },
+					...(Object.keys(productFilter).length ? { product: productFilter } : {}),
+				},
+				orderBy: { date: "desc" },
+				take: 25,
+				select: { price: true, date: true },
+			});
+			const prices = rows.map((row) => row.price).filter((price) => Number.isFinite(price));
+			if (!prices.length) return null;
+
+			const avg = prices.reduce((sum, price) => sum + price, 0) / prices.length;
+			return {
+				minPrice: avg * 0.9,
+				maxPrice: avg * 1.1,
+				currency: "UGX",
+				unit: "kg",
+				source: "Platform listing history",
+				sourceType: "price_history",
+				lastUpdated: rows[0].date?.toISOString?.() || new Date().toISOString(),
+				confidence: 0.72,
+			};
+		} catch {
+			return null;
+		}
+	}
+
+	getBaselineMarketPriceSignal(commodity, category = this.getCanonicalCategory(commodity)) {
+		const text = String(commodity || "").toLowerCase();
+		const baselines = {
+			COFFEE: [4500, 7500],
+			VEGETABLES: [800, 2500],
+			FRUITS: [1200, 3500],
+			GRAINS: text.includes("maize") ? [900, 1800] : [1500, 3200],
+			PULSES: [2800, 5200],
+			SPICES: [6000, 14000],
+			DAIRY: [1800, 3200],
+			POULTRY: [9000, 16000],
+			ORGANIC: [2500, 6500],
+			PROCESSED: [3500, 9000],
+		};
+		const [minPrice, maxPrice] = baselines[category] || [1500, 4500];
+		return {
+			minPrice,
+			maxPrice,
+			currency: "UGX",
+			unit: "kg",
+			source: "Uganda benchmark price",
+			sourceType: "benchmark",
+			lastUpdated: new Date().toISOString(),
+			confidence: 0.55,
+		};
+	}
+
+	getCanonicalCategory(input) {
+		const raw = String(input || "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+		const categoryValues = new Set([
+			"COFFEE",
+			"VEGETABLES",
+			"FRUITS",
+			"GRAINS",
+			"PULSES",
+			"SPICES",
+			"DAIRY",
+			"POULTRY",
+			"ORGANIC",
+			"PROCESSED",
+		]);
+		if (categoryValues.has(raw)) return raw;
+		if (raw.includes("COFFEE") || raw.includes("ARABICA") || raw.includes("ROBUSTA")) return "COFFEE";
+		if (raw.includes("MAIZE") || raw.includes("CORN") || raw.includes("RICE") || raw.includes("GRAIN")) return "GRAINS";
+		if (raw.includes("BEAN") || raw.includes("PULSE")) return "PULSES";
+		if (raw.includes("TOMATO") || raw.includes("ONION") || raw.includes("VEGETABLE")) return "VEGETABLES";
+		if (raw.includes("FRUIT") || raw.includes("BANANA") || raw.includes("MANGO")) return "FRUITS";
+		if (raw.includes("SPICE") || raw.includes("GINGER")) return "SPICES";
+		return null;
+	}
+
+	getCommoditySearchTerms(commodity, category) {
+		const display = this.toDisplayCommodity(commodity);
+		const terms = [display];
+		const categoryTerms = {
+			COFFEE: ["Coffee", "Arabica", "Robusta"],
+			GRAINS: ["Maize", "Grain", "Rice"],
+			PULSES: ["Beans", "Pulse"],
+			VEGETABLES: ["Vegetable", "Tomato", "Onion"],
+			FRUITS: ["Fruit", "Banana", "Mango"],
+			SPICES: ["Spice", "Ginger"],
+			DAIRY: ["Dairy", "Milk"],
+			POULTRY: ["Poultry", "Chicken"],
+			ORGANIC: ["Organic"],
+			PROCESSED: ["Processed"],
+		};
+		if (categoryTerms[category]) terms.push(...categoryTerms[category]);
+		return [...new Set(terms.filter((term) => term && term.length >= 3))];
+	}
+
+	toDisplayCommodity(commodity) {
+		return String(commodity || "")
+			.replace(/_/g, " ")
+			.toLowerCase()
+			.replace(/\b\w/g, (char) => char.toUpperCase())
+			.trim();
+	}
+
+	preferLocationRows(rows, location, field) {
+		if (!location) return rows;
+		const needle = String(location).toLowerCase();
+		const localRows = rows.filter((row) =>
+			String(row[field] || "").toLowerCase().includes(needle),
+		);
+		return localRows.length ? localRows : rows;
+	}
+
+	formatMarketPriceRange(signal) {
+		const min = Math.round(signal.minPrice);
+		const max = Math.round(signal.maxPrice);
+		const unit = signal.unit || "kg";
+		const currency = signal.currency || "UGX";
+		if (min === max) return `${currency} ${min.toLocaleString("en-UG")}/${unit}`;
+		return `${currency} ${min.toLocaleString("en-UG")} - ${max.toLocaleString("en-UG")}/${unit}`;
+	}
+
+	deriveDemandLabel(signals = {}) {
+		const deliveredOrders = Number(signals.deliveredOrders30d || 0);
+		const activeListings = Number(signals.activeListings || 0);
+		if (deliveredOrders >= 20 || (deliveredOrders >= 8 && activeListings <= 10)) return "High";
+		if (deliveredOrders >= 5 || activeListings >= 5) return "Medium";
+		return "Stable";
+	}
+
+	deriveOutlookLabel(signals = {}, priceSignal) {
+		if (priceSignal.sourceType === "benchmark") return "Benchmark shown while live feed refreshes";
+		const deliveredOrders = Number(signals.deliveredOrders30d || 0);
+		const activeListings = Number(signals.activeListings || 0);
+		if (deliveredOrders > activeListings) return "Demand may lift prices this week";
+		if (activeListings > deliveredOrders * 3 && activeListings > 10) return "Supply is strong; compare buyers before selling";
+		return "Stable with normal weekly movement";
 	}
 
 	async generateMarketingContent(product) {

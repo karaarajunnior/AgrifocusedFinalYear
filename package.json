@@ -14,6 +14,7 @@
 		"docs:screenshots": "node scripts/generate-mock-screenshots.mjs",
 		"db:migrate": "npx prisma migrate dev",
 		"db:generate": "npx prisma generate",
+		"db:seed:prices": "node scripts/seedMarketPrices.mjs",
 		"db:studio": "npx prisma studio"
 	},
 	"dependencies": {

@@ -497,7 +497,7 @@ function BuyerDashboard() {
 
 				{/* Market Trends */}
 				<div className="mb-8">
-					<MarketIntelligence commodity="Maize" />
+					<MarketIntelligence commodity="Maize" location={userLocation || user?.location || "Uganda"} />
 				</div>
 
 				{/* Climate alerts */}
