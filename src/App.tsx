@@ -26,7 +26,6 @@ import ProductDetails from "./pages/ProductDetails";
 import ProfilePage from "./pages/ProfilePage";
 import MarketplacePage from "./pages/MarketplacePage";
 import OrdersPage from "./pages/OrdersPage";
-import AIModelPage from "./pages/AiModelpage";
 import ChatPage from "./pages/ChatPage";
 import PublicPortfolio from "./pages/PublicPortfolio";
 import RFPBoard from "./pages/RFPBoard";
@@ -130,14 +129,6 @@ function AppContent() {
 						element={
 							<ProtectedRoute>
 								<ChatPage />
-							</ProtectedRoute>
-						}
-					/>
-					<Route
-						path="/ai-models"
-						element={
-							<ProtectedRoute>
-								<AIModelPage />
 							</ProtectedRoute>
 						}
 					/>
