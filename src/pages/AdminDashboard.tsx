@@ -23,7 +23,6 @@ import axios from 'axios';
 import { saveToCache, getFromCache } from '../utils/offlineCache';
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import OfflineBadge from '../components/OfflineBadge';
-import AdminVerificationRules from '../components/AdminVerificationRules';
 
 interface DashboardData {
   overview: {
@@ -565,8 +564,7 @@ function AdminDashboard() {
                 { id: 'products', name: 'Products', icon: Package },
                 { id: 'activity', name: 'Activity', icon: Activity },
                 { id: 'blockchain', name: 'Blockchain', icon: Link2 },
-                { id: 'agro', name: 'Agro-Inputs', icon: ShoppingBag },
-                { id: 'verification', name: 'AI Verification', icon: Shield }
+                { id: 'agro', name: 'Agro-Inputs', icon: ShoppingBag }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -839,9 +837,9 @@ function AdminDashboard() {
                 <div>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">AI account review alerts</h3>
+                      <h3 className="text-lg font-semibold text-gray-900">Account review alerts</h3>
                       <p className="text-sm text-gray-600">
-                        The AI recommends review only. Admins decide whether to keep active or disable.
+                        Automated checks flag accounts for review. Admins decide whether to keep active or disable.
                       </p>
                     </div>
                     <button
@@ -853,13 +851,13 @@ function AdminDashboard() {
                     </button>
                   </div>
 
-                  {(accountReviews?.users.length || 0) === 0 ? (
+                  {(accountReviews?.reviews.length || 0) === 0 ? (
                     <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-sm text-gray-600">
                       No inactivity or compliance alerts need admin action.
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {accountReviews?.users.map((review) => (
+                      {accountReviews?.reviews.map((review) => (
                         <div key={review.id} className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
                           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                             <div>
@@ -887,7 +885,7 @@ function AdminDashboard() {
                             </div>
                             <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
                               <button
-                                onClick={() => updateAccountStatus(review.id, 'ACTIVE', 'Admin cleared AI review alert')}
+                                onClick={() => updateAccountStatus(review.id, 'ACTIVE', 'Admin cleared review alert')}
                                 className="rounded-lg border border-green-600 px-4 py-2 text-sm font-bold text-green-700 hover:bg-green-50"
                               >
                                 Keep active
@@ -1324,9 +1322,6 @@ function AdminDashboard() {
                   </>
                 )}
               </div>
-            )}
-            {activeTab === 'verification' && (
-              <AdminVerificationRules />
             )}
           </div>
         </div>

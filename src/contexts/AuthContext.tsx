@@ -129,6 +129,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			localStorage.setItem("token", token);
 			setUser(user);
 
+			if (user?.verified) {
+				toast.success("Account approved. Welcome aboard!");
+			} else {
+				toast.success(
+					"Account created. It will become fully active once review is complete.",
+				);
+			}
+
 			return true;
 		} catch (error: any) {
 			const message = error.response?.data?.error || "Registration failed";

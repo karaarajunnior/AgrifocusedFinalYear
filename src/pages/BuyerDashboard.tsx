@@ -26,8 +26,6 @@ import { saveToCache, getFromCache } from "../utils/offlineCache";
 import { useOfflineSync } from "../hooks/useOfflineSync";
 import OfflineBadge from "../components/OfflineBadge";
 import { enqueueOfflineOrderDraft, getOfflineOrderCount } from "../utils/offlineOrderQueue";
-import DocumentVerification from "../components/DocumentVerification";
-import { AIAdvisor, MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
 import { t } from "../utils/translation";
 import LocationLink from "../components/LocationLink";
 
@@ -103,7 +101,6 @@ function BuyerDashboard() {
 	const [showFilters, setShowFilters] = useState(false);
 	const [userLocation, setUserLocation] = useState("");
 	const [searchRadius, setSearchRadius] = useState(25);
-	const [showVerification, setShowVerification] = useState(false);
 	const [cacheTime, setCacheTime] = useState<string | undefined>();
 
 	const { isOnline } = useOfflineSync(() => {
@@ -468,37 +465,6 @@ function BuyerDashboard() {
 				</div>
 			</div>
 		</div>
-
-				<div className="mb-8">
-					<AIAdvisor />
-				</div>
-
-				<div className="mb-8">
-					<ProactiveLeads />
-				</div>
-
-				<div className="flex flex-wrap gap-4 mb-8">
-					<button
-						onClick={() => setShowVerification(!showVerification)}
-						className={`flex items-center space-x-2 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all ${
-							showVerification ? "bg-slate-900 text-white shadow-xl" : "bg-white text-slate-600 hover:bg-slate-50 border-2 border-slate-100"
-						}`}
-					>
-						<ShieldCheck className="h-4 w-4" />
-						<span>{t("Verification")}</span>
-					</button>
-				</div>
-
-				{showVerification && (
-					<div className="mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
-						<DocumentVerification />
-					</div>
-				)}
-
-				{/* Market Trends */}
-				<div className="mb-8">
-					<MarketIntelligence commodity="Maize" />
-				</div>
 
 				{/* Climate alerts */}
 				<div className="mb-8">

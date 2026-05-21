@@ -48,8 +48,6 @@ import { saveToCache, getFromCache } from "../utils/offlineCache";
 import { useOfflineSync } from "../hooks/useOfflineSync";
 import OfflineBadge from "../components/OfflineBadge";
 import { getOfflineProductCount } from "../utils/offlineProductQueue";
-import DocumentVerification from "../components/DocumentVerification";
-import { AIAdvisor, MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
 import { getCurrentPosition } from "../utils/geolocation";
 
 interface Product {
@@ -103,7 +101,6 @@ function FarmerDashboard() {
 	const [cacheTime, setCacheTime] = useState<string | undefined>();
 	const [showAddProduct, setShowAddProduct] = useState(false);
 	const [showAllProducts, setShowAllProducts] = useState(false);
-	const [showVerification, setShowVerification] = useState(false);
 	const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 	const [marketingContent, setMarketingContent] = useState<{heading: string, body: string, hashtags: string[]} | null>(null);
 	const [generatingMarketing, setGeneratingMarketing] = useState(false);
@@ -379,7 +376,7 @@ function FarmerDashboard() {
 			const res = await api.post('/intelligence/marketing-content', { productId: product.id });
 			setMarketingContent(res.data.content);
 		} catch (error) {
-			toast.error("AI failed to generate marketing content.");
+			toast.error("Failed to generate marketing content.");
 			setShowMarketingModal(false);
 		} finally {
 			setGeneratingMarketing(false);
@@ -656,11 +653,6 @@ function FarmerDashboard() {
 							</div>
 						</div>
 
-						{/* Proactive Leads */}
-						<div className="mb-8">
-							<ProactiveLeads />
-						</div>
-
 						{/* My Potential Buyers (Legacy) */}
 						{potentialBuyers.length > 0 && (
 							<div className="glass-card p-8">
@@ -692,28 +684,6 @@ function FarmerDashboard() {
 										</div>
 									))}
 								</div>
-							</div>
-						)}
-
-						<div className="mb-8">
-							<AIAdvisor />
-						</div>
-
-						<div className="flex flex-wrap gap-4 mb-8">
-							<button
-								onClick={() => setShowVerification(!showVerification)}
-								className={`flex items-center space-x-2 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all ${
-									showVerification ? "bg-slate-900 text-white shadow-xl" : "bg-white text-slate-600 hover:bg-slate-50 border-2 border-slate-100"
-								}`}
-							>
-								<ShieldCheck className="h-4 w-4" />
-								<span>{t("Verification")}</span>
-							</button>
-						</div>
-
-						{showVerification && (
-							<div className="mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
-								<DocumentVerification />
 							</div>
 						)}
 
@@ -754,7 +724,7 @@ function FarmerDashboard() {
 												className="mt-2 flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all opacity-0 group-hover:opacity-100"
 											>
 												<Share2 className="h-3 w-3" />
-												Gen AI Post
+												Marketing Post
 											</button>
 										</div>
 									</div>
@@ -790,8 +760,6 @@ function FarmerDashboard() {
 						)}
 
 						<ClimateAlertsCard location={user?.location || "Kampala"} />
-
-						<MarketIntelligence commodity="Coffee" />
 
 						<div className="glass-card p-8">
 							<div className="flex justify-between items-center mb-6">
@@ -1142,7 +1110,7 @@ function FarmerDashboard() {
 						</div>
 					</div>
 				)}
-			{/* AI Marketing Modal */}
+			{/* Marketing Content Modal */}
 			{showMarketingModal && (
 				<div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
 					<div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
@@ -1152,7 +1120,7 @@ function FarmerDashboard() {
 									<div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600">
 										<Share2 className="h-6 w-6" />
 									</div>
-									<h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">AI Multi-Market Content</h3>
+									<h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Marketing Content</h3>
 								</div>
 								<button 
 									onClick={() => setShowMarketingModal(false)}
@@ -1165,7 +1133,7 @@ function FarmerDashboard() {
 							{generatingMarketing ? (
 								<div className="py-20 text-center">
 									<div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-									<p className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] animate-pulse">Consulting Market Intelligence...</p>
+									<p className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] animate-pulse">Generating content...</p>
 								</div>
 							) : marketingContent && (
 								<div className="space-y-8">
@@ -1202,7 +1170,7 @@ function FarmerDashboard() {
 											Copy for social
 										</button>
 									</div>
-									<p className="text-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">Powered by OpenAI GPT-4o Vision & Trade Search</p>
+									<p className="text-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">Generated for multi-market sharing</p>
 								</div>
 							)}
 						</div>
