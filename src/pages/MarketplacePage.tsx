@@ -424,6 +424,7 @@ function MarketplacePage() {
 								
 								{/* Image / Header Gradient */}
 								<div className="relative h-56 bg-gradient-to-br from-emerald-100 via-teal-50 to-emerald-200 flex items-center justify-center overflow-hidden">
+								<div className="relative h-48 sm:h-56 bg-gradient-to-br from-emerald-100 via-teal-50 to-lime-100 flex items-center justify-center overflow-hidden">
 									{primaryImage ? (
 										<img
 											src={primaryImage}
