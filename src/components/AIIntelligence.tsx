@@ -12,6 +12,8 @@ interface MarketTrends {
 	priceRange: string;
 	demand: string;
 	outlook: string;
+	updatedAt?: string;
+	source?: string;
 }
 
 interface Lead {
@@ -67,12 +69,50 @@ export const AIAdvisor: React.FC = () => {
 export const MarketIntelligence: React.FC<{ commodity: string }> = ({ commodity }) => {
 	const [trends, setTrends] = useState<MarketTrends | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+
+	const formatUpdatedAt = (iso?: string) => {
+		if (!iso) return 'just now';
+		const ts = new Date(iso).getTime();
+		if (Number.isNaN(ts)) return 'just now';
+		const diffMs = Date.now() - ts;
+		const minutes = Math.max(0, Math.floor(diffMs / 60000));
+		if (minutes < 1) return 'just now';
+		if (minutes < 60) return `${minutes}m ago`;
+		const hours = Math.floor(minutes / 60);
+		if (hours < 24) return `${hours}h ago`;
+		const days = Math.floor(hours / 24);
+		return `${days}d ago`;
+	};
 
 	useEffect(() => {
-		api.get(`/intelligence/trends?category=${commodity}`)
-			.then(res => setTrends(res.data.trends))
-			.catch(() => {})
-			.finally(() => setLoading(false));
+		let mounted = true;
+		const fetchTrends = async () => {
+			try {
+				const res = await api.get('/intelligence/trends', {
+					params: { category: commodity, t: Date.now() },
+				});
+				if (!mounted) return;
+				setTrends(res.data.trends);
+				setError(null);
+			} catch {
+				if (!mounted) return;
+				setError('Live prices syncing...');
+			} finally {
+				if (mounted) setLoading(false);
+			}
+		};
+
+		fetchTrends();
+		const intervalId = window.setInterval(fetchTrends, 60000);
+		const focusHandler = () => fetchTrends();
+		window.addEventListener('focus', focusHandler);
+
+		return () => {
+			mounted = false;
+			window.clearInterval(intervalId);
+			window.removeEventListener('focus', focusHandler);
+		};
 	}, [commodity]);
 
 	if (loading) return <div className="h-40 bg-slate-900 rounded-3xl animate-pulse" />;
@@ -90,18 +130,27 @@ export const MarketIntelligence: React.FC<{ commodity: string }> = ({ commodity 
 			<div className="space-y-5 relative z-10">
 				<div className="flex justify-between items-end border-b border-white/10 pb-4">
 					<span className="text-sm font-bold text-slate-300 leading-none mb-1">Price</span>
-					<span className="text-xl font-black text-emerald-400 leading-none">{trends?.priceRange}</span>
+					<span className="text-xl font-black text-emerald-400 leading-none">
+						{trends?.priceRange || 'Updating...'}
+					</span>
 				</div>
 				<div className="flex justify-between items-center py-1">
 					<span className="text-sm font-bold text-slate-300">People buying</span>
-					<span className="text-sm font-black px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg">{trends?.demand}</span>
+					<span className="text-sm font-black px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg">
+						{trends?.demand || 'Medium'}
+					</span>
 				</div>
 				<div className="flex justify-between items-center py-1">
 					<span className="text-sm font-bold text-slate-300">This week</span>
-					<span className="text-sm font-black text-white">{trends?.outlook}</span>
+					<span className="text-sm font-black text-white">
+						{trends?.outlook || 'Live trend updates are in progress.'}
+					</span>
 				</div>
 			</div>
-			<p className="mt-6 text-xs font-bold text-slate-400">AI checks app sales and market signals.</p>
+			<div className="mt-6 flex items-center justify-between text-xs font-bold text-slate-400">
+				<p>Live 24/7 · updated {formatUpdatedAt(trends?.updatedAt)}</p>
+				{error && <p className="text-amber-300">{error}</p>}
+			</div>
 		</div>
 	);
 };
