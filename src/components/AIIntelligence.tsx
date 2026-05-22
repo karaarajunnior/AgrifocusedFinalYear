@@ -17,6 +17,8 @@ interface MarketTrends {
 	updatedAt?: string;
 	source?: string;
 	stale?: boolean;
+	updatedAt?: string;
+	source?: string;
 }
 
 interface Lead {
@@ -106,6 +108,50 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
 			}
 		};
 
+	const formatUpdatedAt = (iso?: string) => {
+		if (!iso) return 'just now';
+		const ts = new Date(iso).getTime();
+		if (Number.isNaN(ts)) return 'just now';
+		const diffMs = Date.now() - ts;
+		const minutes = Math.max(0, Math.floor(diffMs / 60000));
+		if (minutes < 1) return 'just now';
+		if (minutes < 60) return `${minutes}m ago`;
+		const hours = Math.floor(minutes / 60);
+		if (hours < 24) return `${hours}h ago`;
+		const days = Math.floor(hours / 24);
+		return `${days}d ago`;
+	};
+
+	useEffect(() => {
+		let mounted = true;
+		const fetchTrends = async () => {
+			try {
+				const res = await api.get('/intelligence/trends', {
+					params: { category: commodity, t: Date.now() },
+				});
+				if (!mounted) return;
+				setTrends(res.data.trends);
+				setError(null);
+			} catch {
+				if (!mounted) return;
+				setError('Live prices syncing...');
+			} finally {
+				if (mounted) setLoading(false);
+			}
+		};
+
+		fetchTrends();
+		const intervalId = window.setInterval(fetchTrends, 60000);
+		const focusHandler = () => fetchTrends();
+		window.addEventListener('focus', focusHandler);
+
+		return () => {
+			mounted = false;
+			window.clearInterval(intervalId);
+			window.removeEventListener('focus', focusHandler);
+		};
+	}, [commodity]);
+
 		fetchTrends();
 		// Auto-refresh so the price display stays current 24/7
 		const interval = setInterval(fetchTrends, refreshIntervalMs);
@@ -147,18 +193,24 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
 					</span>
 					<span className="text-xl font-black text-emerald-400 leading-none text-right">
 						{priceText}
+					<span className="text-sm font-bold text-slate-300 leading-none mb-1">Price</span>
+					<span className="text-xl font-black text-emerald-400 leading-none">
+						{trends?.priceRange || 'Updating...'}
 					</span>
 				</div>
 				<div className="flex justify-between items-center py-1">
 					<span className="text-sm font-bold text-slate-300">People buying</span>
 					<span className="text-sm font-black px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg">
 						{demandText}
+						{trends?.demand || 'Medium'}
 					</span>
 				</div>
 				<div className="flex justify-between items-center py-1">
 					<span className="text-sm font-bold text-slate-300">This week</span>
 					<span className="text-sm font-black text-white text-right max-w-[60%]">
 						{outlookText}
+					<span className="text-sm font-black text-white">
+						{trends?.outlook || 'Live trend updates are in progress.'}
 					</span>
 				</div>
 			</div>
@@ -175,6 +227,9 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
 					Live feed offline – retrying soon.
 				</p>
 			)}
+				<p>Live 24/7 · updated {formatUpdatedAt(trends?.updatedAt)}</p>
+				{error && <p className="text-amber-300">{error}</p>}
+			</div>
 		</div>
 	);
 };
