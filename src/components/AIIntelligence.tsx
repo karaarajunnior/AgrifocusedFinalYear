@@ -12,6 +12,11 @@ interface MarketTrends {
 	priceRange: string;
 	demand: string;
 	outlook: string;
+	currency?: string;
+	unit?: string;
+	updatedAt?: string;
+	source?: string;
+	stale?: boolean;
 	updatedAt?: string;
 	source?: string;
 }
@@ -66,10 +71,42 @@ export const AIAdvisor: React.FC = () => {
 	);
 };
 
-export const MarketIntelligence: React.FC<{ commodity: string }> = ({ commodity }) => {
+interface MarketIntelligenceProps {
+	commodity: string;
+	location?: string;
+	refreshIntervalMs?: number;
+}
+
+export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
+	commodity,
+	location,
+	refreshIntervalMs = 5 * 60 * 1000,
+}) => {
 	const [trends, setTrends] = useState<MarketTrends | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+		const fetchTrends = async () => {
+			try {
+				const params = new URLSearchParams({ category: commodity });
+				if (location) params.append("location", location);
+				const res = await api.get(`/intelligence/trends?${params.toString()}`);
+				if (!cancelled) {
+					setTrends(res.data?.trends || null);
+					setError(null);
+				}
+			} catch (err: unknown) {
+				if (!cancelled) {
+					const message =
+						(err as { message?: string })?.message || "Could not load trends";
+					setError(message);
+				}
+			} finally {
+				if (!cancelled) setLoading(false);
+			}
+		};
 
 	const formatUpdatedAt = (iso?: string) => {
 		if (!iso) return 'just now';
@@ -115,7 +152,27 @@ export const MarketIntelligence: React.FC<{ commodity: string }> = ({ commodity 
 		};
 	}, [commodity]);
 
-	if (loading) return <div className="h-40 bg-slate-900 rounded-3xl animate-pulse" />;
+		fetchTrends();
+		// Auto-refresh so the price display stays current 24/7
+		const interval = setInterval(fetchTrends, refreshIntervalMs);
+		return () => {
+			cancelled = true;
+			clearInterval(interval);
+		};
+	}, [commodity, location, refreshIntervalMs]);
+
+	if (loading && !trends)
+		return <div className="h-40 bg-slate-900 rounded-3xl animate-pulse" />;
+
+	const priceText = trends?.priceRange || "Loading live price…";
+	const demandText = trends?.demand || "—";
+	const outlookText = trends?.outlook || "Checking the latest market signals.";
+	const updatedText = trends?.updatedAt
+		? new Date(trends.updatedAt).toLocaleTimeString([], {
+				hour: "2-digit",
+				minute: "2-digit",
+		  })
+		: null;
 
 	return (
 		<div className="glass-card p-8 bg-slate-900 text-white border-0 shadow-emerald-900/20 overflow-hidden relative">
@@ -126,9 +183,16 @@ export const MarketIntelligence: React.FC<{ commodity: string }> = ({ commodity 
 				<TrendingUp className="h-4 w-4 text-emerald-400" />
 				{commodity} market today
 			</h4>
-			<p className="mb-6 text-sm text-slate-300 relative z-10">Use this to choose where to sell.</p>
+			<p className="mb-6 text-sm text-slate-300 relative z-10">
+				Use this to choose where to sell.
+			</p>
 			<div className="space-y-5 relative z-10">
 				<div className="flex justify-between items-end border-b border-white/10 pb-4">
+					<span className="text-sm font-bold text-slate-300 leading-none mb-1">
+						Price
+					</span>
+					<span className="text-xl font-black text-emerald-400 leading-none text-right">
+						{priceText}
 					<span className="text-sm font-bold text-slate-300 leading-none mb-1">Price</span>
 					<span className="text-xl font-black text-emerald-400 leading-none">
 						{trends?.priceRange || 'Updating...'}
@@ -137,17 +201,32 @@ export const MarketIntelligence: React.FC<{ commodity: string }> = ({ commodity 
 				<div className="flex justify-between items-center py-1">
 					<span className="text-sm font-bold text-slate-300">People buying</span>
 					<span className="text-sm font-black px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg">
+						{demandText}
 						{trends?.demand || 'Medium'}
 					</span>
 				</div>
 				<div className="flex justify-between items-center py-1">
 					<span className="text-sm font-bold text-slate-300">This week</span>
+					<span className="text-sm font-black text-white text-right max-w-[60%]">
+						{outlookText}
 					<span className="text-sm font-black text-white">
 						{trends?.outlook || 'Live trend updates are in progress.'}
 					</span>
 				</div>
 			</div>
 			<div className="mt-6 flex items-center justify-between text-xs font-bold text-slate-400">
+				<span>
+					{trends?.source
+						? `Source: ${trends.source}${trends.stale ? " (cached)" : ""}`
+						: "AI checks app sales and market signals."}
+				</span>
+				{updatedText && <span>Updated {updatedText}</span>}
+			</div>
+			{error && !trends && (
+				<p className="mt-3 text-xs text-amber-400 font-bold">
+					Live feed offline – retrying soon.
+				</p>
+			)}
 				<p>Live 24/7 · updated {formatUpdatedAt(trends?.updatedAt)}</p>
 				{error && <p className="text-amber-300">{error}</p>}
 			</div>
