@@ -1,4 +1,5 @@
 import prisma from "../db/prisma.js";
+import aiService from "./aiService.js";
 
 /**
  * USSD Simulation Service
@@ -25,7 +26,17 @@ export async function handleUSSDRequest(msisdn, text, sessionId) {
             session.step = 'LIST_PRODUCT_TYPE';
         } else if (input === '2') {
             const prices = await prisma.marketPrice.findMany({ take: 3, orderBy: { timestamp: 'desc' } });
-            response = "END Latest Prices:\n" + prices.map(p => `${p.commodity}: UGX ${p.pricePerKg}`).join("\n");
+            if (prices.length > 0) {
+                response = "END Latest Prices:\n" + prices.map(p => `${p.commodity}: UGX ${p.pricePerKg}`).join("\n");
+            } else {
+                const categories = ["COFFEE", "VEGETABLES", "GRAINS"];
+                const fallbackPrices = await Promise.all(
+                    categories.map(async (category) => aiService.getCurrentPriceSignal({ category })),
+                );
+                response = "END Latest Prices:\n" + fallbackPrices
+                    .map(p => `${aiService.humanizeCategory(p.category)}: ${p.priceRange}`)
+                    .join("\n");
+            }
             endSession = true;
         } else if (input === '3') {
             const user = await prisma.user.findFirst({ where: { phone: msisdn } });

@@ -99,6 +99,7 @@ function FarmerDashboard() {
 	const [products, setProducts] = useState<Product[]>([]);
 	const [analytics, setAnalytics] = useState<Analytics | null>(null);
 	const [credit, setCredit] = useState<CreditRecord | null>(null);
+	const [, setMarketPrices] = useState<MarketPrice[]>([]);
 	const [marketPrices, setMarketPrices] = useState<MarketPrice[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [cacheTime, setCacheTime] = useState<string | undefined>();

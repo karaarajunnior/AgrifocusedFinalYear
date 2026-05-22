@@ -415,15 +415,15 @@ function MarketplacePage() {
 					</div>
 				) : (
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 xl:gap-7">
-						{products.map((product) => (
-							(() => {
-								const primaryImage = imageFailures[product.id] ? undefined : getPrimaryProductImage(product.images);
-								return (
+						{products.map((product) => {
+							const primaryImage = imageFailures[product.id] ? undefined : getPrimaryProductImage(product.images);
+							return (
 							<div
 								key={product.id}
 								className="group bg-white rounded-[2rem] shadow-sm border border-emerald-100/70 overflow-hidden hover:shadow-2xl hover:shadow-emerald-900/10 hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative">
 								
 								{/* Image / Header Gradient */}
+								<div className="relative h-56 bg-gradient-to-br from-emerald-100 via-teal-50 to-emerald-200 flex items-center justify-center overflow-hidden">
 								<div className="relative h-48 sm:h-56 bg-gradient-to-br from-emerald-100 via-teal-50 to-lime-100 flex items-center justify-center overflow-hidden">
 									{primaryImage ? (
 										<img
@@ -543,9 +543,8 @@ function MarketplacePage() {
 									</div>
 								</div>
 							</div>
-								);
-							})()
-						))}
+							);
+						})}
 					</div>
 				)}
 

@@ -2,6 +2,40 @@ import tf from "@tensorflow/tfjs";
 import prisma from "../db/prisma.js";
 import OpenAI from "openai";
 
+const CATEGORY_ALIASES = {
+	BEANS: "PULSES",
+	PEAS: "PULSES",
+	MAIZE: "GRAINS",
+	CORN: "GRAINS",
+	RICE: "GRAINS",
+	TOMATO: "VEGETABLES",
+	TOMATOES: "VEGETABLES",
+	ONION: "VEGETABLES",
+	ONIONS: "VEGETABLES",
+	POTATO: "VEGETABLES",
+	POTATOES: "VEGETABLES",
+	BANANA: "FRUITS",
+	BANANAS: "FRUITS",
+	MATOKE: "FRUITS",
+	MILK: "DAIRY",
+	CHICKEN: "POULTRY",
+	COFFEE: "COFFEE",
+	ROBUSTA_COFFEE: "COFFEE",
+	ARABICA_COFFEE: "COFFEE",
+};
+
+const MARKET_PRICE_BASELINES = {
+	COFFEE: { low: 5500, high: 8500 },
+	VEGETABLES: { low: 1200, high: 4500 },
+	FRUITS: { low: 1500, high: 5000 },
+	GRAINS: { low: 1800, high: 3600 },
+	PULSES: { low: 3000, high: 6500 },
+	SPICES: { low: 6000, high: 16000 },
+	DAIRY: { low: 1800, high: 3200 },
+	POULTRY: { low: 9000, high: 15000 },
+	ORGANIC: { low: 2500, high: 6500 },
+	PROCESSED: { low: 4000, high: 9000 },
+};
 // Lightweight in-memory TTL cache so the AI service can stay responsive 24/7
 // even when the DB is slow or external providers (OpenAI / web sources) fail.
 class TTLCache {
@@ -65,6 +99,17 @@ class AIService {
 	// Advanced price prediction blending a small ML model + DB signals + heuristics
 	async predictPrice(productData) {
 		try {
+			const normalizedProductData = this.normalizeProductInput(productData);
+			console.log(" Predicting price for:", normalizedProductData);
+			// Keep response time snappy in production
+			const t0 = Date.now();
+
+			// Pull recent internal and market price signals (best-effort)
+			const [recentPrices, currentMarketPrice] = await Promise.all([
+				this.getRecentPricesForSignal(normalizedProductData),
+				this.getCurrentPriceSignal(normalizedProductData),
+			]);
+			const dbAvg =
 			const t0 = Date.now();
 
 			// Cached identical prediction within last 5 min (snappy UX, less DB load)
@@ -97,12 +142,12 @@ class AIService {
 			});
 
 			// Base price calculation with AI factors
-			const basePrice = this.getBasePriceForCategory(productData.category);
-			const seasonalFactor = this.getSeasonalFactor(productData.category);
-			const locationFactor = this.getLocationFactor(productData.location);
-			const organicFactor = productData.organic ? 1.3 : 1.0;
-			const supplyFactor = this.getSupplyFactor(productData.quantity);
-			const demandFactor = await this.getDemandFactorFromDb(productData.category);
+			const basePrice = this.getBasePriceForCategory(normalizedProductData.category);
+			const seasonalFactor = this.getSeasonalFactor(normalizedProductData.category);
+			const locationFactor = this.getLocationFactor(normalizedProductData.location);
+			const organicFactor = normalizedProductData.organic ? 1.3 : 1.0;
+			const supplyFactor = this.getSupplyFactor(normalizedProductData.quantity);
+			const demandFactor = await this.getDemandFactorFromDb(normalizedProductData.category);
 
 			// Heuristic prediction (always available)
 			const heuristicPrice =
@@ -113,6 +158,26 @@ class AIService {
 				supplyFactor *
 				demandFactor;
 
+			const signals = [];
+			if (dbAvg !== null) signals.push({ price: dbAvg, weight: 0.3 });
+			if (currentMarketPrice) {
+				signals.push({
+					price: currentMarketPrice.midpoint,
+					weight: currentMarketPrice.fallback ? 0.25 : 0.45,
+				});
+			}
+
+			// Blend heuristics with observed/internal prices. A baseline signal is always available,
+			// so the user receives a useful 24/7 estimate even before fresh web data is ingested.
+			if (signals.length > 0) {
+				const totalWeight = Math.min(
+					0.75,
+					signals.reduce((sum, signal) => sum + signal.weight, 0),
+				);
+				const weightedSignal =
+					signals.reduce((sum, signal) => sum + signal.price * signal.weight, 0) /
+					signals.reduce((sum, signal) => sum + signal.weight, 0);
+				predictedPrice = predictedPrice * (1 - totalWeight) + weightedSignal * totalWeight;
 			// ML prediction from trained linear regression on PriceHistory (per category).
 			// Falls back to null if no model is trained for this category yet.
 			const mlPrice = await this.mlPredict(productData);
@@ -152,10 +217,12 @@ class AIService {
 
 			// Calculate confidence based on data quality
 			const confidence = this.calculatePriceConfidence(
-				productData,
+				normalizedProductData,
 				predictedPrice,
 				{
 					priceSamples: recentPrices.length,
+					marketSamples: currentMarketPrice?.samples || 0,
+					usedBaseline: currentMarketPrice?.fallback || false,
 					liveSamples: liveSignal.sampleCount,
 					freshnessHours: liveSignal.freshnessHours,
 				},
@@ -163,8 +230,8 @@ class AIService {
 
 			// Market analysis (uses DB signals)
 			const marketAnalysis = await this.analyzeMarket(
-				productData.category,
-				productData.location,
+				normalizedProductData.category,
+				normalizedProductData.location,
 			);
 
 			const result = {
@@ -193,14 +260,17 @@ class AIService {
 						: null,
 				},
 				recommendations: this.generatePriceRecommendations(
-					productData,
+					normalizedProductData,
 					predictedPrice,
 				),
+				currentMarketPrice,
 				telemetry: {
 					modelTrainedAt: this.priceModelTrainedAt
 						? new Date(this.priceModelTrainedAt).toISOString()
 						: null,
 					priceSamples: recentPrices.length,
+					marketSamples: currentMarketPrice?.samples || 0,
+					marketSignalSource: currentMarketPrice?.source,
 					listingSamples: recentListings.length,
 					liveMarketSamples: liveSignal.sampleCount,
 					processingMs: Date.now() - t0,
@@ -496,64 +566,47 @@ class AIService {
 	// Market analysis (DB-driven)
 	async analyzeMarket(category, location) {
 		try {
+			const normalizedCategory = this.normalizeCategory(category);
+			const normalizedLocation = this.normalizeLocation(location);
 			const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-			const [deliveredOrders, recentProducts, avgPriceHistory, webPrice] = await Promise.all([
+			const [deliveredOrders, recentProducts, avgPriceHistory, currentPrice] = await Promise.all([
 				prisma.order.count({
 					where: {
 						status: "DELIVERED",
 						createdAt: { gte: since30d },
-						product: category ? { category } : undefined,
+						product: normalizedCategory ? { category: normalizedCategory } : undefined,
 					},
 				}),
 				prisma.product.count({
 					where: {
 						available: true,
 						quantity: { gt: 0 },
-						category: category || undefined,
-						location: location ? { contains: location } : undefined,
+						category: normalizedCategory || undefined,
+						location: normalizedLocation ? { contains: normalizedLocation } : undefined,
 					},
 				}),
 				prisma.priceHistory.aggregate({
 					where: {
 						date: { gte: since30d },
-						product: category ? { category } : undefined,
+						product: normalizedCategory ? { category: normalizedCategory } : undefined,
 					},
 					_avg: { price: true },
 				}),
-				prisma.marketWebPrice.findFirst({
-					where: {
-						category: category || undefined,
-						location: location ? { contains: location } : undefined,
-					},
-					orderBy: { collectedAt: "desc" },
-				}),
+				this.getCurrentPriceSignal({ category: normalizedCategory, location: normalizedLocation }),
 			]);
 
 			const avgPrice = avgPriceHistory._avg.price || 0;
-			const webPriceSignal = webPrice
-				? {
-						source: webPrice.source,
-						price: webPrice.price,
-						currency: webPrice.currency,
-						unit: webPrice.unit,
-						collectedAt: webPrice.collectedAt,
-				  }
-				: null;
 
 			return {
 				summary: `Last 30 days: ${deliveredOrders} delivered orders. ${recentProducts} active listings. Avg internal price signal: ${avgPrice.toFixed(
 					2,
-				)}. ${
-					webPriceSignal
-						? `Web price signal: ${webPriceSignal.price} ${webPriceSignal.currency}${webPriceSignal.unit ? `/${webPriceSignal.unit}` : ""} (source: ${webPriceSignal.source}).`
-						: "Web price signal: none."
-				}`,
+				)}. Current market price: ${currentPrice.priceRange} (${currentPrice.source}).`,
 				signals: {
 					deliveredOrders30d: deliveredOrders,
 					activeListings: recentProducts,
 					avgPrice30d: avgPrice,
-					webPriceSignal,
+					currentPrice,
 				},
 				timestamp: new Date().toISOString(),
 			};
@@ -566,6 +619,213 @@ class AIService {
 		}
 	}
 
+	normalizeProductInput(productData = {}) {
+		return {
+			...productData,
+			category: this.normalizeCategory(productData.category || productData.commodity || productData.name),
+			quantity: Number.isFinite(Number(productData.quantity))
+				? Math.max(1, Number(productData.quantity))
+				: 100,
+			location: this.normalizeLocation(productData.location) || "Uganda",
+			organic: Boolean(productData.organic),
+		};
+	}
+
+	normalizeCategory(category) {
+		const value = String(category || "")
+			.trim()
+			.toUpperCase()
+			.replace(/[^A-Z0-9]+/g, "_")
+			.replace(/^_+|_+$/g, "");
+		return CATEGORY_ALIASES[value] || (MARKET_PRICE_BASELINES[value] ? value : "VEGETABLES");
+	}
+
+	normalizeLocation(location) {
+		const value = String(location || "").trim();
+		if (!value) return "";
+		return value.split(",")[0].trim();
+	}
+
+	getBaselinePriceRange(category) {
+		const normalizedCategory = this.normalizeCategory(category);
+		return MARKET_PRICE_BASELINES[normalizedCategory] || MARKET_PRICE_BASELINES.VEGETABLES;
+	}
+
+	formatUgx(value) {
+		return Math.round(value).toLocaleString("en-US");
+	}
+
+	formatPriceRange(low, high, currency = "UGX", unit = "kg") {
+		return `${currency} ${this.formatUgx(low)} - ${this.formatUgx(high)}/${unit}`;
+	}
+
+	humanizeCategory(category) {
+		return this.normalizeCategory(category)
+			.toLowerCase()
+			.split("_")
+			.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+			.join(" ");
+	}
+
+	async getCurrentPriceSignal(productData = {}) {
+		const category = this.normalizeCategory(productData.category || productData.commodity);
+		const location = this.normalizeLocation(productData.location);
+		const baseline = this.getBaselinePriceRange(category);
+
+		try {
+			const since90d = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+			const commodityLabel = this.humanizeCategory(category);
+			const locationFilter = location ? { contains: location } : undefined;
+
+			const [webPrices, marketPrices, productPrice, historyPrice] = await Promise.all([
+				prisma.marketWebPrice.findMany({
+					where: {
+						category,
+						location: locationFilter,
+					},
+					orderBy: { collectedAt: "desc" },
+					take: 8,
+					select: {
+						price: true,
+						currency: true,
+						unit: true,
+						source: true,
+						collectedAt: true,
+					},
+				}),
+				prisma.marketPrice.findMany({
+					where: {
+						commodity: { contains: commodityLabel },
+						timestamp: { gte: since90d },
+					},
+					orderBy: { timestamp: "desc" },
+					take: 8,
+					select: {
+						pricePerKg: true,
+						currency: true,
+						timestamp: true,
+						marketType: true,
+					},
+				}),
+				prisma.product.aggregate({
+					where: {
+						available: true,
+						quantity: { gt: 0 },
+						category,
+						location: locationFilter,
+					},
+					_avg: { price: true },
+					_count: { price: true },
+				}),
+				prisma.priceHistory.aggregate({
+					where: {
+						date: { gte: since90d },
+						product: {
+							category,
+							location: locationFilter,
+						},
+					},
+					_avg: { price: true },
+					_count: { price: true },
+				}),
+			]);
+
+			const signals = [];
+			for (const row of webPrices) {
+				if (Number.isFinite(row.price)) {
+					signals.push({
+						price: row.price,
+						weight: 1.25,
+						source: row.source || "web market",
+						updatedAt: row.collectedAt,
+					});
+				}
+			}
+			for (const row of marketPrices) {
+				if (Number.isFinite(row.pricePerKg)) {
+					signals.push({
+						price: row.pricePerKg,
+						weight: row.marketType === "EXPORT" ? 0.8 : 1,
+						source: "regional market",
+						updatedAt: row.timestamp,
+					});
+				}
+			}
+			if (Number.isFinite(productPrice._avg.price)) {
+				signals.push({
+					price: productPrice._avg.price,
+					weight: Math.min(1.4, 0.7 + productPrice._count.price * 0.05),
+					source: "active listings",
+					updatedAt: new Date(),
+				});
+			}
+			if (Number.isFinite(historyPrice._avg.price)) {
+				signals.push({
+					price: historyPrice._avg.price,
+					weight: Math.min(1.2, 0.6 + historyPrice._count.price * 0.04),
+					source: "price history",
+					updatedAt: new Date(),
+				});
+			}
+
+			if (signals.length === 0) {
+				return {
+					category,
+					priceRange: this.formatPriceRange(baseline.low, baseline.high),
+					low: baseline.low,
+					high: baseline.high,
+					midpoint: (baseline.low + baseline.high) / 2,
+					currency: "UGX",
+					unit: "kg",
+					source: "DAFIS baseline",
+					samples: 0,
+					confidence: 0.6,
+					fallback: true,
+					updatedAt: new Date().toISOString(),
+				};
+			}
+
+			const totalWeight = signals.reduce((sum, signal) => sum + signal.weight, 0);
+			const midpoint =
+				signals.reduce((sum, signal) => sum + signal.price * signal.weight, 0) /
+				totalWeight;
+			const low = Math.max(100, Math.round((midpoint * 0.9) / 50) * 50);
+			const high = Math.max(low, Math.round((midpoint * 1.12) / 50) * 50);
+			const latestUpdate = signals
+				.map((signal) => new Date(signal.updatedAt).getTime())
+				.filter(Number.isFinite)
+				.sort((a, b) => b - a)[0];
+			const source = [...new Set(signals.map((signal) => signal.source))].join(" + ");
+
+			return {
+				category,
+				priceRange: this.formatPriceRange(low, high),
+				low,
+				high,
+				midpoint,
+				currency: "UGX",
+				unit: "kg",
+				source,
+				samples: signals.length,
+				confidence: Math.min(0.92, 0.64 + signals.length * 0.035),
+				fallback: false,
+				updatedAt: new Date(latestUpdate || Date.now()).toISOString(),
+			};
+		} catch (error) {
+			console.error("Current price signal error:", error);
+			return {
+				category,
+				priceRange: this.formatPriceRange(baseline.low, baseline.high),
+				low: baseline.low,
+				high: baseline.high,
+				midpoint: (baseline.low + baseline.high) / 2,
+				currency: "UGX",
+				unit: "kg",
+				source: "DAFIS baseline",
+				samples: 0,
+				confidence: 0.55,
+				fallback: true,
+				updatedAt: new Date().toISOString(),
 	resolveCategory(value) {
 		if (!value) return null;
 		const normalized = String(value).trim().toUpperCase();
@@ -799,12 +1059,13 @@ class AIService {
 	async getDemandFactorFromDb(category) {
 		// Convert recent delivered order volume into a mild multiplier (0.9..1.3)
 		try {
+			const normalizedCategory = this.normalizeCategory(category);
 			const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 			const count = await prisma.order.count({
 				where: {
 					status: "DELIVERED",
 					createdAt: { gte: since30d },
-					product: category ? { category } : undefined,
+					product: normalizedCategory ? { category: normalizedCategory } : undefined,
 				},
 			});
 			// basic scaling
@@ -817,17 +1078,18 @@ class AIService {
 
 	async calculateDemandScoreFromDb(productData, timeframe) {
 		try {
+			const normalizedCategory = this.normalizeCategory(productData.category);
 			const since = new Date(Date.now() - Math.max(7, timeframe) * 24 * 60 * 60 * 1000);
 			const delivered = await prisma.order.count({
 				where: {
 					status: "DELIVERED",
 					createdAt: { gte: since },
-					product: productData.category ? { category: productData.category } : undefined,
+					product: normalizedCategory ? { category: normalizedCategory } : undefined,
 				},
 			});
 			// Normalize into 0.1..0.95
 			const base = Math.min(0.95, Math.max(0.1, delivered / 100));
-			const seasonalFactor = this.getSeasonalFactor(productData.category);
+			const seasonalFactor = this.getSeasonalFactor(normalizedCategory);
 			return Math.min(0.95, Math.max(0.1, base * seasonalFactor));
 		} catch {
 			return this.calculateDemandScore(productData, timeframe);
@@ -836,12 +1098,13 @@ class AIService {
 
 	async analyzeDemandTrendsFromDb(productData) {
 		try {
+			const normalizedCategory = this.normalizeCategory(productData.category);
 			const since14d = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 			const rows = await prisma.order.findMany({
 				where: {
 					status: "DELIVERED",
 					createdAt: { gte: since14d },
-					product: productData.category ? { category: productData.category } : undefined,
+					product: normalizedCategory ? { category: normalizedCategory } : undefined,
 				},
 				select: { createdAt: true },
 			});
@@ -877,28 +1140,20 @@ class AIService {
 
 	// Helper methods
 	getBasePriceForCategory(category) {
-		const basePrices = {
-			VEGETABLES: 25,
-			FRUITS: 35,
-			GRAINS: 20,
-			PULSES: 45,
-			SPICES: 150,
-			DAIRY: 40,
-			POULTRY: 120,
-			ORGANIC: 60,
-			PROCESSED: 80,
-		};
-		return basePrices[category] || 30;
+		const range = this.getBaselinePriceRange(category);
+		return (range.low + range.high) / 2;
 	}
 
 	getSeasonalFactor(category) {
+		const normalizedCategory = this.normalizeCategory(category);
 		const month = new Date().getMonth() + 1;
 		const seasonalFactors = {
+			COFFEE: [1.05, 1.0, 0.95, 0.95, 1.0, 1.08, 1.12, 1.08, 1.0, 0.98, 1.02, 1.08],
 			VEGETABLES: [1.2, 1.1, 0.9, 0.8, 0.9, 1.0, 1.1, 1.2, 1.0, 0.9, 1.0, 1.1],
 			FRUITS: [0.8, 0.9, 1.2, 1.3, 1.1, 1.0, 0.9, 0.8, 1.0, 1.1, 1.0, 0.9],
 			GRAINS: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
 		};
-		const factors = seasonalFactors[category] || seasonalFactors["VEGETABLES"];
+		const factors = seasonalFactors[normalizedCategory] || seasonalFactors["VEGETABLES"];
 		return factors[month - 1];
 	}
 
@@ -914,7 +1169,7 @@ class AIService {
 			kamuli: 1.05,
 		};
 
-		const city = location.toLowerCase();
+		const city = String(location || "").toLowerCase();
 		for (const [key, factor] of Object.entries(locationFactors)) {
 			if (city.includes(key)) {
 				return factor;
@@ -931,7 +1186,9 @@ class AIService {
 	}
 
 	getDemandFactor(category) {
+		const normalizedCategory = this.normalizeCategory(category);
 		const demandFactors = {
+			COFFEE: 1.18,
 			VEGETABLES: 1.1,
 			FRUITS: 1.15,
 			ORGANIC: 1.3,
@@ -941,9 +1198,18 @@ class AIService {
 			DAIRY: 1.1,
 			POULTRY: 1.25,
 		};
-		return demandFactors[category] || 1.0;
+		return demandFactors[normalizedCategory] || 1.0;
 	}
 
+	calculatePriceConfidence(productData, predictedPrice, signalStats = {}) {
+		let confidence = 0.68;
+
+		if (productData.quantity > 0) confidence += 0.1;
+		if (productData.location) confidence += 0.05;
+		if (productData.category) confidence += 0.05;
+		if (signalStats.priceSamples > 0) confidence += Math.min(0.08, signalStats.priceSamples * 0.01);
+		if (signalStats.marketSamples > 0) confidence += Math.min(0.1, signalStats.marketSamples * 0.015);
+		if (signalStats.usedBaseline) confidence -= 0.05;
 	calculatePriceConfidence(productData, signals = {}) {
 		// Base from input completeness
 		let confidence = 0.55;
@@ -1000,7 +1266,9 @@ class AIService {
 	}
 
 	getCategoryStability(category) {
+		const normalizedCategory = this.normalizeCategory(category);
 		const stability = {
+			COFFEE: 0.07,
 			VEGETABLES: 0.05,
 			FRUITS: 0.03,
 			GRAINS: 0.08,
@@ -1011,7 +1279,7 @@ class AIService {
 			ORGANIC: 0.03,
 			PROCESSED: 0.1,
 		};
-		return stability[category] || 0.05;
+		return stability[normalizedCategory] || 0.05;
 	}
 
 	analyzeMarketConditions(productData) {
@@ -1056,8 +1324,10 @@ class AIService {
 
 	calculateDemandScore(productData, timeframe) {
 		let score = 0.5;
+		const normalizedCategory = this.normalizeCategory(productData.category);
 
 		const categoryDemand = {
+			COFFEE: 0.78,
 			VEGETABLES: 0.7,
 			FRUITS: 0.75,
 			ORGANIC: 0.85,
@@ -1068,9 +1338,9 @@ class AIService {
 			POULTRY: 0.75,
 		};
 
-		score = categoryDemand[productData.category] || 0.6;
+		score = categoryDemand[normalizedCategory] || 0.6;
 
-		const seasonalFactor = this.getSeasonalFactor(productData.category);
+		const seasonalFactor = this.getSeasonalFactor(normalizedCategory);
 		score *= seasonalFactor;
 
 		if (timeframe <= 7) score *= 1.1;
@@ -1101,13 +1371,15 @@ class AIService {
 	}
 
 	getSeasonalDemandPattern(category) {
+		const normalizedCategory = this.normalizeCategory(category);
 		const patterns = {
+			COFFEE: "Strong export demand with harvest-season price movement",
 			VEGETABLES: "Peak demand in winter months",
 			FRUITS: "High demand in summer season",
 			GRAINS: "Steady demand throughout year",
 			ORGANIC: "Growing demand across all seasons",
 		};
-		return patterns[category] || "Seasonal variations apply";
+		return patterns[normalizedCategory] || "Seasonal variations apply";
 	}
 
 	generateDemandRecommendations(productData, demandLevel) {
@@ -1263,13 +1535,15 @@ class AIService {
 	}
 
 	getPeakSeason(category) {
+		const normalizedCategory = this.normalizeCategory(category);
 		const peakSeasons = {
+			COFFEE: "Harvest and export contracting windows",
 			VEGETABLES: "Winter",
 			FRUITS: "Summer",
 			GRAINS: "Post-harvest (Oct-Dec)",
 			ORGANIC: "Year-round",
 		};
-		return peakSeasons[category] || "Seasonal";
+		return peakSeasons[normalizedCategory] || "Seasonal";
 	}
 
 	getWeatherInsights(location) {
@@ -1483,6 +1757,37 @@ Output as JSON: { "steps": [{ "title": "string", "description": "string", "prior
 		if (cached) return cached;
 
 		try {
+			const category = this.normalizeCategory(commodity);
+			const marketSignal = await this.getCurrentPriceSignal({
+				category,
+				commodity,
+				location,
+			});
+			const demandFactor = await this.getDemandFactorFromDb(category);
+			const demand =
+				demandFactor >= 1.15 ? "High" : demandFactor >= 1.0 ? "Medium" : "Low";
+			const localTrend = {
+				priceRange: marketSignal.priceRange,
+				demand,
+				outlook: marketSignal.fallback
+					? "Baseline estimate available 24/7; refresh market data for sharper local pricing."
+					: "Current app and market signals are active.",
+				source: marketSignal.source,
+				confidence: marketSignal.confidence,
+				updatedAt: marketSignal.updatedAt,
+				priceAvailable: true,
+				category,
+			};
+
+			const prompt = `Provide the latest market trends and prices for ${this.humanizeCategory(category)} in ${location || "Uganda"}. 
+Include:
+- Current farmgate price range (UGX/kg)
+- Market demand (High/Medium/Low)
+- 1-week outlook.
+Output as JSON: { "priceRange": "string", "demand": "string", "outlook": "string" }`;
+
+			if (!this.openai) {
+				return localTrend;
 			const liveTrends = await this.computeLiveMarketTrends(commodity, location);
 
 			// Optionally enrich the qualitative outlook with OpenAI but never
@@ -1634,6 +1939,28 @@ Provide a short 1-week outlook (max 12 words, plain English). JSON: { "outlook":
 					currency: liveSignal.currency || "UGX",
 				}) || fallbackRange;
 
+			const aiTrend = JSON.parse(response.choices[0].message.content);
+			return {
+				...localTrend,
+				priceRange: this.hasUsablePriceRange(aiTrend.priceRange)
+					? aiTrend.priceRange
+					: localTrend.priceRange,
+				demand: aiTrend.demand || localTrend.demand,
+				outlook: aiTrend.outlook || localTrend.outlook,
+			};
+		} catch (error) {
+			const category = this.normalizeCategory(commodity);
+			const baseline = this.getBaselinePriceRange(category);
+			return {
+				priceRange: this.formatPriceRange(baseline.low, baseline.high),
+				demand: "Medium",
+				outlook: "Baseline estimate available 24/7; live market service is temporarily unavailable.",
+				source: "DAFIS baseline",
+				confidence: 0.55,
+				updatedAt: new Date().toISOString(),
+				priceAvailable: true,
+				category,
+			};
 			return {
 				priceRange,
 				demand,
@@ -1889,6 +2216,11 @@ Provide a short 1-week outlook (max 12 words, plain English). JSON: { "outlook":
 		};
 	}
 
+	hasUsablePriceRange(priceRange) {
+		const value = String(priceRange || "").trim().toLowerCase();
+		return Boolean(value) && !["unavailable", "n/a", "none", "no price available"].includes(value);
+	}
+
 	async generateMarketingContent(product) {
 		try {
 			const prompt = `Generate a compelling, professional social media marketing snippet for this product:
@@ -1980,13 +2312,18 @@ Output as JSON: { "heading": "string", "body": "string", "hashtags": ["string"] 
 	// Fallback methods
 
 	getFallbackPricePrediction(productData) {
-		const basePrice = this.getBasePriceForCategory(productData.category);
-		const organicMultiplier = productData.organic ? 1.3 : 1.0;
+		const normalizedProductData = this.normalizeProductInput(productData);
+		const basePrice = this.getBasePriceForCategory(normalizedProductData.category);
+		const organicMultiplier = normalizedProductData.organic ? 1.3 : 1.0;
+		const baseline = this.getBaselinePriceRange(normalizedProductData.category);
 
 		return {
 			predictedPrice: basePrice * organicMultiplier,
 			confidence: 0.65,
-			marketAnalysis: "Limited data available - using baseline prediction",
+			marketAnalysis: `Limited live data available - using 24/7 baseline ${this.formatPriceRange(
+				baseline.low,
+				baseline.high,
+			)}`,
 			factors: {
 				seasonal: 1.0,
 				supply: 1.0,
@@ -1998,6 +2335,20 @@ Output as JSON: { "heading": "string", "body": "string", "hashtags": ["string"] 
 				"Monitor market trends",
 				"Consider organic certification",
 			],
+			currentMarketPrice: {
+				category: normalizedProductData.category,
+				priceRange: this.formatPriceRange(baseline.low, baseline.high),
+				low: baseline.low,
+				high: baseline.high,
+				midpoint: (baseline.low + baseline.high) / 2,
+				currency: "UGX",
+				unit: "kg",
+				source: "DAFIS baseline",
+				samples: 0,
+				confidence: 0.55,
+				fallback: true,
+				updatedAt: new Date().toISOString(),
+			},
 			timestamp: new Date().toISOString(),
 		};
 	}
@@ -2053,6 +2404,7 @@ Output as JSON: { "heading": "string", "body": "string", "hashtags": ["string"] 
 
 	encodeCategoryToNumber(category) {
 		const categories = [
+			"COFFEE",
 			"VEGETABLES",
 			"FRUITS",
 			"GRAINS",
