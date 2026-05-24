@@ -13,6 +13,9 @@ interface MarketTrends {
 	demand: string;
 	outlook: string;
 	source?: string;
+	sourceType?: string;
+	lastUpdated?: string;
+	confidence?: number;
 	confidence?: number;
 	updatedAt?: string;
 	priceAvailable?: boolean;
@@ -75,6 +78,10 @@ export const AIAdvisor: React.FC = () => {
 	);
 };
 
+export const MarketIntelligence: React.FC<{ commodity: string; location?: string }> = ({ commodity, location }) => {
+	const [trends, setTrends] = useState<MarketTrends | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState(false);
 interface MarketIntelligenceProps {
 	commodity: string;
 	location?: string;
@@ -91,11 +98,27 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		api.get(`/intelligence/trends?category=${commodity}`)
+		setLoading(true);
+		setError(false);
+		const params = new URLSearchParams({ category: commodity });
+		if (location) params.set('location', location);
+		api.get(`/intelligence/trends?${params.toString()}`)
 			.then(res => setTrends(res.data.trends))
+			.catch(() => {
+				setError(true);
+				setTrends({
+					priceRange: "UGX 1,500 - 4,500/kg",
+					demand: "Stable",
+					outlook: "Showing benchmark while live feed reconnects",
+					source: "Uganda benchmark price",
+					sourceType: "benchmark",
+					lastUpdated: new Date().toISOString(),
+					confidence: 0.45,
+				});
+			})
 			.catch(() => setTrends(getFallbackTrends(commodity)))
 			.finally(() => setLoading(false));
-	}, [commodity]);
+	}, [commodity, location]);
 
 	if (loading) return <div className="h-40 bg-slate-900 rounded-3xl animate-pulse" />;
 	const displayTrends = trends || getFallbackTrends(commodity);
@@ -186,6 +209,10 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
 		  })
 		: null;
 
+	const lastUpdated = trends?.lastUpdated
+		? new Date(trends.lastUpdated).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+		: null;
+
 	return (
 		<div className="glass-card p-8 bg-slate-900 text-white border-0 shadow-emerald-900/20 overflow-hidden relative">
 			<div className="absolute -top-10 -right-10 opacity-10">
@@ -206,6 +233,7 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
 					<span className="text-xl font-black text-emerald-400 leading-none text-right">
 						{priceText}
 					<span className="text-sm font-bold text-slate-300 leading-none mb-1">Price</span>
+					<span className="text-xl font-black text-emerald-400 leading-none text-right">{trends?.priceRange || "UGX 1,500 - 4,500/kg"}</span>
 					<span className="text-xl font-black text-emerald-400 leading-none text-right">{displayTrends.priceRange}</span>
 				</div>
 				<div className="flex justify-between items-center py-1">
@@ -217,6 +245,9 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
 					<span className="text-sm font-black text-white">{displayTrends.outlook}</span>
 				</div>
 			</div>
+			<p className="mt-6 text-xs font-bold text-slate-400">
+				{error ? "Offline fallback" : trends?.source || "Market signal"}{lastUpdated ? ` · updated ${lastUpdated}` : ""}.
+			</p>
 			<div className="mt-6 text-xs font-bold text-slate-400 space-y-1">
 				<p>AI checks app sales and market signals 24/7.</p>
 				{displayTrends.source && (

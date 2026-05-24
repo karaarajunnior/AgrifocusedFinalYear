@@ -97,6 +97,7 @@ function AIModelPage() {
 	>([]);
 
 	const categories = [
+		"COFFEE",
 		"VEGETABLES",
 		"FRUITS",
 		"GRAINS",
@@ -819,7 +820,7 @@ function AIModelPage() {
 																		<Target className="h-4 w-4 mr-2" />
 																		<span>
 																			Suitability:{" "}
-																			{(crop.suitabilityScore * 100).toFixed(0)}
+																			{crop.suitabilityScore.toFixed(0)}
 																			%
 																		</span>
 																	</div>
