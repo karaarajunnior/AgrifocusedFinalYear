@@ -119,6 +119,16 @@ class AIService {
 				return { ...cached, fromCache: true };
 			}
 
+			// Pull recent price history and live market signals from DB (best-effort)
+			const [recentPrices, liveMarketSignal] = await Promise.all([
+				this.getRecentPricesForSignal(productData),
+				this.buildLiveMarketSnapshot(
+					productData.category,
+					productData.location,
+					productData.name,
+				),
+			]);
+			const dbAvg =
 			// Pull recent price history from DB (best-effort)
 			const [recentPrices, recentListings, webPrice] = await Promise.all([
 				this.getRecentPricesForSignal(productData),
@@ -158,6 +168,15 @@ class AIService {
 				supplyFactor *
 				demandFactor;
 
+			// Blend heuristics with live/current market signals for a more grounded estimate.
+			const liveMidPrice = liveMarketSignal.currentMidPrice;
+			if (dbAvg !== null && liveMidPrice !== null) {
+				predictedPrice =
+					predictedPrice * 0.45 + dbAvg * 0.25 + liveMidPrice * 0.3;
+			} else if (dbAvg !== null) {
+				predictedPrice = predictedPrice * 0.65 + dbAvg * 0.35;
+			} else if (liveMidPrice !== null) {
+				predictedPrice = predictedPrice * 0.65 + liveMidPrice * 0.35;
 			const signals = [];
 			if (dbAvg !== null) signals.push({ price: dbAvg, weight: 0.3 });
 			if (currentMarketPrice) {
@@ -220,6 +239,9 @@ class AIService {
 				normalizedProductData,
 				predictedPrice,
 				{
+					recentPriceSamples: recentPrices.length,
+					liveSignalSamples: liveMarketSignal.sources.totalSignals,
+					hasFreshSignal: liveMarketSignal.isFresh,
 					priceSamples: recentPrices.length,
 					marketSamples: currentMarketPrice?.samples || 0,
 					usedBaseline: currentMarketPrice?.fallback || false,
@@ -262,6 +284,7 @@ class AIService {
 				recommendations: this.generatePriceRecommendations(
 					normalizedProductData,
 					predictedPrice,
+					liveMarketSignal,
 				),
 				currentMarketPrice,
 				telemetry: {
@@ -269,6 +292,7 @@ class AIService {
 						? new Date(this.priceModelTrainedAt).toISOString()
 						: null,
 					priceSamples: recentPrices.length,
+					liveSignalSamples: liveMarketSignal.sources.totalSignals,
 					marketSamples: currentMarketPrice?.samples || 0,
 					marketSignalSource: currentMarketPrice?.source,
 					listingSamples: recentListings.length,
@@ -566,6 +590,17 @@ class AIService {
 	// Market analysis (DB-driven)
 	async analyzeMarket(category, location) {
 		try {
+			const snapshot = await this.buildLiveMarketSnapshot(category, location);
+
+			return {
+				summary: snapshot.summary,
+				signals: {
+					currentPriceRange: snapshot.priceRange,
+					demand: snapshot.demand,
+					outlook: snapshot.outlook,
+					confidence: snapshot.confidence,
+					updatedAt: snapshot.updatedAt,
+					...snapshot.sources,
 			const normalizedCategory = this.normalizeCategory(category);
 			const normalizedLocation = this.normalizeLocation(location);
 			const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -608,7 +643,7 @@ class AIService {
 					avgPrice30d: avgPrice,
 					currentPrice,
 				},
-				timestamp: new Date().toISOString(),
+				timestamp: snapshot.updatedAt,
 			};
 		} catch (e) {
 			return {
@@ -1183,9 +1218,359 @@ class AIService {
 		}
 	}
 
+	normalizeMarketCategory(value) {
+		const normalized = String(value || "")
+			.trim()
+			.toUpperCase();
+		const aliases = {
+			MAIZE: "GRAINS",
+			CORN: "GRAINS",
+			RICE: "GRAINS",
+			WHEAT: "GRAINS",
+			BEAN: "PULSES",
+			BEANS: "PULSES",
+			PEA: "PULSES",
+			PEAS: "PULSES",
+			MILK: "DAIRY",
+			TOMATO: "VEGETABLES",
+			TOMATOES: "VEGETABLES",
+			ONION: "VEGETABLES",
+			ONIONS: "VEGETABLES",
+			POTATO: "VEGETABLES",
+			POTATOES: "VEGETABLES",
+			BANANA: "FRUITS",
+			MANGO: "FRUITS",
+			AVOCADO: "FRUITS",
+			COFFEE: "COFFEE",
+		};
+		const knownCategories = new Set([
+			"COFFEE",
+			"VEGETABLES",
+			"FRUITS",
+			"GRAINS",
+			"PULSES",
+			"SPICES",
+			"DAIRY",
+			"POULTRY",
+			"ORGANIC",
+			"PROCESSED",
+		]);
+		if (knownCategories.has(normalized)) return normalized;
+		return aliases[normalized] || null;
+	}
+
+	getLocationSearchTerm(location) {
+		return String(location || "")
+			.split(",")[0]
+			.trim();
+	}
+
+	getRobustPriceRange(prices, fallbackBasePrice) {
+		const clean = prices
+			.map((value) => Number(value))
+			.filter((value) => Number.isFinite(value) && value > 0)
+			.sort((a, b) => a - b);
+		if (clean.length === 0) {
+			const base = Math.max(1, fallbackBasePrice || 1);
+			return {
+				low: Math.round(base * 0.92 * 100) / 100,
+				high: Math.round(base * 1.12 * 100) / 100,
+			};
+		}
+		const lowerIndex = Math.floor((clean.length - 1) * 0.15);
+		const upperIndex = Math.ceil((clean.length - 1) * 0.85);
+		return {
+			low: clean[lowerIndex],
+			high: clean[upperIndex],
+		};
+	}
+
+	formatDisplayPriceRange(low, high, currency = "UGX", unit = "kg") {
+		const prefix = currency || "UGX";
+		if (Math.abs(high - low) < 0.01) {
+			return `${prefix} ${Math.round(low).toLocaleString()}/${unit}`;
+		}
+		return `${prefix} ${Math.round(low).toLocaleString()} - ${Math.round(high).toLocaleString()}/${unit}`;
+	}
+
+	buildDemandLevel(last7Orders, prev7Orders, activeListings) {
+		if (
+			last7Orders >= Math.max(4, Math.ceil(activeListings * 0.5)) ||
+			(prev7Orders > 0 && last7Orders >= prev7Orders * 1.2)
+		) {
+			return "High";
+		}
+		if (last7Orders > 0 || activeListings > 0) {
+			return "Medium";
+		}
+		return "Low";
+	}
+
+	buildOutlook(priceDeltaPct, last7Orders, prev7Orders) {
+		if (priceDeltaPct >= 6 || last7Orders > prev7Orders * 1.25) {
+			return "Prices are likely to firm up over the next 7 days.";
+		}
+		if (
+			priceDeltaPct <= -6 ||
+			(prev7Orders > 0 && last7Orders < prev7Orders * 0.8)
+		) {
+			return "Prices may soften slightly this week if supply stays steady.";
+		}
+		return "Prices are broadly stable this week with normal day-to-day movement.";
+	}
+
+	buildSnapshotSummary(snapshot, commodityLabel, location) {
+		const parts = [
+			`${commodityLabel || "Market"} live range: ${snapshot.priceRange}.`,
+			`Demand is ${snapshot.demand.toLowerCase()}.`,
+			snapshot.outlook,
+			`${snapshot.sources.activeListings} active listings, ${snapshot.sources.deliveredOrders7d} delivered orders in the last 7 days, and ${snapshot.sources.webSignals} web price checks informed this estimate.`,
+		];
+		if (location) {
+			parts.splice(
+				1,
+				0,
+				`Best matching market area: ${this.getLocationSearchTerm(location) || String(location)}.`,
+			);
+		}
+		return parts.join(" ");
+	}
+
+	getLatestTimestamp(...dates) {
+		const valid = dates
+			.filter(Boolean)
+			.map((date) => new Date(date))
+			.filter((date) => !Number.isNaN(date.getTime()))
+			.sort((a, b) => b.getTime() - a.getTime());
+		return valid[0]?.toISOString() || new Date().toISOString();
+	}
+
+	async buildLiveMarketSnapshot(categoryOrCommodity, location, commodityHint) {
+		const category = this.normalizeMarketCategory(categoryOrCommodity);
+		const commodity = String(commodityHint || categoryOrCommodity || "")
+			.trim()
+			.replace(/\s+/g, " ");
+		const locationTerm = this.getLocationSearchTerm(location);
+		const basePrice = this.getBasePriceForCategory(category || categoryOrCommodity);
+
+		const productMatchers = [];
+		if (category) productMatchers.push({ category });
+		if (commodity) productMatchers.push({ name: { contains: commodity } });
+
+		const productWhere = {
+			AND: [
+				{ available: true },
+				{ quantity: { gt: 0 } },
+				productMatchers.length > 0 ? { OR: productMatchers } : {},
+				locationTerm ? { location: { contains: locationTerm } } : {},
+			].filter((clause) => Object.keys(clause).length > 0),
+		};
+
+		const historyProductWhere = {
+			AND: [
+				productMatchers.length > 0 ? { OR: productMatchers } : {},
+				locationTerm ? { location: { contains: locationTerm } } : {},
+			].filter((clause) => Object.keys(clause).length > 0),
+		};
+
+		const webMatchers = [];
+		if (category) webMatchers.push({ category });
+		if (commodity) webMatchers.push({ commodity: { contains: commodity } });
+
+		const webWhere = {
+			AND: [
+				webMatchers.length > 0 ? { OR: webMatchers } : {},
+				locationTerm
+					? {
+							OR: [
+								{ location: { contains: locationTerm } },
+								{ market: { contains: locationTerm } },
+							],
+					  }
+					: {},
+			].filter((clause) => Object.keys(clause).length > 0),
+		};
+
+		const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+		const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+		const prev7d = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
+		try {
+			const [listings, history, webSignals, last7Orders, prev7Orders] =
+				await Promise.all([
+					prisma.product.findMany({
+						where: productWhere,
+						orderBy: { updatedAt: "desc" },
+						take: 40,
+						select: {
+							price: true,
+							unit: true,
+							updatedAt: true,
+						},
+					}),
+					prisma.priceHistory.findMany({
+						where: {
+							date: { gte: since30d },
+							product: historyProductWhere,
+						},
+						orderBy: { date: "desc" },
+						take: 40,
+						select: { price: true, date: true },
+					}),
+					prisma.marketWebPrice.findMany({
+						where: webWhere,
+						orderBy: { collectedAt: "desc" },
+						take: 25,
+						select: {
+							price: true,
+							currency: true,
+							unit: true,
+							collectedAt: true,
+						},
+					}),
+					prisma.order.count({
+						where: {
+							status: "DELIVERED",
+							createdAt: { gte: since7d },
+							product: historyProductWhere,
+						},
+					}),
+					prisma.order.count({
+						where: {
+							status: "DELIVERED",
+							createdAt: { gte: prev7d, lt: since7d },
+							product: historyProductWhere,
+						},
+					}),
+				]);
+
+			const listingPrices = listings.map((item) => item.price);
+			const historyPrices = history.map((item) => item.price);
+			const ugxWebSignals = webSignals.filter(
+				(item) => !item.currency || item.currency === "UGX",
+			);
+			const webPrices = ugxWebSignals.map((item) => item.price);
+			const livePrices =
+				listingPrices.length > 0 || webPrices.length > 0
+					? [...listingPrices, ...webPrices]
+					: historyPrices;
+			const range = this.getRobustPriceRange(livePrices, basePrice);
+			const currentMidPrice =
+				Math.round(((range.low + range.high) / 2) * 100) / 100;
+			const historyAverage =
+				historyPrices.length > 0
+					? historyPrices.reduce((sum, value) => sum + value, 0) /
+					  historyPrices.length
+					: currentMidPrice;
+			const priceDeltaPct =
+				historyAverage > 0
+					? ((currentMidPrice - historyAverage) / historyAverage) * 100
+					: 0;
+			const primaryUnit =
+				listings.find((item) => item.unit)?.unit ||
+				ugxWebSignals.find((item) => item.unit)?.unit ||
+				"kg";
+			const demand = this.buildDemandLevel(
+				last7Orders,
+				prev7Orders,
+				listings.length,
+			);
+			const outlook = this.buildOutlook(priceDeltaPct, last7Orders, prev7Orders);
+			const updatedAt = this.getLatestTimestamp(
+				listings[0]?.updatedAt,
+				history[0]?.date,
+				webSignals[0]?.collectedAt,
+			);
+			const sources = {
+				activeListings: listings.length,
+				priceHistoryPoints30d: history.length,
+				webSignals: ugxWebSignals.length,
+				deliveredOrders7d: last7Orders,
+				deliveredOrdersPrev7d: prev7Orders,
+				totalSignals:
+					listings.length + history.length + ugxWebSignals.length + last7Orders,
+			};
+			const confidence = Math.min(
+				0.96,
+				0.55 +
+					Math.min(0.25, listings.length * 0.02) +
+					Math.min(0.1, history.length * 0.005) +
+					Math.min(0.08, ugxWebSignals.length * 0.01) +
+					(last7Orders > 0 ? 0.05 : 0),
+			);
+
+			const snapshot = {
+				priceRange: this.formatDisplayPriceRange(
+					range.low,
+					range.high,
+					"UGX",
+					primaryUnit,
+				),
+				rangeLow: range.low,
+				rangeHigh: range.high,
+				currentMidPrice,
+				demand,
+				outlook,
+				confidence,
+				updatedAt,
+				isFresh: new Date(updatedAt).getTime() >= Date.now() - 24 * 60 * 60 * 1000,
+				sources,
+			};
+
+			return {
+				...snapshot,
+				summary: this.buildSnapshotSummary(
+					snapshot,
+					commodity || category || "market",
+					location,
+				),
+			};
+		} catch (error) {
+			const low = Math.round(basePrice * 0.92 * 100) / 100;
+			const high = Math.round(basePrice * 1.12 * 100) / 100;
+			const snapshot = {
+				priceRange: this.formatDisplayPriceRange(low, high, "UGX", "kg"),
+				rangeLow: low,
+				rangeHigh: high,
+				currentMidPrice: Math.round(((low + high) / 2) * 100) / 100,
+				demand: "Medium",
+				outlook: "Prices are broadly stable this week with normal day-to-day movement.",
+				confidence: 0.58,
+				updatedAt: new Date().toISOString(),
+				isFresh: true,
+				sources: {
+					activeListings: 0,
+					priceHistoryPoints30d: 0,
+					webSignals: 0,
+					deliveredOrders7d: 0,
+					deliveredOrdersPrev7d: 0,
+					totalSignals: 0,
+				},
+			};
+			return {
+				...snapshot,
+				summary: this.buildSnapshotSummary(
+					snapshot,
+					commodity || category || "market",
+					location,
+				),
+			};
+		}
+	}
+
 	// Helper methods
 	getBasePriceForCategory(category) {
 		const basePrices = {
+			COFFEE: 12000,
+			VEGETABLES: 25,
+			FRUITS: 35,
+			GRAINS: 20,
+			PULSES: 45,
+			SPICES: 150,
+			DAIRY: 40,
+			POULTRY: 120,
+			ORGANIC: 60,
+			PROCESSED: 80,
 			COFFEE: 6500,
 			VEGETABLES: 1600,
 			FRUITS: 2200,
@@ -1259,12 +1644,16 @@ class AIService {
 		return demandFactors[normalizedCategory] || 1.0;
 	}
 
+	calculatePriceConfidence(productData, predictedPrice, signalMeta = {}) {
 	calculatePriceConfidence(productData, predictedPrice, signalStats = {}) {
 		let confidence = 0.68;
 
 		if (productData.quantity > 0) confidence += 0.1;
 		if (productData.location) confidence += 0.05;
 		if (productData.category) confidence += 0.05;
+		if (signalMeta.recentPriceSamples > 0) confidence += 0.04;
+		if (signalMeta.liveSignalSamples > 0) confidence += 0.05;
+		if (signalMeta.hasFreshSignal) confidence += 0.02;
 		if (signalStats.priceSamples > 0) confidence += Math.min(0.08, signalStats.priceSamples * 0.01);
 		if (signalStats.marketSamples > 0) confidence += Math.min(0.1, signalStats.marketSamples * 0.015);
 		if (signalStats.usedBaseline) confidence -= 0.05;
@@ -1307,6 +1696,7 @@ class AIService {
 		const categoryStability = this.getCategoryStability(productData.category);
 		confidence += categoryStability;
 
+		return Math.min(0.97, confidence);
 		const priceSamples = Number(signalMetadata.priceSamples || 0);
 		const liveSamples = Number(signalMetadata.liveSamples || 0);
 		const freshnessHours = Number(signalMetadata.freshnessHours);
@@ -1352,7 +1742,7 @@ class AIService {
 		return "Use recent orders and active listings to confirm the final asking price";
 	}
 
-	generatePriceRecommendations(productData, predictedPrice) {
+	generatePriceRecommendations(productData, predictedPrice, liveMarketSignal) {
 		const recommendations = [];
 
 		if (productData.organic) {
@@ -1369,6 +1759,18 @@ class AIService {
 		} else if (predictedPrice < currentPrice * 0.9) {
 			recommendations.push(
 				"Consider competitive pricing strategy to increase market share",
+			);
+		}
+
+		if (liveMarketSignal?.demand === "High") {
+			recommendations.push(
+				"Buyer activity is strong right now - keep stock visible and respond quickly to inquiries",
+			);
+		}
+
+		if (liveMarketSignal?.outlook?.toLowerCase().includes("firm up")) {
+			recommendations.push(
+				"Short-term prices are strengthening - avoid underselling if your stock quality is strong",
 			);
 		}
 
@@ -1889,6 +2291,28 @@ Return JSON only: { "demand": "High|Medium|Low|Stable", "outlook": "short 1-week
 
 	async getLatestWebMarketPriceSignal(commodity, location, category) {
 		try {
+			const snapshot = await this.buildLiveMarketSnapshot(commodity, location);
+			return {
+				priceRange: snapshot.priceRange,
+				demand: snapshot.demand,
+				outlook: snapshot.outlook,
+				summary: snapshot.summary,
+				confidence: snapshot.confidence,
+				updatedAt: snapshot.updatedAt,
+				isFresh: snapshot.isFresh,
+				sources: snapshot.sources,
+			};
+		} catch (error) {
+			const snapshot = await this.buildLiveMarketSnapshot(commodity, location);
+			return {
+				priceRange: snapshot.priceRange,
+				demand: snapshot.demand,
+				outlook: snapshot.outlook,
+				summary: snapshot.summary,
+				confidence: snapshot.confidence,
+				updatedAt: snapshot.updatedAt,
+				isFresh: snapshot.isFresh,
+				sources: snapshot.sources,
 			const terms = this.getCommoditySearchTerms(commodity, category);
 			const or = [];
 			if (category) or.push({ category });

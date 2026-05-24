@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
 	Brain,
 	TrendingUp,
@@ -58,10 +58,26 @@ interface CropRecommendation {
 	reasons: string[];
 }
 
+interface ModelPerformance {
+	dataSignals: {
+		priceHistoryPoints30d: number;
+		ordersPlaced30d: number;
+		productViews30d: number;
+		conversionApprox: number;
+	};
+	systemHealth: {
+		status: string;
+		uptimeSec: number;
+		lastUpdate: string;
+	};
+}
+
 function AIModelPage() {
 	const { user } = useAuth();
 	const [activeTab, setActiveTab] = useState("price-prediction");
 	const [loading, setLoading] = useState(false);
+	const [modelPerformance, setModelPerformance] =
+		useState<ModelPerformance | null>(null);
 	const defaultLocation = user?.location || "Kampala, Uganda";
 
 	// Price Prediction State
@@ -114,6 +130,19 @@ function AIModelPage() {
 		"Arid",
 		"Semi-arid",
 	];
+
+	useEffect(() => {
+		api
+			.get("/ai/model-performance")
+			.then((response) => {
+				if (response.data?.success) {
+					setModelPerformance(response.data.performance);
+				}
+			})
+			.catch(() => {
+				setModelPerformance(null);
+			});
+	}, []);
 
 	const handlePricePrediction = async () => {
 		setLoading(true);
@@ -185,6 +214,10 @@ function AIModelPage() {
 						Use advanced AI models for price prediction, demand forecasting, and
 						crop recommendations
 					</p>
+					<p className="text-sm text-purple-700 mt-3 bg-purple-50 border border-purple-100 rounded-lg px-4 py-3 inline-flex">
+						Price predictions now blend live listings, recent price history, web
+						market checks, and delivered order activity.
+					</p>
 				</div>
 
 				{/* AI Model Service Status */}
@@ -198,8 +231,13 @@ function AIModelPage() {
 								<p className="text-sm font-medium text-gray-600">
 									Price Signals
 								</p>
-								<p className="text-2xl font-bold text-gray-900">Live</p>
-								<p className="text-xs text-gray-500">Uses product and price history</p>
+								<p className="text-2xl font-bold text-gray-900">
+									{modelPerformance?.dataSignals.priceHistoryPoints30d?.toLocaleString() ||
+										"Live"}
+								</p>
+								<p className="text-xs text-gray-500">
+									30-day price points plus live listing signals
+								</p>
 							</div>
 						</div>
 					</div>
@@ -213,8 +251,13 @@ function AIModelPage() {
 								<p className="text-sm font-medium text-gray-600">
 									Demand Signals
 								</p>
-								<p className="text-2xl font-bold text-gray-900">Live</p>
-								<p className="text-xs text-gray-500">Uses orders and listings</p>
+								<p className="text-2xl font-bold text-gray-900">
+									{modelPerformance?.dataSignals.ordersPlaced30d?.toLocaleString() ||
+										"Live"}
+								</p>
+								<p className="text-xs text-gray-500">
+									Orders placed in the last 30 days
+								</p>
 							</div>
 						</div>
 					</div>
@@ -228,8 +271,14 @@ function AIModelPage() {
 								<p className="text-sm font-medium text-gray-600">
 									Service Status
 								</p>
-								<p className="text-2xl font-bold text-gray-900">Ready</p>
-								<p className="text-xs text-gray-500">Predictions run on request</p>
+								<p className="text-2xl font-bold text-gray-900 capitalize">
+									{modelPerformance?.systemHealth.status || "Ready"}
+								</p>
+								<p className="text-xs text-gray-500">
+									{modelPerformance?.systemHealth.lastUpdate
+										? `Last refreshed ${new Date(modelPerformance.systemHealth.lastUpdate).toLocaleString()}`
+										: "Predictions run on request"}
+								</p>
 							</div>
 						</div>
 					</div>

@@ -12,6 +12,17 @@ interface MarketTrends {
 	priceRange: string;
 	demand: string;
 	outlook: string;
+	summary?: string;
+	confidence?: number;
+	updatedAt?: string;
+	isFresh?: boolean;
+	sources?: {
+		activeListings?: number;
+		priceHistoryPoints30d?: number;
+		webSignals?: number;
+		deliveredOrders7d?: number;
+		totalSignals?: number;
+	};
 	source?: string;
 	sourceType?: string;
 	lastUpdated?: string;
@@ -99,6 +110,27 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
 
 	useEffect(() => {
 		setLoading(true);
+		api.get(`/intelligence/trends?category=${commodity}`)
+			.then((res) => {
+				const next = res.data?.trends || {};
+				setTrends({
+					priceRange: next.priceRange || "Refreshing live market range...",
+					demand: next.demand || "Medium",
+					outlook: next.outlook || "Current price movement is being updated.",
+					summary: next.summary,
+					confidence: next.confidence,
+					updatedAt: next.updatedAt,
+					isFresh: next.isFresh,
+					sources: next.sources,
+				});
+			})
+			.catch(() => {
+				setTrends({
+					priceRange: "Refreshing live market range...",
+					demand: "Medium",
+					outlook: "Current price movement is being updated.",
+				});
+			})
 		setError(false);
 		const params = new URLSearchParams({ category: commodity });
 		if (location) params.set('location', location);
@@ -233,6 +265,32 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
 					<span className="text-xl font-black text-emerald-400 leading-none text-right">
 						{priceText}
 					<span className="text-sm font-bold text-slate-300 leading-none mb-1">Price</span>
+					<span className="text-xl font-black text-emerald-400 leading-none">{trends?.priceRange || "Refreshing live market range..."}</span>
+				</div>
+				<div className="flex justify-between items-center py-1">
+					<span className="text-sm font-bold text-slate-300">People buying</span>
+					<span className="text-sm font-black px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-lg">{trends?.demand || "Medium"}</span>
+				</div>
+				<div className="flex justify-between items-center py-1">
+					<span className="text-sm font-bold text-slate-300">This week</span>
+					<span className="text-sm font-black text-white">{trends?.outlook || "Current price movement is being updated."}</span>
+				</div>
+			</div>
+			<div className="mt-6 relative z-10 space-y-3">
+				<div className="flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-widest">
+					<span className={`rounded-full px-3 py-1 ${trends?.isFresh === false ? "bg-amber-500/15 text-amber-300" : "bg-emerald-500/15 text-emerald-300"}`}>
+						{trends?.isFresh === false ? "Cached market signal" : "Live market signal"}
+					</span>
+					{typeof trends?.confidence === "number" && (
+						<span className="rounded-full bg-white/10 px-3 py-1 text-slate-200">
+							{Math.round(trends.confidence * 100)}% confidence
+						</span>
+					)}
+					{typeof trends?.sources?.totalSignals === "number" && (
+						<span className="rounded-full bg-white/10 px-3 py-1 text-slate-200">
+							{trends.sources.totalSignals} signals
+						</span>
+					)}
 					<span className="text-xl font-black text-emerald-400 leading-none text-right">{trends?.priceRange || "UGX 1,500 - 4,500/kg"}</span>
 					<span className="text-xl font-black text-emerald-400 leading-none text-right">{displayTrends.priceRange}</span>
 				</div>
@@ -275,6 +333,14 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
 						{trends?.outlook || 'Live trend updates are in progress.'}
 					</span>
 				</div>
+				{trends?.summary && (
+					<p className="text-xs leading-relaxed text-slate-300">{trends.summary}</p>
+				)}
+				<p className="text-xs font-bold text-slate-400">
+					{trends?.updatedAt
+						? `Updated ${new Date(trends.updatedAt).toLocaleString()}`
+						: "AI checks app sales and market signals."}
+				</p>
 			</div>
 			<div className="mt-6 flex items-center justify-between text-xs font-bold text-slate-400">
 				<span>
