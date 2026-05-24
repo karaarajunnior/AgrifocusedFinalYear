@@ -476,6 +476,32 @@ function MarketplacePage() {
 													/{product.unit}
 												</span>
 											</div>
+							const primaryImage = imageFailures[product.id] ? undefined : getPrimaryProductImage(product.images);
+							return (
+							<div
+								key={product.id}
+								className="group bg-white rounded-[2rem] shadow-sm border border-emerald-100/70 overflow-hidden hover:shadow-2xl hover:shadow-emerald-900/10 hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative">
+								
+								{/* Image / Header Gradient */}
+								<div className="relative h-56 bg-gradient-to-br from-emerald-100 via-teal-50 to-emerald-200 flex items-center justify-center overflow-hidden">
+								<div className="relative h-48 sm:h-56 bg-gradient-to-br from-emerald-100 via-teal-50 to-lime-100 flex items-center justify-center overflow-hidden">
+									{primaryImage ? (
+										<img
+											src={primaryImage}
+											alt={product.name}
+											className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+											onError={() => setImageFailures((prev) => ({ ...prev, [product.id]: true }))}
+										/>
+									) : (
+										<>
+											<div className="absolute inset-0 bg-white/20 backdrop-blur-sm self-stretch z-0"></div>
+											<Sun className="absolute -top-10 -right-10 w-32 h-32 text-emerald-300/40 rotate-45 group-hover:rotate-90 transition-transform duration-700 ease-in-out" />
+											<Leaf className="h-20 w-20 text-emerald-600/70 z-10 group-hover:scale-110 transition-transform duration-500 delay-100 drop-shadow-md" />
+										</>
+									)}
+									{getProductImages(product.images).length > 1 && (
+										<div className="absolute bottom-4 left-4 z-20 rounded-full bg-slate-900/80 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white">
+											{getProductImages(product.images).length} photos
 										</div>
 									</div>
 
@@ -578,6 +604,7 @@ function MarketplacePage() {
 										</div>
 									</div>
 								</div>
+							</div>
 							);
 						})}
 					</div>

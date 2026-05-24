@@ -22,6 +22,11 @@ interface PricePrediction {
 	predictedPrice: number;
 	confidence: number;
 	marketAnalysis: string;
+	currentMarketPrice?: {
+		priceRange: string;
+		source: string;
+		confidence?: number;
+	};
 	factors: {
 		seasonal: number;
 		supply: number;
@@ -108,6 +113,7 @@ function AIModelPage() {
 	>([]);
 
 	const categories = [
+		"COFFEE",
 		"VEGETABLES",
 		"FRUITS",
 		"GRAINS",
@@ -458,6 +464,23 @@ function AIModelPage() {
 														</div>
 													</div>
 												</div>
+
+												{pricePrediction.currentMarketPrice && (
+													<div className="bg-emerald-50 rounded-lg p-4">
+														<h5 className="font-medium text-emerald-900 mb-1">
+															Current market price
+														</h5>
+														<p className="text-emerald-800 text-sm font-semibold">
+															{pricePrediction.currentMarketPrice.priceRange}
+														</p>
+														<p className="text-emerald-700 text-xs mt-1">
+															Source: {pricePrediction.currentMarketPrice.source}
+															{typeof pricePrediction.currentMarketPrice.confidence === "number"
+																? ` - ${Math.round(pricePrediction.currentMarketPrice.confidence * 100)}% confidence`
+																: ""}
+														</p>
+													</div>
+												)}
 
 												<div className="space-y-3">
 													<h5 className="font-medium text-gray-900">
@@ -846,7 +869,7 @@ function AIModelPage() {
 																		<Target className="h-4 w-4 mr-2" />
 																		<span>
 																			Suitability:{" "}
-																			{(crop.suitabilityScore * 100).toFixed(0)}
+																			{crop.suitabilityScore.toFixed(0)}
 																			%
 																		</span>
 																	</div>
