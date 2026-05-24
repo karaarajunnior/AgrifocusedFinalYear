@@ -2,6 +2,7 @@ import express from "express";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import prisma from "../db/prisma.js";
 import { computeCreditScore } from "../services/creditScoreService.js";
+import aiService from "../services/aiService.js";
 
 const router = express.Router();
 
@@ -318,6 +319,20 @@ router.get("/market-prices", authenticateToken, async (req, res) => {
 				{ item: "Maize", price: 1400, currency: "UGX", region: "Uganda", marketType: "REGIONAL", trend: "stable", source: "benchmark" },
 				{ item: "Beans", price: 4200, currency: "UGX", region: "Uganda", marketType: "REGIONAL", trend: "stable", source: "benchmark" },
 			]);
+			const categories = ["COFFEE", "VEGETABLES", "FRUITS", "GRAINS", "PULSES"];
+			const fallbackPrices = await Promise.all(
+				categories.map(async (category) => {
+					const signal = await aiService.getCurrentPriceSignal({ category });
+					return {
+						item: aiService.humanizeCategory(category),
+						price: Math.round(signal.midpoint),
+						trend: signal.fallback ? "baseline" : "stable",
+						priceRange: signal.priceRange,
+						source: signal.source,
+					};
+				}),
+			);
+			return res.json(fallbackPrices);
 		}
 
 		// Map to a format suitable for the dashboard
