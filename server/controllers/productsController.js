@@ -96,7 +96,7 @@ function buildImageQualityReport(file, product = null) {
 		signals: [
 			dimensions ? `${dimensions.width}x${dimensions.height} image captured` : "Image dimensions unavailable",
 			product ? `Compared against listing: ${product.name}` : "Standalone buyer sample",
-			"AI estimate uses photo metadata and listing context; confirm final grade physically.",
+			"Estimate uses photo metadata and listing context; confirm final grade physically.",
 		],
 		recommendations: recommendations.length
 			? recommendations

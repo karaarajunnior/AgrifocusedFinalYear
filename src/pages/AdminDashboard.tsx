@@ -690,6 +690,7 @@ function AdminDashboard() {
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">Account review alerts</h3>
                       <p className="text-sm text-gray-600">
+                        System checks flag accounts for review. Admins decide whether to keep active or disable.
                         Automated checks flag accounts that need a final administrator decision.
                         The system recommends review only. Administrators decide whether to keep the account active or disable it.
                       </p>
@@ -737,6 +738,7 @@ function AdminDashboard() {
                             </div>
                             <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
                               <button
+                                onClick={() => updateAccountStatus(review.id, 'ACTIVE', 'Admin cleared account review alert')}
                                 onClick={() => updateAccountStatus(review.id, 'ACTIVE', 'Admin cleared automated review alert')}
                                 onClick={() => updateAccountStatus(review.id, 'ACTIVE', 'Administrator cleared the review alert')}
                                 className="rounded-lg border border-green-600 px-4 py-2 text-sm font-bold text-green-700 hover:bg-green-50"

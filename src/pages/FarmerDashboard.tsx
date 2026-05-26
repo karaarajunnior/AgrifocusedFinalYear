@@ -49,7 +49,7 @@ import { useOfflineSync } from "../hooks/useOfflineSync";
 import OfflineBadge from "../components/OfflineBadge";
 import { getOfflineProductCount } from "../utils/offlineProductQueue";
 import DocumentVerification from "../components/DocumentVerification";
-import { AIAdvisor, MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
+import { MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
 import { getCurrentPosition } from "../utils/geolocation";
 
 interface Product {
@@ -701,9 +701,6 @@ function FarmerDashboard() {
 							</div>
 						)}
 
-						<div className="mb-8">
-							<AIAdvisor />
-						</div>
 
 						<div className="flex flex-wrap gap-4 mb-8">
 							<button
@@ -1229,6 +1226,7 @@ function FarmerDashboard() {
 									<div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600">
 										<Share2 className="h-6 w-6" />
 									</div>
+									<h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Marketing Content</h3>
 									<h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Multi-Market Content</h3>
 									<h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Market-ready content</h3>
 								</div>
@@ -1280,6 +1278,7 @@ function FarmerDashboard() {
 											Copy for social
 										</button>
 									</div>
+									<p className="text-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">Generated from product and market details</p>
 									<p className="text-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">Prepared for multi-channel outreach</p>
 									<p className="text-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">Generated from current listing and market data</p>
 								</div>

@@ -278,6 +278,7 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
 					<span className="text-sm font-black text-white">{trends?.outlook || "Current price movement is being updated."}</span>
 				</div>
 			</div>
+			<p className="mt-6 text-xs font-bold text-slate-400">Checks app sales and market signals.</p>
 			<p className="mt-6 text-xs font-bold text-slate-400">Based on app sales and market signals.</p>
 			<p className="mt-6 text-xs font-bold text-slate-400">Based on current sales and market signals.</p>
 			<div className="mt-6 relative z-10 space-y-3">

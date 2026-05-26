@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Upload, FileCheck, Loader2, Info, ChevronRight } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 
 interface VerificationRule {
 	id: string;
@@ -19,6 +20,7 @@ interface UserDocument {
 }
 
 const DocumentVerification: React.FC = () => {
+	const { refreshUser } = useAuth();
 	const [rules, setRules] = useState<VerificationRule[]>([]);
 	const [myDocs, setMyDocs] = useState<UserDocument[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -63,6 +65,14 @@ const DocumentVerification: React.FC = () => {
 				headers: { 'Content-Type': 'multipart/form-data' }
 			});
 			
+			const decision = res.data.decision || res.data.aiFeedback;
+			if (decision?.approved || decision?.status === 'APPROVED') {
+				toast.success('Document approved successfully');
+				refreshUser();
+			} else if (decision?.status === 'PENDING') {
+				toast.success('Document submitted for review');
+			} else {
+				toast.error(`Document rejected: ${decision?.reason || 'It did not meet the review requirements.'}`);
 			const { approved, reason } = res.data.feedback || res.data.aiFeedback;
 			if (approved) {
 				toast.success('Document verified successfully');
@@ -96,6 +106,8 @@ const DocumentVerification: React.FC = () => {
 			{/* Upload Section */}
 			<div className="space-y-6">
 				<div className="glass-card p-6 bg-white/80 border-t-4 border-green-600">
+					<h3 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">Verify Identity</h3>
+					<p className="text-sm text-slate-500 font-medium mb-6">Upload official documents to complete account verification.</p>
 					<h3 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">Document verification</h3>
 					<p className="text-sm text-slate-500 font-medium mb-6">Upload official documents for automatic compliance review.</p>
 					
@@ -133,6 +145,7 @@ const DocumentVerification: React.FC = () => {
 									<>
 										<FileCheck className="h-10 w-10 text-green-600 mb-2" />
 										<span className="text-sm font-bold text-green-800">{file.name}</span>
+									<span className="text-xs text-green-600 font-medium mt-1">Ready to submit</span>
 										<span className="text-xs text-green-600 font-medium mt-1">Ready for review</span>
 									</>
 								) : (
@@ -155,6 +168,7 @@ const DocumentVerification: React.FC = () => {
 								<div className="flex items-center justify-center">
 									<Loader2 className="h-5 w-5 mr-2 animate-spin" /> Reviewing...
 								</div>
+							) : 'Submit for Verification'}
 							) : 'Start Verification'}
 							) : 'Submit for Review'}
 						</button>

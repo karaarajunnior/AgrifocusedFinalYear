@@ -10,6 +10,7 @@ import {
 } from "../services/tokenService.js";
 import { writeAuditLog } from "../services/auditLogService.js";
 import { notifyUser } from "../services/smsWhatsappService.js";
+import { evaluateRegistrationApplication } from "../services/approvalRulesService.js";
 import { evaluateRegistrationSubmission } from "../services/ruleAutomationService.js";
 import { evaluateRegistrationSubmission } from "../services/registrationAutomationService.js";
 
@@ -34,6 +35,24 @@ export async function register(req, res) {
 			}
 		}
 
+		let approvalDecision = { status: "APPROVED", approved: true, reason: "Admin account approved." };
+		if (role !== "ADMIN") {
+			approvalDecision = await evaluateRegistrationApplication({
+				name,
+				email,
+				role,
+				phone,
+				location,
+				address,
+				latitude,
+				longitude,
+			});
+
+			if (approvalDecision.status === "REJECTED") {
+				return res.status(400).json({
+					error: `Registration could not be approved. ${approvalDecision.reason}`,
+				});
+			}
 		const activeRules = role === "ADMIN"
 			? []
 			: await prisma.registrationRule.findMany({
@@ -73,6 +92,10 @@ export async function register(req, res) {
 				address,
 				latitude,
 				longitude,
+				verified: role === "ADMIN" || approvalDecision.status === "APPROVED",
+				accountStatus: approvalDecision.status === "PENDING" ? "REVIEW_REQUESTED" : "ACTIVE",
+				accountStatusReason: approvalDecision.status === "PENDING" ? approvalDecision.reason : null,
+				accountStatusChangedAt: approvalDecision.status === "PENDING" ? new Date() : null,
 				verified: decision.approved,
 				accountStatus: decision.approved ? "ACTIVE" : "DISABLED",
 				accountStatusReason: decision.approved ? null : decision.reason,
@@ -120,6 +143,9 @@ export async function register(req, res) {
 		const refresh = await issueRefreshToken({ userId: user.id });
 
 		res.status(201).json({
+			message: user.verified
+				? "User registered and approved successfully"
+				: "User registered successfully and is pending review",
 			message: "User registered successfully",
 			approved: true,
 			user,

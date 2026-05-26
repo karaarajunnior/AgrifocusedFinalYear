@@ -108,6 +108,10 @@ function RegisterPage() {
 			newErrors.location = "Location is required";
 		}
 
+		if (!formData.address.trim()) {
+			newErrors.address = "Address is required";
+		}
+
 		setErrors(newErrors);
 		return Object.keys(newErrors).length === 0;
 	};
@@ -430,7 +434,9 @@ function RegisterPage() {
 									required
 									value={formData.location}
 									onChange={handleChange}
-									className="appearance-none relative block w-full pl-10 pr-12 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
+									className={`appearance-none relative block w-full pl-10 pr-12 py-3 border placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm ${
+										errors.location ? "border-red-300" : "border-gray-300"
+									}`}
 									placeholder="City, State"
 								/>
 								<button
@@ -453,17 +459,23 @@ function RegisterPage() {
 							<label
 								htmlFor="address"
 								className="block text-sm font-medium text-gray-700">
-								Address
+								Address *
 							</label>
 							<textarea
 								id="address"
 								name="address"
 								rows={3}
+								required
 								value={formData.address}
 								onChange={handleChange}
-								className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-								placeholder="Full address (optional)"
+								className={`appearance-none relative block w-full px-3 py-3 border placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm ${
+									errors.address ? "border-red-300" : "border-gray-300"
+								}`}
+								placeholder="Full address"
 							/>
+							{errors.address && (
+								<p className="mt-1 text-sm text-red-600">{errors.address}</p>
+							)}
 						</div>
 					</div>
 
