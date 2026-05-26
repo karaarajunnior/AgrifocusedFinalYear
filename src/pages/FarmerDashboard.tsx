@@ -90,6 +90,11 @@ interface MarketPrice {
 	item: string;
 	price: number;
 	trend: string;
+	currency?: string;
+	region?: string;
+	marketType?: string;
+	timestamp?: string;
+	source?: string;
 }
 
 function FarmerDashboard() {
@@ -99,6 +104,8 @@ function FarmerDashboard() {
 	const [products, setProducts] = useState<Product[]>([]);
 	const [analytics, setAnalytics] = useState<Analytics | null>(null);
 	const [credit, setCredit] = useState<CreditRecord | null>(null);
+	const [, setMarketPrices] = useState<MarketPrice[]>([]);
+	const [marketPrices, setMarketPrices] = useState<MarketPrice[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [cacheTime, setCacheTime] = useState<string | undefined>();
 	const [showAddProduct, setShowAddProduct] = useState(false);
@@ -787,9 +794,78 @@ function FarmerDashboard() {
 							</div>
 						)}
 
-						<ClimateAlertsCard location={user?.location || "Kampala"} />
+						<ClimateAlertsCard
+							location={user?.location || ""}
+							latitude={user?.latitude}
+							longitude={user?.longitude}
+						/>
 
-						<MarketIntelligence commodity="Coffee" />
+						<MarketIntelligence commodity="Coffee" location={user?.location || "Uganda"} />
+
+						<div className="glass-card p-8">
+							<div className="flex justify-between items-center mb-6">
+								<h4 className="font-black text-slate-900 flex items-center gap-2 uppercase tracking-widest text-xs">
+									<TrendingUp className="h-4 w-4 text-emerald-500" />
+									24/7 price board
+								</h4>
+								<span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+									Live
+								</span>
+							</div>
+							<div className="space-y-4">
+								{marketPrices.length > 0 ? marketPrices.slice(0, 5).map((price) => (
+									<div key={`${price.item}-${price.region || "all"}-${price.marketType || "market"}`} className="flex items-center justify-between pb-3 border-b border-slate-50 last:border-0 last:pb-0">
+										<div>
+											<p className="text-sm font-black text-slate-900">{price.item}</p>
+											<p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+												{price.region || "Uganda"} {price.marketType ? `· ${price.marketType}` : ""}
+											</p>
+										</div>
+										<div className="text-right">
+											<p className="text-sm font-black text-emerald-600">
+												{price.currency || "UGX"} {Math.round(price.price).toLocaleString()}/kg
+											</p>
+											<p className="text-[10px] font-bold text-slate-400">
+												{price.timestamp ? new Date(price.timestamp).toLocaleDateString() : price.source || "market feed"}
+											</p>
+										</div>
+									</div>
+								)) : (
+									<div className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
+										Benchmark prices are active in the market card while regional feeds refresh.
+									</div>
+								)}
+							</div>
+						</div>
+						<MarketIntelligence
+							commodity="Coffee"
+							location={user?.location || undefined}
+						/>
+
+						{marketPrices.length > 0 && (
+							<div className="glass-card p-6">
+								<h4 className="font-black text-slate-900 flex items-center gap-2 uppercase tracking-widest text-xs mb-4">
+									<TrendingUp className="h-4 w-4 text-emerald-500" />
+									Live Market Prices
+								</h4>
+								<div className="space-y-3">
+									{marketPrices.slice(0, 6).map((mp, idx) => (
+										<div
+											key={`${mp.item}-${idx}`}
+											className="flex items-center justify-between text-sm"
+										>
+											<span className="font-bold text-slate-700">{mp.item}</span>
+											<span className="font-black text-emerald-700">
+												UGX {mp.price?.toLocaleString?.() || mp.price}/kg
+											</span>
+										</div>
+									))}
+								</div>
+								<p className="mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+									Updated continuously · {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+								</p>
+							</div>
+						)}
 
 						<div className="glass-card p-8">
 							<div className="flex justify-between items-center mb-6">

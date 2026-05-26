@@ -55,7 +55,7 @@ function RegisterPage() {
 
 			// Fallback to IP detect
 			const res = await api.get("/location/detect");
-			if (res.data && res.data.city) {
+			if (res.data?.detected && res.data.city) {
 				const locString = `${res.data.city}, ${res.data.country}`;
 				setFormData({ 
 					...formData, 
@@ -64,6 +64,8 @@ function RegisterPage() {
 					longitude: res.data.longitude
 				});
 				toast.success(`Detected: ${locString}`);
+			} else {
+				toast.error("Could not detect your location. Please enter it manually.");
 			}
 		} catch (error) {
 			toast.error("Failed to detect location");

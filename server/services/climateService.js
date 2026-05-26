@@ -18,19 +18,35 @@ function asAlert({ location, severity, title, body }) {
 	};
 }
 
-export async function getClimateAlerts({ location }) {
+function formatCoordinateLocation(latitude, longitude) {
+	return `${Number(latitude).toFixed(4)}, ${Number(longitude).toFixed(4)}`;
+}
+
+export async function getClimateAlerts({ location, latitude, longitude }) {
+	const lat = Number(latitude);
+	const lon = Number(longitude);
+	const hasCoordinates = Number.isFinite(lat) && Number.isFinite(lon);
 	const loc = String(location || "").trim();
-	if (!loc) return { ok: false, error: "location required" };
+	if (!loc && !hasCoordinates) return { ok: false, error: "location required" };
+
+	const displayLocation = loc || formatCoordinateLocation(lat, lon);
+	const cacheLocation = hasCoordinates ? formatCoordinateLocation(lat, lon) : loc;
 
 	// Cache: if recent alerts exist, use them
 	const cached = await prisma.climateAlert.findMany({
-		where: { location: loc, validTo: { gt: new Date() } },
+		where: { location: cacheLocation, validTo: { gt: new Date() } },
 		orderBy: { createdAt: "desc" },
 		take: 10,
 	});
 	if (cached.length > 0) return { ok: true, alerts: cached, cached: true };
 
-	const coords = await locationService.geocodeLocation(loc);
+	let coords;
+	try {
+		coords = hasCoordinates ? { lat, lon } : await locationService.geocodeLocation(loc);
+	} catch (error) {
+		return { ok: false, error: "location_not_found" };
+	}
+
 	const url =
 		`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(coords.lat)}` +
 		`&longitude=${encodeURIComponent(coords.lon)}` +
@@ -56,40 +72,40 @@ export async function getClimateAlerts({ location }) {
 	if (Number.isFinite(rain) && rain >= 20) {
 		alerts.push(
 			asAlert({
-				location: loc,
+				location: cacheLocation,
 				severity: "warning",
 				title: "Heavy rain risk (24h)",
-				body: "Possible heavy rain. Protect harvested crops and secure storage.",
+				body: `Possible heavy rain around ${displayLocation}. Protect harvested crops and secure storage.`,
 			}),
 		);
 	}
 	if (Number.isFinite(maxTemp) && maxTemp >= 33) {
 		alerts.push(
 			asAlert({
-				location: loc,
+				location: cacheLocation,
 				severity: "warning",
 				title: "High heat risk (24h)",
-				body: "High temperatures expected. Consider early irrigation and shade for seedlings.",
+				body: `High temperatures expected around ${displayLocation}. Consider early irrigation and shade for seedlings.`,
 			}),
 		);
 	}
 	if (Number.isFinite(wind) && wind >= 35) {
 		alerts.push(
 			asAlert({
-				location: loc,
+				location: cacheLocation,
 				severity: "info",
 				title: "Strong wind risk (24h)",
-				body: "Strong winds expected. Secure greenhouses and stacked produce.",
+				body: `Strong winds expected around ${displayLocation}. Secure greenhouses and stacked produce.`,
 			}),
 		);
 	}
 	if (alerts.length === 0) {
 		alerts.push(
 			asAlert({
-				location: loc,
+				location: cacheLocation,
 				severity: "info",
 				title: "Ideal Conditions",
-				body: "Weather is clear and stable. Excellent environment for field maintenance, drying, or processing harvested coffee.",
+				body: `Weather around ${displayLocation} is clear and stable. Good conditions for field maintenance, drying, or processing harvested crops.`,
 			}),
 		);
 	}
@@ -108,11 +124,11 @@ export async function getClimateAlerts({ location }) {
 	});
 
 	const stored = await prisma.climateAlert.findMany({
-		where: { location: loc, validTo: { gt: new Date() } },
+		where: { location: cacheLocation, validTo: { gt: new Date() } },
 		orderBy: { createdAt: "desc" },
 		take: 10,
 	});
 
-	return { ok: true, alerts: stored, cached: false, createdCount: created.count };
+	return { ok: true, alerts: stored, cached: false, createdCount: created.count, coordinates: coords };
 }
 

@@ -12,7 +12,16 @@ const router = express.Router();
 router.get("/trends", authenticateToken, async (req, res) => {
 	try {
 		const { category, location } = req.query;
-		const trends = await ai.getMarketIntelligence(category || "Coffee", location || "Uganda");
+		const userProfile = await prisma.user.findUnique({
+			where: { id: req.user.id },
+			select: { location: true },
+		});
+		const resolvedLocation =
+			String(location || "").trim() || userProfile?.location || "Uganda";
+		const trends = await ai.getMarketIntelligence(
+			category || "Coffee",
+			resolvedLocation,
+		);
 		res.json({ success: true, trends });
 	} catch (error) {
 		res.status(500).json({ error: error.message });

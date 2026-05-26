@@ -2,6 +2,7 @@ import express from "express";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import prisma from "../db/prisma.js";
 import { computeCreditScore } from "../services/creditScoreService.js";
+import aiService from "../services/aiService.js";
 
 const router = express.Router();
 
@@ -303,17 +304,47 @@ router.get("/market-prices", authenticateToken, async (req, res) => {
 			orderBy: { timestamp: 'desc' },
 			select: {
 				commodity: true,
+				region: true,
+				marketType: true,
 				pricePerKg: true,
+				currency: true,
 				timestamp: true
 			},
 			take: 10
 		});
 
+		if (latestPrices.length === 0) {
+			return res.json([
+				{ item: "Coffee", price: 6500, currency: "UGX", region: "Uganda", marketType: "REGIONAL", trend: "stable", source: "benchmark" },
+				{ item: "Maize", price: 1400, currency: "UGX", region: "Uganda", marketType: "REGIONAL", trend: "stable", source: "benchmark" },
+				{ item: "Beans", price: 4200, currency: "UGX", region: "Uganda", marketType: "REGIONAL", trend: "stable", source: "benchmark" },
+			]);
+			const categories = ["COFFEE", "VEGETABLES", "FRUITS", "GRAINS", "PULSES"];
+			const fallbackPrices = await Promise.all(
+				categories.map(async (category) => {
+					const signal = await aiService.getCurrentPriceSignal({ category });
+					return {
+						item: aiService.humanizeCategory(category),
+						price: Math.round(signal.midpoint),
+						trend: signal.fallback ? "baseline" : "stable",
+						priceRange: signal.priceRange,
+						source: signal.source,
+					};
+				}),
+			);
+			return res.json(fallbackPrices);
+		}
+
 		// Map to a format suitable for the dashboard
 		const formatted = latestPrices.map(p => ({
 			item: p.commodity,
 			price: p.pricePerKg,
-			trend: 'stable' // Simple logic: could compare with previous if needed
+			currency: p.currency,
+			region: p.region,
+			marketType: p.marketType,
+			timestamp: p.timestamp,
+			trend: 'stable',
+			source: 'market_prices'
 		}));
 
 		res.json(formatted);

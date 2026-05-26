@@ -31,11 +31,23 @@ class LocationService {
 
 	// Geocode location to get coordinates
 	async geocodeLocation(location) {
-		if (this.geocodeCache.has(location)) {
-			return this.geocodeCache.get(location);
+		const rawLocation = String(location || "").trim();
+		if (!rawLocation) {
+			throw new Error("location_required");
+		}
+
+		if (this.geocodeCache.has(rawLocation)) {
+			return this.geocodeCache.get(rawLocation);
 		}
 
 		try {
+			const coordinateMatch = rawLocation.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+			if (coordinateMatch) {
+				const coordinates = { lat: Number(coordinateMatch[1]), lon: Number(coordinateMatch[2]) };
+				this.geocodeCache.set(rawLocation, coordinates);
+				return coordinates;
+			}
+
 			// Use known Ugandan market centers before falling back to a broad text location.
 			const cityCoordinates = {
 				jinja: { lat: 0.4472, lon: 33.2027 },
@@ -60,36 +72,57 @@ class LocationService {
 				hamjoshcity: { lat: 0.4472, lon: 33.2027 },
 			};
 
-			const normalizedLocation = location.toLowerCase().split(",")[0].trim();
+			const normalizedLocation = rawLocation.toLowerCase().split(",")[0].trim().replace(/\s+/g, "");
 			const coordinates = cityCoordinates[normalizedLocation];
 
 			if (coordinates) {
-				this.geocodeCache.set(location, coordinates);
+				this.geocodeCache.set(rawLocation, coordinates);
 				return coordinates;
 			}
 
-			// Default coordinates for unknown locations (Kampala)
-			const defaultCoords = { lat: 0.3476, lon: 32.5825 };
-			this.geocodeCache.set(location, defaultCoords);
-			return defaultCoords;
+			const response = await axios.get("https://geocoding-api.open-meteo.com/v1/search", {
+				params: { name: rawLocation, count: 1, language: "en", format: "json" },
+				timeout: 5000,
+			});
+			const result = response.data?.results?.[0];
+			if (!result || !Number.isFinite(Number(result.latitude)) || !Number.isFinite(Number(result.longitude))) {
+				throw new Error("location_not_found");
+			}
+
+			const resolved = { lat: Number(result.latitude), lon: Number(result.longitude) };
+			this.geocodeCache.set(rawLocation, resolved);
+			return resolved;
 		} catch (error) {
 			console.error("Geocoding error:", error);
-			// Return default coordinates (Kampala) on error
-			return { lat: 0.3476, lon: 32.5825 };
+			throw error;
 		}
+	}
+
+	async resolveCoordinates(locationOrCoordinates) {
+		const lat = Number(locationOrCoordinates?.latitude ?? locationOrCoordinates?.lat);
+		const lon = Number(locationOrCoordinates?.longitude ?? locationOrCoordinates?.lon);
+		if (Number.isFinite(lat) && Number.isFinite(lon)) {
+			return { lat, lon };
+		}
+		return this.geocodeLocation(locationOrCoordinates);
 	}
 
 	// Get products within specified radius
 	async getProductsWithinRadius(userLocation, products, radiusKm = 50) {
 		try {
-			const userCoords = await this.geocodeLocation(userLocation);
+			const userCoords = await this.resolveCoordinates(userLocation);
 			const productsWithDistance = [];
 
 			for (const product of products) {
-				const productCoords =
-					Number.isFinite(Number(product.latitude)) && Number.isFinite(Number(product.longitude))
-						? { lat: Number(product.latitude), lon: Number(product.longitude) }
-						: await this.geocodeLocation(product.location);
+				let productCoords;
+				try {
+					productCoords =
+						Number.isFinite(Number(product.latitude)) && Number.isFinite(Number(product.longitude))
+							? { lat: Number(product.latitude), lon: Number(product.longitude) }
+							: await this.geocodeLocation(product.location);
+				} catch {
+					continue;
+				}
 				const distance = this.calculateDistance(
 					userCoords.lat,
 					userCoords.lon,
@@ -111,7 +144,7 @@ class LocationService {
 			return productsWithDistance.sort((a, b) => a.distance - b.distance);
 		} catch (error) {
 			console.error("Location filtering error:", error);
-			return products; // Return all products if location filtering fails
+			return [];
 		}
 	}
 
