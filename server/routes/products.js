@@ -73,7 +73,9 @@ router.post(
 router.get(
 	"/nearby",
 	[
-		query("location").isString().trim().isLength({ min: 2 }),
+		query("location").optional().isString().trim().isLength({ min: 2 }),
+		query("latitude").optional().isFloat({ min: -90, max: 90 }),
+		query("longitude").optional().isFloat({ min: -180, max: 180 }),
 		query("radius").optional().isInt({ min: 1, max: 500 }),
 		query("category")
 			.optional()

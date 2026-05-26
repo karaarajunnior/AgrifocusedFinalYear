@@ -796,7 +796,11 @@ function FarmerDashboard() {
 							</div>
 						)}
 
-						<ClimateAlertsCard location={user?.location || "Kampala"} />
+						<ClimateAlertsCard
+							location={user?.location || ""}
+							latitude={user?.latitude}
+							longitude={user?.longitude}
+						/>
 
 						<MarketIntelligence commodity="Coffee" location={user?.location || "Uganda"} />
 
