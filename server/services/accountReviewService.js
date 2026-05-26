@@ -70,6 +70,7 @@ async function notifyAdminsOnce({ user, type, body, actorUserId, metadata }) {
 					to: "admin",
 					body,
 		provider: "account_review",
+					provider: "account_review",
 					status: "delivered",
 				},
 			}),
@@ -152,6 +153,7 @@ export async function evaluateUserForAccountReview({
 		user,
 		type: "account_review_non_compliance",
 		body: `Account review needed for ${user.name} (${user.id}). Reason: ${summary}. Admin can disable the account during review if needed.`,
+			body: `Account review needed for ${user.name} (${user.id}). Reason: ${summary}. Admin can disable the account during review if needed.`,
 		actorUserId: actorUserId || user.id,
 		metadata: { reason, signals },
 	});

@@ -45,6 +45,8 @@ router.post(
 		body("address").optional({ checkFalsy: true }).isString().trim().isLength({ min: 2, max: 200 }),
 		body("latitude").optional().isFloat({ min: -90, max: 90 }),
 		body("longitude").optional().isFloat({ min: -180, max: 180 }),
+		body("role").isIn(["FARMER", "BUYER", "ADMIN", "AGRO_SHOP", "SUPERMARKET"]),
+		body("role").isIn(["FARMER", "BUYER", "ADMIN", "SUPERMARKET", "AGRO_SHOP"]),
 	],
 	register,
 );

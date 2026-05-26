@@ -173,9 +173,6 @@ function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [apiLatencyMs, setApiLatencyMs] = useState<number | null>(null);
   const [apiUptimeSec, setApiUptimeSec] = useState<number | null>(null);
-  const [pendingUsers, setPendingUsers] = useState<Array<{ id: string; name: string; email: string; role: string; createdAt: string }>>([]);
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [approvalsLoading, setApprovalsLoading] = useState(false);
   const [notificationStats, setNotificationStats] = useState<NotificationStats | null>(null);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [accountReviews, setAccountReviews] = useState<AccountReviewSummary | null>(null);
@@ -213,7 +210,6 @@ function AdminDashboard() {
   useEffect(() => {
     fetchDashboardData();
     fetchApiHealth();
-    fetchPendingUsers();
     fetchAccountReviews();
     fetchNotificationStats();
     fetchExportApplications();
@@ -240,19 +236,6 @@ function AdminDashboard() {
       }
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchPendingUsers = async () => {
-    setApprovalsLoading(true);
-    try {
-      const res = await api.get('/users', { params: { verified: 'false', limit: 10, page: 1 } });
-      setPendingUsers(res.data.users || []);
-    } catch (error) {
-      console.error('Failed to fetch pending users:', error);
-      setPendingUsers([]);
-    } finally {
-      setApprovalsLoading(false);
     }
   };
 
@@ -335,41 +318,6 @@ function AdminDashboard() {
       fetchDashboardData();
     } catch (e: any) {
       toast.error(e.response?.data?.error || 'Failed to update application');
-    }
-  };
-
-  const approveUser = async (id: string) => {
-    try {
-      await api.patch(`/users/${id}/verify`, { verified: true });
-      toast.success('User approved');
-      fetchDashboardData();
-      fetchPendingUsers();
-    } catch (error: unknown) {
-      let message = 'Failed to approve user';
-      if (axios.isAxiosError(error)) {
-        const data = error.response?.data;
-        if (data && typeof data === 'object') {
-          const maybe = data as Record<string, unknown>;
-          if (typeof maybe.error === 'string') message = maybe.error;
-        }
-      }
-      toast.error(message);
-    }
-  };
-
-  const approveSelectedUsers = async () => {
-    if (selectedUsers.length === 0) return;
-    setApprovalsLoading(true);
-    try {
-      await Promise.all(selectedUsers.map(id => api.patch(`/users/${id}/verify`, { verified: true })));
-      toast.success(`${selectedUsers.length} users approved`);
-      setSelectedUsers([]);
-      fetchDashboardData();
-      fetchPendingUsers();
-    } catch (e) {
-      toast.error('Failed to approve some users');
-    } finally {
-      setApprovalsLoading(false);
     }
   };
 
@@ -560,13 +508,14 @@ function AdminDashboard() {
                 { id: 'overview', name: 'Overview', icon: BarChart3 },
                 { id: 'financials', name: 'Financials', icon: FileText },
                 { id: 'users', name: 'Users', icon: Users },
-                { id: 'approvals', name: 'Approvals', icon: Shield },
+                { id: 'approvals', name: 'Account Reviews', icon: Shield },
                 { id: 'exports', name: 'Exports', icon: Globe },
                 { id: 'notifications', name: 'Notifications', icon: Bell },
                 { id: 'products', name: 'Products', icon: Package },
                 { id: 'activity', name: 'Activity', icon: Activity },
                 { id: 'blockchain', name: 'Blockchain', icon: Link2 },
                 { id: 'agro', name: 'Agro-Inputs', icon: ShoppingBag },
+                { id: 'verification', name: 'Private Rules', icon: Shield }
                 { id: 'verification', name: 'Verification Settings', icon: Shield }
               ].map((tab) => (
                 <button
@@ -737,112 +686,13 @@ function AdminDashboard() {
             {activeTab === 'approvals' && (
               <div className="space-y-8">
                 <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Pending approvals</h3>
-                    {selectedUsers.length > 0 && (
-                      <button
-                        onClick={approveSelectedUsers}
-                        disabled={approvalsLoading}
-                        className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors"
-                      >
-                        Approve Selected ({selectedUsers.length})
-                      </button>
-                    )}
-                  </div>
-                  <button
-                    onClick={fetchPendingUsers}
-                    className="px-3 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200"
-                    disabled={approvalsLoading}
-                  >
-                    {approvalsLoading ? 'Refreshingâ€¦' : 'Refresh'}
-                  </button>
-                </div>
-
-                {pendingUsers.length === 0 ? (
-                  <p className="text-sm text-gray-600">No pending users right now.</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left w-10">
-                            <input
-                              type="checkbox"
-                              className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                              checked={selectedUsers.length === pendingUsers.length && pendingUsers.length > 0}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedUsers(pendingUsers.map(u => u.id));
-                                } else {
-                                  setSelectedUsers([]);
-                                }
-                              }}
-                            />
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            User
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Role
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Registered
-                          </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {pendingUsers.map((u) => (
-                          <tr key={u.id} className={selectedUsers.includes(u.id) ? "bg-green-50" : ""}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <input
-                                type="checkbox"
-                                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                checked={selectedUsers.includes(u.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedUsers([...selectedUsers, u.id]);
-                                  } else {
-                                    setSelectedUsers(selectedUsers.filter(id => id !== u.id));
-                                  }
-                                }}
-                              />
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">{u.name}</div>
-                              <div className="text-xs text-gray-500">{u.email}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="text-sm text-gray-900">{u.role}</span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="text-sm text-gray-900">{new Date(u.createdAt).toLocaleDateString()}</span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right">
-                              <button
-                                onClick={() => approveUser(u.id)}
-                                className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
-                              >
-                                Approve
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                </div>
-
-                <div>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">Account review alerts</h3>
                       <p className="text-sm text-gray-600">
                         System checks flag accounts for review. Admins decide whether to keep active or disable.
+                        Automated checks flag accounts that need a final administrator decision.
+                        The system recommends review only. Administrators decide whether to keep the account active or disable it.
                       </p>
                     </div>
                     <button
@@ -889,6 +739,8 @@ function AdminDashboard() {
                             <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
                               <button
                                 onClick={() => updateAccountStatus(review.id, 'ACTIVE', 'Admin cleared account review alert')}
+                                onClick={() => updateAccountStatus(review.id, 'ACTIVE', 'Admin cleared automated review alert')}
+                                onClick={() => updateAccountStatus(review.id, 'ACTIVE', 'Administrator cleared the review alert')}
                                 className="rounded-lg border border-green-600 px-4 py-2 text-sm font-bold text-green-700 hover:bg-green-50"
                               >
                                 Keep active

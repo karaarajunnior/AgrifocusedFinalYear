@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileCheck, XCircle, Loader2, Info, ChevronRight } from 'lucide-react';
+import { Upload, FileCheck, Loader2, Info, ChevronRight } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,6 +13,7 @@ interface UserDocument {
 	id: string;
 	originalName: string;
 	aiSummary?: string | null;
+	type: string;
 	status: 'PENDING' | 'APPROVED' | 'REJECTED';
 	verificationLog: string | null;
 	createdAt: string;
@@ -42,7 +43,7 @@ const DocumentVerification: React.FC = () => {
 			if (rulesRes.data.rules?.length > 0) {
 				setSelectedType(rulesRes.data.rules[0].documentType);
 			}
-		} catch (error) {
+		} catch {
 			console.error('Failed to load verification data');
 		} finally {
 			setLoading(false);
@@ -72,12 +73,27 @@ const DocumentVerification: React.FC = () => {
 				toast.success('Document submitted for review');
 			} else {
 				toast.error(`Document rejected: ${decision?.reason || 'It did not meet the review requirements.'}`);
+			const { approved, reason } = res.data.feedback || res.data.aiFeedback;
+			if (approved) {
+				toast.success('Document verified successfully');
+			} else {
+				toast.error(`Verification rejected: ${reason}`);
+			const { status, reason } = res.data.verificationFeedback;
+			if (status === 'APPROVED') {
+				toast.success('Document approved successfully');
+			} else if (status === 'REJECTED') {
+				toast.error(`Document rejected: ${reason}`);
+			} else {
+				toast.success('Document submitted for review');
 			}
 			
 			setFile(null);
 			fetchData();
-		} catch (error: any) {
-			toast.error(error.response?.data?.error || 'Upload failed');
+		} catch (error: unknown) {
+			const message = typeof error === 'object' && error !== null && 'response' in error
+				? (error as { response?: { data?: { error?: string } } }).response?.data?.error || 'Upload failed'
+				: 'Upload failed';
+			toast.error(message);
 		} finally {
 			setUploading(false);
 		}
@@ -92,6 +108,8 @@ const DocumentVerification: React.FC = () => {
 				<div className="glass-card p-6 bg-white/80 border-t-4 border-green-600">
 					<h3 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">Verify Identity</h3>
 					<p className="text-sm text-slate-500 font-medium mb-6">Upload official documents to complete account verification.</p>
+					<h3 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">Document verification</h3>
+					<p className="text-sm text-slate-500 font-medium mb-6">Upload official documents for automatic compliance review.</p>
 					
 					<form onSubmit={handleUpload} className="space-y-4">
 						<div>
@@ -128,6 +146,7 @@ const DocumentVerification: React.FC = () => {
 										<FileCheck className="h-10 w-10 text-green-600 mb-2" />
 										<span className="text-sm font-bold text-green-800">{file.name}</span>
 									<span className="text-xs text-green-600 font-medium mt-1">Ready to submit</span>
+										<span className="text-xs text-green-600 font-medium mt-1">Ready for review</span>
 									</>
 								) : (
 									<>
@@ -150,6 +169,8 @@ const DocumentVerification: React.FC = () => {
 									<Loader2 className="h-5 w-5 mr-2 animate-spin" /> Reviewing...
 								</div>
 							) : 'Submit for Verification'}
+							) : 'Start Verification'}
+							) : 'Submit for Review'}
 						</button>
 					</form>
 				</div>

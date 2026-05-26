@@ -55,7 +55,7 @@ function RegisterPage() {
 
 			// Fallback to IP detect
 			const res = await api.get("/location/detect");
-			if (res.data && res.data.city) {
+			if (res.data?.detected && res.data.city) {
 				const locString = `${res.data.city}, ${res.data.country}`;
 				setFormData({ 
 					...formData, 
@@ -64,6 +64,8 @@ function RegisterPage() {
 					longitude: res.data.longitude
 				});
 				toast.success(`Detected: ${locString}`);
+			} else {
+				toast.error("Could not detect your location. Please enter it manually.");
 			}
 		} catch (error) {
 			toast.error("Failed to detect location");
@@ -399,6 +401,7 @@ function RegisterPage() {
 										id="phone"
 										name="phone"
 										type="tel"
+										required
 										value={formData.phone}
 										onChange={handleChange}
 										className={`appearance-none block w-full pl-10 pr-3 py-3 border placeholder-gray-500 text-gray-900 rounded-r-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm ${
@@ -428,6 +431,7 @@ function RegisterPage() {
 									id="location"
 									name="location"
 									type="text"
+									required
 									value={formData.location}
 									onChange={handleChange}
 									className={`appearance-none relative block w-full pl-10 pr-12 py-3 border placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm ${

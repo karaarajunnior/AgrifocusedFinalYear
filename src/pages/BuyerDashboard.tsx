@@ -30,6 +30,7 @@ import DocumentVerification from "../components/DocumentVerification";
 import { MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
 import { t } from "../utils/translation";
 import LocationLink from "../components/LocationLink";
+import { getCurrentPosition } from "../utils/geolocation";
 
 interface Product {
 	id: string;
@@ -102,9 +103,19 @@ function BuyerDashboard() {
 	const [priceRange, setPriceRange] = useState({ min: "", max: "" });
 	const [showFilters, setShowFilters] = useState(false);
 	const [userLocation, setUserLocation] = useState("");
+	const savedLatitude = typeof user?.latitude === "number" ? user.latitude : undefined;
+	const savedLongitude = typeof user?.longitude === "number" ? user.longitude : undefined;
+	const [userCoordinates, setUserCoordinates] = useState<{ latitude: number; longitude: number } | null>(
+		savedLatitude !== undefined && savedLongitude !== undefined
+			? { latitude: savedLatitude, longitude: savedLongitude }
+			: null,
+	);
 	const [searchRadius, setSearchRadius] = useState(25);
 	const [showVerification, setShowVerification] = useState(false);
 	const [cacheTime, setCacheTime] = useState<string | undefined>();
+	const locationLabel = userLocation || (userCoordinates
+		? `${userCoordinates.latitude.toFixed(4)}, ${userCoordinates.longitude.toFixed(4)}`
+		: "");
 
 	const { isOnline } = useOfflineSync(() => {
 		fetchData();
@@ -127,11 +138,11 @@ function BuyerDashboard() {
 	}, []);
 
 	useEffect(() => {
-		if (userLocation) {
+		if (userLocation || userCoordinates) {
 			fetchProducts();
 			fetchNearbyProducts();
 		}
-	}, [searchTerm, selectedCategory, selectedOrigin, priceRange, userLocation, searchRadius]);
+	}, [searchTerm, selectedCategory, selectedOrigin, priceRange, userLocation, userCoordinates, searchRadius]);
 
 	const fetchData = async () => {
 		try {
@@ -154,17 +165,44 @@ function BuyerDashboard() {
 	const detectUserLocation = async () => {
 		setLocationLoading(true);
 		try {
+			try {
+				const coords = await getCurrentPosition();
+				const coordLabel = `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`;
+				setUserCoordinates({ latitude: coords.latitude, longitude: coords.longitude });
+				setUserLocation(coordLabel);
+				toast.success("Current location captured");
+				return;
+			} catch (gpsError) {
+				console.warn("GPS location failed, checking saved or network location:", gpsError);
+			}
+
+			if (savedLatitude !== undefined && savedLongitude !== undefined) {
+				setUserCoordinates({ latitude: savedLatitude, longitude: savedLongitude });
+				setUserLocation(user?.location || `${savedLatitude.toFixed(4)}, ${savedLongitude.toFixed(4)}`);
+				return;
+			}
+
+			if (user?.location) {
+				setUserCoordinates(null);
+				setUserLocation(user.location);
+				return;
+			}
+
 			const res = await api.get("/location/detect");
-			if (res.data && res.data.city) {
+			if (res.data?.detected && res.data.city) {
 				const locString = `${res.data.city}, ${res.data.country}`;
+				setUserCoordinates({ latitude: Number(res.data.latitude), longitude: Number(res.data.longitude) });
 				setUserLocation(locString);
-				toast.success(`Detected location: ${locString}`);
+				toast.success(`Approximate location: ${locString}`);
 			} else {
-				setUserLocation(user?.location || "Kampala, Uganda");
+				setUserCoordinates(null);
+				setUserLocation("");
+				toast.error("Could not detect your location. Please update it in your profile.");
 			}
 		} catch (error) {
 			console.error("Location detection failed:", error);
-			setUserLocation(user?.location || "Kampala, Uganda");
+			setUserCoordinates(null);
+			setUserLocation(user?.location || "");
 		} finally {
 			setLocationLoading(false);
 		}
@@ -173,7 +211,15 @@ function BuyerDashboard() {
 	const fetchNearbyProducts = async () => {
 		try {
 			const params = new URLSearchParams();
-			params.append("location", userLocation);
+			if (userCoordinates) {
+				params.append("latitude", String(userCoordinates.latitude));
+				params.append("longitude", String(userCoordinates.longitude));
+			} else if (userLocation) {
+				params.append("location", userLocation);
+			} else {
+				setNearbyProducts([]);
+				return;
+			}
 			params.append("radius", searchRadius.toString());
 
 			const response = await api.get(`/products/nearby?${params.toString()}`);
@@ -368,7 +414,9 @@ function BuyerDashboard() {
 									<p className="text-sm text-slate-500 mt-1">
 										{locationLoading
 											? "Syncing geospatial data..."
-											: `Verified assets within ${searchRadius}km of ${userLocation}`}
+											: locationLabel
+												? `Verified assets within ${searchRadius}km of ${locationLabel}`
+												: "Set your profile location to see nearby assets"}
 									</p>
 								</div>
 							</div>
@@ -494,12 +542,16 @@ function BuyerDashboard() {
 
 				{/* Market Trends */}
 				<div className="mb-8">
-					<MarketIntelligence commodity="Maize" />
+					<MarketIntelligence commodity="Maize" location={userLocation || user?.location || "Uganda"} />
 				</div>
 
 				{/* Climate alerts */}
 				<div className="mb-8">
-					<ClimateAlertsCard location={userLocation || user?.location || "kampala"} />
+					<ClimateAlertsCard
+						location={userLocation || user?.location || ""}
+						latitude={userCoordinates?.latitude ?? user?.latitude}
+						longitude={userCoordinates?.longitude ?? user?.longitude}
+					/>
 				</div>
 				{/* Analytics Cards */}
 				{analytics && (
