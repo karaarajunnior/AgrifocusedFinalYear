@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileCheck, XCircle, Loader2, Info, ChevronRight } from 'lucide-react';
+import { Upload, FileCheck, Loader2, Info, ChevronRight } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 
@@ -10,7 +10,6 @@ interface VerificationRule {
 
 interface UserDocument {
 	id: string;
-	title: string;
 	type: string;
 	status: 'PENDING' | 'APPROVED' | 'REJECTED';
 	verificationLog: string | null;
@@ -40,7 +39,7 @@ const DocumentVerification: React.FC = () => {
 			if (rulesRes.data.rules?.length > 0) {
 				setSelectedType(rulesRes.data.rules[0].documentType);
 			}
-		} catch (error) {
+		} catch {
 			console.error('Failed to load verification data');
 		} finally {
 			setLoading(false);
@@ -62,17 +61,22 @@ const DocumentVerification: React.FC = () => {
 				headers: { 'Content-Type': 'multipart/form-data' }
 			});
 			
-			const { approved, reason } = res.data.aiFeedback;
-			if (approved) {
-				toast.success('Document Verified Successfully!');
+			const { status, reason } = res.data.verificationFeedback;
+			if (status === 'APPROVED') {
+				toast.success('Document approved successfully');
+			} else if (status === 'REJECTED') {
+				toast.error(`Document rejected: ${reason}`);
 			} else {
-				toast.error(`Verification Rejected: ${reason}`);
+				toast.success('Document submitted for review');
 			}
 			
 			setFile(null);
 			fetchData();
-		} catch (error: any) {
-			toast.error(error.response?.data?.error || 'Upload failed');
+		} catch (error: unknown) {
+			const message = typeof error === 'object' && error !== null && 'response' in error
+				? (error as { response?: { data?: { error?: string } } }).response?.data?.error || 'Upload failed'
+				: 'Upload failed';
+			toast.error(message);
 		} finally {
 			setUploading(false);
 		}
@@ -85,8 +89,8 @@ const DocumentVerification: React.FC = () => {
 			{/* Upload Section */}
 			<div className="space-y-6">
 				<div className="glass-card p-6 bg-white/80 border-t-4 border-green-600">
-					<h3 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">Verify Identity</h3>
-					<p className="text-sm text-slate-500 font-medium mb-6">Upload official documents to gain platform trust and unlock premium features.</p>
+					<h3 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">Document verification</h3>
+					<p className="text-sm text-slate-500 font-medium mb-6">Upload official documents for automatic compliance review.</p>
 					
 					<form onSubmit={handleUpload} className="space-y-4">
 						<div>
@@ -122,7 +126,7 @@ const DocumentVerification: React.FC = () => {
 									<>
 										<FileCheck className="h-10 w-10 text-green-600 mb-2" />
 										<span className="text-sm font-bold text-green-800">{file.name}</span>
-										<span className="text-xs text-green-600 font-medium mt-1">Ready for AI processing</span>
+										<span className="text-xs text-green-600 font-medium mt-1">Ready for review</span>
 									</>
 								) : (
 									<>
@@ -142,9 +146,9 @@ const DocumentVerification: React.FC = () => {
 						>
 							{uploading ? (
 								<div className="flex items-center justify-center">
-									<Loader2 className="h-5 w-5 mr-2 animate-spin" /> AI Analyzing...
+									<Loader2 className="h-5 w-5 mr-2 animate-spin" /> Reviewing...
 								</div>
-							) : 'Start AI Verification'}
+							) : 'Submit for Review'}
 						</button>
 					</form>
 				</div>
@@ -183,7 +187,7 @@ const DocumentVerification: React.FC = () => {
 									<div className="flex items-start bg-slate-50 p-3 rounded-lg">
 										<Info className="h-4 w-4 text-slate-400 mr-2 mt-0.5 shrink-0" />
 										<p className="text-xs text-slate-600 font-medium italic leading-relaxed">
-											AI Feedback: "{doc.verificationLog}"
+											Review note: "{doc.verificationLog}"
 										</p>
 									</div>
 								)}

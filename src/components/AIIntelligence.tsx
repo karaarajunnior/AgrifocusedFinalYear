@@ -64,8 +64,8 @@ export const AIAdvisor: React.FC = () => {
 			<div className="flex items-start gap-3 mb-6 text-amber-700">
 				<Zap className="h-5 w-5 fill-amber-400" />
 				<div>
-					<h3 className="text-lg font-black text-slate-900">What to do next</h3>
-					<p className="text-sm text-slate-600">Short AI tips in simple words.</p>
+					<h3 className="text-lg font-black text-slate-900">Recommended next steps</h3>
+					<p className="text-sm text-slate-600">Short, practical guidance based on your current activity.</p>
 				</div>
 			</div>
 			<div className="space-y-4">
@@ -276,6 +276,7 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
 					<span className="text-sm font-black text-white">{trends?.outlook || "Current price movement is being updated."}</span>
 				</div>
 			</div>
+			<p className="mt-6 text-xs font-bold text-slate-400">Based on current sales and market signals.</p>
 			<div className="mt-6 relative z-10 space-y-3">
 				<div className="flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-widest">
 					<span className={`rounded-full px-3 py-1 ${trends?.isFresh === false ? "bg-amber-500/15 text-amber-300" : "bg-emerald-500/15 text-emerald-300"}`}>
