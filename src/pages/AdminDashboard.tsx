@@ -516,6 +516,7 @@ function AdminDashboard() {
                 { id: 'blockchain', name: 'Blockchain', icon: Link2 },
                 { id: 'agro', name: 'Agro-Inputs', icon: ShoppingBag },
                 { id: 'verification', name: 'Private Rules', icon: Shield }
+                { id: 'verification', name: 'Verification Settings', icon: Shield }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -690,6 +691,7 @@ function AdminDashboard() {
                       <h3 className="text-lg font-semibold text-gray-900">Account review alerts</h3>
                       <p className="text-sm text-gray-600">
                         Automated checks flag accounts that need a final administrator decision.
+                        The system recommends review only. Administrators decide whether to keep the account active or disable it.
                       </p>
                     </div>
                     <button
@@ -736,6 +738,7 @@ function AdminDashboard() {
                             <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
                               <button
                                 onClick={() => updateAccountStatus(review.id, 'ACTIVE', 'Admin cleared automated review alert')}
+                                onClick={() => updateAccountStatus(review.id, 'ACTIVE', 'Administrator cleared the review alert')}
                                 className="rounded-lg border border-green-600 px-4 py-2 text-sm font-bold text-green-700 hover:bg-green-50"
                               >
                                 Keep active

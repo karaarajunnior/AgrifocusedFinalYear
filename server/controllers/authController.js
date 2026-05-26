@@ -11,6 +11,7 @@ import {
 import { writeAuditLog } from "../services/auditLogService.js";
 import { notifyUser } from "../services/smsWhatsappService.js";
 import { evaluateRegistrationSubmission } from "../services/ruleAutomationService.js";
+import { evaluateRegistrationSubmission } from "../services/registrationAutomationService.js";
 
 export async function register(req, res) {
 	try {
@@ -46,6 +47,17 @@ export async function register(req, res) {
 				submission: { email, name, role, phone, location, address, latitude, longitude },
 				rules: activeRules,
 			});
+		const approvalDecision = await evaluateRegistrationSubmission({
+			role,
+			registrationData: req.body,
+		});
+
+		if (!approvalDecision.approved) {
+			return res.status(403).json({
+				error: approvalDecision.reason || "Registration did not meet the approval policy.",
+				missingFields: approvalDecision.missingFields || [],
+			});
+		}
 
 		const salt = await bcrypt.genSalt(12);
 		const hashedPassword = await bcrypt.hash(password, salt);
@@ -65,6 +77,7 @@ export async function register(req, res) {
 				accountStatus: decision.approved ? "ACTIVE" : "DISABLED",
 				accountStatusReason: decision.approved ? null : decision.reason,
 				accountStatusChangedAt: new Date(),
+				verified: true,
 				passwordChangedAt: new Date(),
 			},
 			select: {
@@ -92,6 +105,7 @@ export async function register(req, res) {
 				decisionSource: decision.source,
 				ruleCount: activeRules.length,
 			},
+			metadata: { role: user.role, registrationApprovalReason: approvalDecision.reason },
 		});
 
 		if (!decision.approved) {
@@ -112,6 +126,7 @@ export async function register(req, res) {
 			token,
 			refreshToken: refresh.token,
 			refreshTokenExpiresAt: refresh.expiresAt,
+			approvalReason: approvalDecision.reason,
 		});
 	} catch (error) {
 		console.error("Registration error:", error);

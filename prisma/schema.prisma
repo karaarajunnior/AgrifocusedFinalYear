@@ -763,6 +763,10 @@ model VerificationRule {
 model RegistrationRule {
   id              String   @id @default(cuid())
   name            String   @db.VarChar(80)
+model RegistrationAutomationRule {
+  id              String   @id @default(cuid())
+  targetRole      Role     @unique
+  requiredFields  Json?
   criteria        String   @db.Text
   isActive        Boolean  @default(true)
   createdByUserId String
@@ -770,6 +774,7 @@ model RegistrationRule {
   updatedAt       DateTime @updatedAt
 
   @@map("registration_rules")
+  @@map("registration_automation_rules")
 }
 
 enum DocumentStatus {

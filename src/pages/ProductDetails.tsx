@@ -353,6 +353,7 @@ function ProductDetails() {
             <div className="flex items-center gap-3 mb-4">
               <Sparkles className="h-5 w-5 text-emerald-600" />
               <h3 className="text-lg font-bold text-gray-900">Product Quality Check</h3>
+              <h3 className="text-lg font-bold text-gray-900">Product quality check</h3>
             </div>
             <p className="text-sm text-gray-500 mb-4">
               Buyers can drag a farmer photo or upload a fresh image to estimate visible quality, defects, and listing specifications.
@@ -414,6 +415,7 @@ function ProductDetails() {
                 </div>
                 <div className="sm:col-span-2 p-4 rounded-xl bg-amber-50 border border-amber-100">
                   <p className="text-xs uppercase font-black text-amber-700 mb-2">Recommendations</p>
+                  <p className="text-xs uppercase font-black text-amber-700 mb-2">Recommended actions</p>
                   <ul className="list-disc list-inside text-amber-900 space-y-1">
                     {analysis.recommendations.map((item) => <li key={item}>{item}</li>)}
                   </ul>
