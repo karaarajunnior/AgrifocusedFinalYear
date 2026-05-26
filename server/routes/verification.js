@@ -3,9 +3,9 @@ import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
-import OpenAI from "openai";
 import { authenticateToken } from "../middleware/auth.js";
 import prisma from "../db/prisma.js";
+import { evaluateDocumentUpload } from "../services/ruleAutomationService.js";
 import {
 	getDefaultRequiredFields,
 	upsertRegistrationAutomationRule,
@@ -36,6 +36,10 @@ const upload = multer({
 	limits: { fileSize: 8 * 1024 * 1024 },
 });
 
+/**
+ * POST /api/verification/upload
+ * Validates a single document using stored administrator rules.
+ */
 // Lazy-initialize OpenAI so it only runs after dotenv has loaded all env vars
 let _openai = null;
 function getOpenAI() {
@@ -125,6 +129,7 @@ router.post("/upload", authenticateToken, upload.single("document"), async (req,
 
 		const rule = await prisma.verificationRule.findFirst({
 			where: { documentType, isActive: true },
+			orderBy: { createdAt: "desc" },
 			orderBy: { updatedAt: "desc" },
 		});
 
@@ -132,6 +137,12 @@ router.post("/upload", authenticateToken, upload.single("document"), async (req,
 			return res.status(400).json({ success: false, error: `No active verification rules found for type: ${documentType}` });
 		}
 
+		const decision = await evaluateDocumentUpload({
+			criteria: rule.criteria,
+			filePath: req.file.path,
+			mimeType: req.file.mimetype,
+		});
+		const statusEnum = decision.approved ? "APPROVED" : "REJECTED";
 		const prompt = buildVerificationPrompt(rule.criteria);
 		const messages = await buildOpenAIMessage(prompt, req.file.path, req.file.mimetype);
 
@@ -165,7 +176,10 @@ router.post("/upload", authenticateToken, upload.single("document"), async (req,
 				mimeType: req.file.mimetype,
 				sizeBytes: req.file.size,
 				storagePath: `/uploads/verification/${path.basename(req.file.path)}`,
+				aiSummary: documentType,
 				status: statusEnum,
+				verificationLog: decision.reason,
+			}
 				aiSummary: documentType,
 				verificationLog: reviewReason,
 			},
@@ -174,6 +188,13 @@ router.post("/upload", authenticateToken, upload.single("document"), async (req,
 		res.json({
 			success: true,
 			document: newDoc,
+			feedback: {
+				approved: decision.approved,
+				reason: decision.reason,
+			},
+			aiFeedback: {
+				approved: decision.approved,
+				reason: decision.reason,
 			verificationFeedback: {
 				status: statusEnum,
 				reason: reviewReason,
@@ -186,11 +207,30 @@ router.post("/upload", authenticateToken, upload.single("document"), async (req,
 	}
 });
 
+// Admin route: store a private document verification rule.
 router.post("/rules", authenticateToken, async (req, res) => {
 	if (req.user.role !== "ADMIN") return res.status(403).json({ error: "Access denied" });
 	try {
 		const { documentType, criteria } = req.body;
 		if (!documentType || !criteria) {
+			return res.status(400).json({ error: "Document type and criteria are required" });
+		}
+		await prisma.verificationRule.updateMany({
+			where: { documentType, isActive: true },
+			data: { isActive: false },
+		});
+		const rule = await prisma.verificationRule.create({
+			data: {
+				documentType,
+				criteria,
+				createdByUserId: req.user.id
+			},
+			select: {
+				id: true,
+				documentType: true,
+				isActive: true,
+				createdAt: true,
+				updatedAt: true,
 			return res.status(400).json({ error: "documentType and criteria are required" });
 		}
 
@@ -236,14 +276,74 @@ router.post("/rules/registration", authenticateToken, async (req, res) => {
 	}
 });
 
+// Return rule metadata only. Criteria stays private in the database.
 router.get("/rules", authenticateToken, async (req, res) => {
 	try {
 		const rules = await prisma.verificationRule.findMany({
 			where: { isActive: true },
+			select: {
+				id: true,
+				documentType: true,
+				isActive: true,
+				createdAt: true,
+				updatedAt: true,
+			},
+			orderBy: { createdAt: "desc" },
 			select: { id: true, documentType: true },
 			orderBy: { documentType: "asc" },
 		});
 		res.json({ success: true, rules });
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+	}
+});
+
+router.get("/registration-rules", authenticateToken, async (req, res) => {
+	if (req.user.role !== "ADMIN") return res.status(403).json({ error: "Access denied" });
+	try {
+		const rules = await prisma.registrationRule.findMany({
+			where: { isActive: true },
+			select: {
+				id: true,
+				name: true,
+				isActive: true,
+				createdAt: true,
+				updatedAt: true,
+			},
+			orderBy: { createdAt: "desc" },
+		});
+		res.json({ success: true, rules });
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+	}
+});
+
+router.post("/registration-rules", authenticateToken, async (req, res) => {
+	if (req.user.role !== "ADMIN") return res.status(403).json({ error: "Access denied" });
+	try {
+		const { name = "Registration eligibility", criteria } = req.body;
+		if (!criteria) {
+			return res.status(400).json({ error: "Criteria are required" });
+		}
+		await prisma.registrationRule.updateMany({
+			where: { isActive: true },
+			data: { isActive: false },
+		});
+		const rule = await prisma.registrationRule.create({
+			data: {
+				name,
+				criteria,
+				createdByUserId: req.user.id,
+			},
+			select: {
+				id: true,
+				name: true,
+				isActive: true,
+				createdAt: true,
+				updatedAt: true,
+			},
+		});
+		res.json({ success: true, rule });
 	} catch (err) {
 		res.status(500).json({ error: err.message });
 	}

@@ -10,6 +10,8 @@ interface VerificationRule {
 
 interface UserDocument {
 	id: string;
+	originalName: string;
+	aiSummary?: string | null;
 	type: string;
 	status: 'PENDING' | 'APPROVED' | 'REJECTED';
 	verificationLog: string | null;
@@ -61,6 +63,11 @@ const DocumentVerification: React.FC = () => {
 				headers: { 'Content-Type': 'multipart/form-data' }
 			});
 			
+			const { approved, reason } = res.data.feedback || res.data.aiFeedback;
+			if (approved) {
+				toast.success('Document verified successfully');
+			} else {
+				toast.error(`Verification rejected: ${reason}`);
 			const { status, reason } = res.data.verificationFeedback;
 			if (status === 'APPROVED') {
 				toast.success('Document approved successfully');
@@ -148,6 +155,7 @@ const DocumentVerification: React.FC = () => {
 								<div className="flex items-center justify-center">
 									<Loader2 className="h-5 w-5 mr-2 animate-spin" /> Reviewing...
 								</div>
+							) : 'Start Verification'}
 							) : 'Submit for Review'}
 						</button>
 					</form>
@@ -173,7 +181,7 @@ const DocumentVerification: React.FC = () => {
 										}`}>
 											<FileCheck className="h-4 w-4" />
 										</div>
-										<span>{doc.type}</span>
+										<span>{doc.aiSummary || doc.originalName}</span>
 									</div>
 									<div className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
 										doc.status === 'APPROVED' ? 'bg-green-50 text-green-700 border-green-100' :

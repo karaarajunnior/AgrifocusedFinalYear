@@ -10,6 +10,7 @@ import {
 } from "../services/tokenService.js";
 import { writeAuditLog } from "../services/auditLogService.js";
 import { notifyUser } from "../services/smsWhatsappService.js";
+import { evaluateRegistrationSubmission } from "../services/ruleAutomationService.js";
 import { evaluateRegistrationSubmission } from "../services/registrationAutomationService.js";
 
 export async function register(req, res) {
@@ -33,6 +34,19 @@ export async function register(req, res) {
 			}
 		}
 
+		const activeRules = role === "ADMIN"
+			? []
+			: await prisma.registrationRule.findMany({
+				where: { isActive: true },
+				select: { id: true, name: true, criteria: true },
+				orderBy: { createdAt: "asc" },
+			});
+		const decision = role === "ADMIN"
+			? { approved: true, reason: "Administrator account approved.", source: "system" }
+			: await evaluateRegistrationSubmission({
+				submission: { email, name, role, phone, location, address, latitude, longitude },
+				rules: activeRules,
+			});
 		const approvalDecision = await evaluateRegistrationSubmission({
 			role,
 			registrationData: req.body,
@@ -59,6 +73,10 @@ export async function register(req, res) {
 				address,
 				latitude,
 				longitude,
+				verified: decision.approved,
+				accountStatus: decision.approved ? "ACTIVE" : "DISABLED",
+				accountStatusReason: decision.approved ? null : decision.reason,
+				accountStatusChangedAt: new Date(),
 				verified: true,
 				passwordChangedAt: new Date(),
 			},
@@ -74,9 +92,6 @@ export async function register(req, res) {
 			},
 		});
 
-		const token = issueAccessToken({ userId: user.id });
-		const refresh = await issueRefreshToken({ userId: user.id });
-
 		await writeAuditLog({
 			actorUserId: user.id,
 			action: "auth_register",
@@ -84,11 +99,29 @@ export async function register(req, res) {
 			targetId: user.id,
 			ip: req.ip,
 			userAgent: req.get("User-Agent"),
+			metadata: {
+				role: user.role,
+				decision: decision.approved ? "approved" : "rejected",
+				decisionSource: decision.source,
+				ruleCount: activeRules.length,
+			},
 			metadata: { role: user.role, registrationApprovalReason: approvalDecision.reason },
 		});
 
+		if (!decision.approved) {
+			return res.status(201).json({
+				message: "Registration was not approved. Please review your details or contact support.",
+				approved: false,
+				user,
+			});
+		}
+
+		const token = issueAccessToken({ userId: user.id });
+		const refresh = await issueRefreshToken({ userId: user.id });
+
 		res.status(201).json({
 			message: "User registered successfully",
+			approved: true,
 			user,
 			token,
 			refreshToken: refresh.token,

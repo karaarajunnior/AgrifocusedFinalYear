@@ -124,7 +124,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const register = async (data: RegisterData): Promise<boolean> => {
 		try {
 			const response = await api.post("/auth/register", data);
-			const { user, token } = response.data;
+			const { user, token, approved, message } = response.data;
+
+			if (approved === false || !token) {
+				toast.error(message || "Registration was not approved.");
+				return false;
+			}
 
 			localStorage.setItem("token", token);
 			setUser(user);
