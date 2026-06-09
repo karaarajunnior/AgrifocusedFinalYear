@@ -95,7 +95,7 @@ router.put(
 // Get all users (admin only)
 router.get("/", authenticateToken, requireRole(["ADMIN"]), listUsers);
 
-// AI-assisted account review alerts for admins
+// Account review alerts for admins
 router.get(
 	"/account-review/alerts",
 	authenticateToken,

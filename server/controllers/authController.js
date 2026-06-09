@@ -10,6 +10,9 @@ import {
 } from "../services/tokenService.js";
 import { writeAuditLog } from "../services/auditLogService.js";
 import { notifyUser } from "../services/smsWhatsappService.js";
+import { evaluateRegistrationApplication } from "../services/approvalRulesService.js";
+import { evaluateRegistrationSubmission } from "../services/ruleAutomationService.js";
+import { evaluateRegistrationSubmission } from "../services/registrationAutomationService.js";
 
 export async function register(req, res) {
 	try {
@@ -70,6 +73,49 @@ export async function register(req, res) {
 			});
 		}
 
+		let approvalDecision = { status: "APPROVED", approved: true, reason: "Admin account approved." };
+		if (role !== "ADMIN") {
+			approvalDecision = await evaluateRegistrationApplication({
+				name,
+				email,
+				role,
+				phone,
+				location,
+				address,
+				latitude,
+				longitude,
+			});
+
+			if (approvalDecision.status === "REJECTED") {
+				return res.status(400).json({
+					error: `Registration could not be approved. ${approvalDecision.reason}`,
+				});
+			}
+		const activeRules = role === "ADMIN"
+			? []
+			: await prisma.registrationRule.findMany({
+				where: { isActive: true },
+				select: { id: true, name: true, criteria: true },
+				orderBy: { createdAt: "asc" },
+			});
+		const decision = role === "ADMIN"
+			? { approved: true, reason: "Administrator account approved.", source: "system" }
+			: await evaluateRegistrationSubmission({
+				submission: { email, name, role, phone, location, address, latitude, longitude },
+				rules: activeRules,
+			});
+		const approvalDecision = await evaluateRegistrationSubmission({
+			role,
+			registrationData: req.body,
+		});
+
+		if (!approvalDecision.approved) {
+			return res.status(403).json({
+				error: approvalDecision.reason || "Registration did not meet the approval policy.",
+				missingFields: approvalDecision.missingFields || [],
+			});
+		}
+
 		const salt = await bcrypt.genSalt(12);
 		const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -87,8 +133,7 @@ export async function register(req, res) {
 				address,
 				latitude,
 				longitude,
-				verified: willAutoApprove,
-				accountStatus: "ACTIVE",
+				verified: role === "ADMIN" ? true : false,
 				passwordChangedAt: new Date(),
 			},
 			select: {
@@ -103,21 +148,6 @@ export async function register(req, res) {
 			},
 		});
 
-		await recordRegistrationDecision({
-			userId: user.id,
-			email: user.email,
-			role: user.role,
-			decision: role === "ADMIN" ? "APPROVE" : decision.decision,
-			matchedRuleId: decision.matchedRuleId,
-			reason: decision.reason,
-			payloadSnap: {
-				hasPhone: Boolean(phone),
-				hasLocation: Boolean(location),
-				hasAddress: Boolean(address),
-				hasCoordinates: Boolean(latitude && longitude),
-			},
-		});
-
 		const token = issueAccessToken({ userId: user.id });
 		const refresh = await issueRefreshToken({ userId: user.id });
 
@@ -128,19 +158,31 @@ export async function register(req, res) {
 			targetId: user.id,
 			ip: req.ip,
 			userAgent: req.get("User-Agent"),
-			metadata: {
-				role: user.role,
-				decision: role === "ADMIN" ? "APPROVE" : decision.decision,
-				matchedRuleId: decision.matchedRuleId,
-			},
+			metadata: { role: user.role },
 		});
 
+		if (!decision.approved) {
+			return res.status(201).json({
+				message: "Registration was not approved. Please review your details or contact support.",
+				approved: false,
+				user,
+			});
+		}
+
+		const token = issueAccessToken({ userId: user.id });
+		const refresh = await issueRefreshToken({ userId: user.id });
+
 		res.status(201).json({
+			message: user.verified
+				? "User registered and approved successfully"
+				: "User registered successfully and is pending review",
 			message: "User registered successfully",
+			approved: true,
 			user,
 			token,
 			refreshToken: refresh.token,
 			refreshTokenExpiresAt: refresh.expiresAt,
+			approvalReason: approvalDecision.reason,
 		});
 	} catch (error) {
 		console.error("Registration error:", error);
