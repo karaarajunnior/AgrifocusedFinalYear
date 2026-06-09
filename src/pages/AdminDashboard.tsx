@@ -23,7 +23,7 @@ import axios from 'axios';
 import { saveToCache, getFromCache } from '../utils/offlineCache';
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import OfflineBadge from '../components/OfflineBadge';
-import AdminVerificationRules from '../components/AdminVerificationRules';
+import AdminVerificationPolicies from '../components/AdminVerificationPolicies';
 
 interface DashboardData {
   overview: {
@@ -1179,7 +1179,7 @@ function AdminDashboard() {
               </div>
             )}
             {activeTab === 'verification' && (
-              <AdminVerificationRules />
+              <AdminVerificationPolicies />
             )}
           </div>
         </div>

@@ -39,6 +39,7 @@ router.post(
 		body("email").isEmail().normalizeEmail(),
 		body("password").isLength({ min: 6 }),
 		body("name").trim().isLength({ min: 2 }),
+		body("role").isIn(["FARMER", "BUYER", "ADMIN", "AGRO_SHOP", "SUPERMARKET"]),
 		body("role").isIn(["FARMER", "BUYER", "ADMIN", "SUPERMARKET", "AGRO_SHOP"]),
 		body("phone").optional({ checkFalsy: true }).isString().trim().isLength({ min: 6, max: 30 }),
 		body("location").optional({ checkFalsy: true }).isString().trim().isLength({ min: 2, max: 100 }),
