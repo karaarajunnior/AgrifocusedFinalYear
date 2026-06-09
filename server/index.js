@@ -238,6 +238,12 @@ initSocket(server);
 server.listen(PORT, "0.0.0.0", () => {
 	console.log(`Server running on port ${PORT}`);
 	console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+	// Seed default registration rules in the background. These rules are stored
+	// in the database and never displayed in any UI; they govern automatic
+	// approval / rejection of new sign-ups.
+	ensureDefaultRegistrationRules().catch((e) =>
+		console.warn("Default registration rules seed skipped:", e?.message || e),
+	);
 });
 
 export default app;

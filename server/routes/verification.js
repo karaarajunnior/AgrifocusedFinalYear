@@ -10,11 +10,10 @@ import prisma from "../db/prisma.js";
 import {
 	REGISTRATION_RULE_TYPE,
 	evaluateDocumentSubmission,
-	getActiveRule,
+getActiveRule,
 	saveRule,
 } from "../services/approvalRulesService.js";
-import { authenticateToken } from "../middleware/auth.js";
-import prisma from "../db/prisma.js";
+
 import { evaluateDocumentUpload } from "../services/ruleAutomationService.js";
 import {
 	getDefaultRequiredFields,
@@ -441,6 +440,7 @@ router.get("/rules", authenticateToken, async (req, res) => {
 			orderBy: { createdAt: "desc" },
 			select: { id: true, documentType: true },
 			orderBy: { documentType: "asc" },
+
 		});
 		res.json({ success: true, rules });
 	} catch (err) {

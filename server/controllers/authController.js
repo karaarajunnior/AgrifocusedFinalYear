@@ -36,6 +36,44 @@ export async function register(req, res) {
 			}
 		}
 
+		// Automatic registration review against admin-configured rules.
+		// Rules live in the database and are never exposed in any UI; they
+		// run silently here to approve / reject / flag the new account.
+		let decision = { decision: "APPROVE", reason: null, matchedRuleId: null };
+		if (role !== "ADMIN") {
+			try {
+				decision = await evaluateRegistration({
+					email,
+					password,
+					name,
+					role,
+					phone,
+					location,
+					address,
+					latitude,
+					longitude,
+				});
+			} catch (err) {
+				console.warn(
+					"Registration rule evaluation failed:",
+					err?.message || err,
+				);
+				decision = {
+					decision: "REVIEW",
+					reason: "Rule engine unavailable; queued for admin review",
+					matchedRuleId: null,
+				};
+			}
+		}
+
+		if (decision.decision === "REJECT") {
+			return res.status(403).json({
+				error:
+					decision.reason ||
+					"Registration could not be completed at this time.",
+			});
+		}
+
 		let approvalDecision = { status: "APPROVED", approved: true, reason: "Admin account approved." };
 		if (role !== "ADMIN") {
 			approvalDecision = await evaluateRegistrationApplication({
@@ -102,6 +140,9 @@ export async function register(req, res) {
 
 		const isApproved = role === "ADMIN" ? true : registrationDecision.approved;
 
+		const willAutoApprove =
+			role === "ADMIN" || decision.decision === "APPROVE";
+
 		const user = await prisma.user.create({
 			data: {
 				email,
@@ -113,6 +154,7 @@ export async function register(req, res) {
 				address,
 				latitude,
 				longitude,
+				verified: role === "ADMIN" ? true : false,
 				verified: isApproved,
 				accountStatus: isApproved ? "ACTIVE" : "DISABLED",
 				accountStatusReason: isApproved ? null : registrationDecision.reason,
@@ -140,6 +182,8 @@ export async function register(req, res) {
 			},
 		});
 
+		const token = issueAccessToken({ userId: user.id });
+		const refresh = await issueRefreshToken({ userId: user.id });
 		const token = isApproved ? issueAccessToken({ userId: user.id }) : null;
 		const refresh = isApproved ? await issueRefreshToken({ userId: user.id }) : null;
 
@@ -150,6 +194,7 @@ export async function register(req, res) {
 			targetId: user.id,
 			ip: req.ip,
 			userAgent: req.get("User-Agent"),
+			metadata: { role: user.role },
 			metadata: {
 				role: user.role,
 				autoDecision: isApproved ? "APPROVED" : "REJECTED",

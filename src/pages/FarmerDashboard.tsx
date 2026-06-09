@@ -112,6 +112,7 @@ function FarmerDashboard() {
 	const [cacheTime, setCacheTime] = useState<string | undefined>();
 	const [showAddProduct, setShowAddProduct] = useState(false);
 	const [showAllProducts, setShowAllProducts] = useState(false);
+	const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 	const [showVerification, setShowVerification] = useState(false);
 	const [marketingContent, setMarketingContent] = useState<{heading: string, body: string, hashtags: string[]} | null>(null);
 	const [generatingMarketing, setGeneratingMarketing] = useState(false);
@@ -664,11 +665,6 @@ function FarmerDashboard() {
 							</div>
 						</div>
 
-						{/* Proactive Leads */}
-						<div className="mb-8">
-							<ProactiveLeads />
-						</div>
-
 						{/* My Potential Buyers (Legacy) */}
 						{potentialBuyers.length > 0 && (
 							<div className="glass-card p-8">
@@ -759,6 +755,7 @@ function FarmerDashboard() {
 												className="mt-2 flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all opacity-0 group-hover:opacity-100"
 											>
 												<Share2 className="h-3 w-3" />
+												Marketing Post
 												Create Post
 												Create promo copy
 											</button>
@@ -1217,6 +1214,7 @@ function FarmerDashboard() {
 						</div>
 					</div>
 				)}
+			{/* Marketing Content Modal */}
 			{/* Marketing Modal */}
 			{/* Marketing Copy Modal */}
 			{showMarketingModal && (
@@ -1243,7 +1241,7 @@ function FarmerDashboard() {
 							{generatingMarketing ? (
 								<div className="py-20 text-center">
 									<div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-									<p className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] animate-pulse">Consulting Market Intelligence...</p>
+									<p className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] animate-pulse">Generating content...</p>
 								</div>
 							) : marketingContent && (
 								<div className="space-y-8">
@@ -1280,6 +1278,7 @@ function FarmerDashboard() {
 											Copy for social
 										</button>
 									</div>
+									<p className="text-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">Generated for multi-market sharing</p>
 									<p className="text-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">Generated from product and market details</p>
 									<p className="text-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">Prepared for multi-channel outreach</p>
 									<p className="text-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">Generated from current listing and market data</p>

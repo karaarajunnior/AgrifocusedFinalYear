@@ -113,7 +113,6 @@ function BuyerDashboard() {
 			: null,
 	);
 	const [searchRadius, setSearchRadius] = useState(25);
-	const [showVerification, setShowVerification] = useState(false);
 	const [cacheTime, setCacheTime] = useState<string | undefined>();
 	const locationLabel = userLocation || (userCoordinates
 		? `${userCoordinates.latitude.toFixed(4)}, ${userCoordinates.longitude.toFixed(4)}`
