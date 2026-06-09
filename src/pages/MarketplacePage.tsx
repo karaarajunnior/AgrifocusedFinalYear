@@ -415,21 +415,76 @@ function MarketplacePage() {
 					</div>
 				) : (
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 xl:gap-7">
-						{products.map((product) => (
-							(() => {
-								const primaryImage = imageFailures[product.id] ? undefined : getPrimaryProductImage(product.images);
-								return (
+						{products.map((product) => {
+							const primaryImage = imageFailures[product.id]
+								? undefined
+								: getPrimaryProductImage(product.images);
+							const imageCount = getProductImages(product.images).length;
+
+							return (
+								<div
+									key={product.id}
+									className="group bg-white rounded-[2rem] shadow-sm border border-emerald-100/70 overflow-hidden hover:shadow-2xl hover:shadow-emerald-900/10 hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative">
+									<div className="relative h-56 bg-gradient-to-br from-emerald-100 via-teal-50 to-emerald-200 flex items-center justify-center overflow-hidden">
+										{primaryImage ? (
+											<img
+												src={primaryImage}
+												alt={product.name}
+												className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+												onError={() =>
+													setImageFailures((prev) => ({
+														...prev,
+														[product.id]: true,
+													}))
+												}
+											/>
+										) : (
+											<>
+												<div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.35),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(250,204,21,0.35),_transparent_32%)] self-stretch z-0"></div>
+												<div className="absolute inset-0 bg-white/20 backdrop-blur-sm self-stretch z-0"></div>
+												<Sun className="absolute -top-10 -right-10 w-32 h-32 text-emerald-300/40 rotate-45 group-hover:rotate-90 transition-transform duration-700 ease-in-out" />
+												<Leaf className="h-20 w-20 text-emerald-600/70 z-10 group-hover:scale-110 transition-transform duration-500 delay-100 drop-shadow-md" />
+											</>
+										)}
+
+										{imageCount > 1 && (
+											<div className="absolute bottom-4 left-4 z-20 rounded-full bg-slate-900/80 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white">
+												{imageCount} photos
+											</div>
+										)}
+
+										{product.organic && (
+											<div className="absolute top-4 right-4 z-20">
+												<span className="bg-white/90 backdrop-blur-md text-emerald-800 text-xs font-black px-3 py-1.5 rounded-full shadow-sm">
+													{t("organic_badge")}
+												</span>
+											</div>
+										)}
+
+										<div className="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between rounded-2xl bg-white/90 px-4 py-3 shadow-lg backdrop-blur-md">
+											<div>
+												<p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+													Fresh stock
+												</p>
+												<p className="text-sm font-black text-slate-900">
+													{product.quantity} {product.unit}
+												</p>
+											</div>
+											<div className="rounded-xl bg-emerald-600 px-3 py-2 text-right text-xs font-black text-white">
+												UGX {product.price.toLocaleString()}
+												<span className="block text-[9px] font-bold opacity-80">
+													/{product.unit}
+												</span>
+											</div>
+							const primaryImage = imageFailures[product.id] ? undefined : getPrimaryProductImage(product.images);
+							return (
 							<div
 								key={product.id}
 								className="group bg-white rounded-[2rem] shadow-sm border border-emerald-100/70 overflow-hidden hover:shadow-2xl hover:shadow-emerald-900/10 hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative">
 								
 								{/* Image / Header Gradient */}
-								<div className="relative h-48 sm:h-56 bg-gradient-to-br from-emerald-100 via-teal-50 to-lime-100 flex items-center justify-center overflow-hidden">
-									<div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.35),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(250,204,21,0.35),_transparent_32%)] self-stretch z-0"></div>
-									<Sun className="absolute -top-10 -right-10 w-32 h-32 text-emerald-300/40 rotate-45 group-hover:rotate-90 transition-transform duration-700 ease-in-out" />
-									
-									<Leaf className="h-20 w-20 text-emerald-600/80 z-10 group-hover:scale-110 transition-transform duration-500 delay-100 drop-shadow-md" />
 								<div className="relative h-56 bg-gradient-to-br from-emerald-100 via-teal-50 to-emerald-200 flex items-center justify-center overflow-hidden">
+								<div className="relative h-48 sm:h-56 bg-gradient-to-br from-emerald-100 via-teal-50 to-lime-100 flex items-center justify-center overflow-hidden">
 									{primaryImage ? (
 										<img
 											src={primaryImage}
@@ -448,109 +503,110 @@ function MarketplacePage() {
 										<div className="absolute bottom-4 left-4 z-20 rounded-full bg-slate-900/80 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white">
 											{getProductImages(product.images).length} photos
 										</div>
-									)}
-									
-									{product.organic && (
-										<div className="absolute top-4 right-4 z-20">
-											<span className="bg-white/90 backdrop-blur-md text-emerald-800 text-xs font-black px-3 py-1.5 rounded-full shadow-sm">
-												{t('organic_badge')}
+									</div>
+
+									<div className="p-5 flex flex-col flex-grow">
+										<div className="mb-3">
+											<span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
+												{categoryLabels[product.category] || product.category}
+											</span>
+											<span
+												className={`ml-2 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md ${
+													product.origin === "INTERNATIONAL"
+														? "text-indigo-700 bg-indigo-50"
+														: "text-slate-600 bg-slate-100"
+												}`}>
+												{product.origin === "INTERNATIONAL"
+													? "World market"
+													: "Local"}
 											</span>
 										</div>
-									)}
-									<div className="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between rounded-2xl bg-white/90 px-4 py-3 shadow-lg backdrop-blur-md">
-										<div>
-											<p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Fresh stock</p>
-											<p className="text-sm font-black text-slate-900">{product.quantity} {product.unit}</p>
-										</div>
-										<div className="rounded-xl bg-emerald-600 px-3 py-2 text-right text-xs font-black text-white">
-											UGX {product.price.toLocaleString()}
-											<span className="block text-[9px] font-bold opacity-80">/{product.unit}</span>
-										</div>
-									</div>
-								</div>
 
-								<div className="p-5 flex flex-col flex-grow">
-									{/* Category Tag */}
-									<div className="mb-3">
-										<span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
-											{categoryLabels[product.category] || product.category}
-										</span>
-										<span className={`ml-2 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md ${product.origin === "INTERNATIONAL" ? "text-indigo-700 bg-indigo-50" : "text-slate-600 bg-slate-100"}`}>
-											{product.origin === "INTERNATIONAL" ? "World market" : "Local"}
-										</span>
-									</div>
+										<h3 className="font-bold text-slate-800 text-xl leading-tight mb-2 group-hover:text-emerald-700 transition-colors line-clamp-2">
+											{product.name}
+										</h3>
 
-									{/* Product Name */}
-									<h3 className="font-bold text-slate-800 text-xl leading-tight mb-2 group-hover:text-emerald-700 transition-colors line-clamp-2">
-										{product.name}
-									</h3>
+										<div className="space-y-3 text-sm text-slate-600 mb-6 font-medium bg-slate-50 p-4 rounded-2xl flex-grow">
+											<LocationLink
+												location={product.location}
+												latitude={product.latitude ?? product.farmer?.latitude}
+												longitude={product.longitude ?? product.farmer?.longitude}
+												className="flex items-start text-slate-600 hover:text-emerald-700"
+											/>
 
-									{/* Product Metadata */}
-									<div className="space-y-3 test-sm text-slate-600 mb-6 font-medium bg-slate-50 p-4 rounded-2xl flex-grow">
-										<LocationLink
-											location={product.location}
-											latitude={product.latitude ?? product.farmer?.latitude}
-											longitude={product.longitude ?? product.farmer?.longitude}
-											className="flex items-start text-slate-600 hover:text-emerald-700"
-										/>
-
-										<div className="flex items-center justify-between">
-											<div className="flex items-center">
-												<User className="h-4 w-4 mr-2 text-slate-400 shrink-0" />
-												<span className="truncate pr-2">{product.farmer.name}</span>
-												{product.farmer.verified && (
-													<span className="text-emerald-500 bg-emerald-50 rounded-full p-0.5 flex shrink-0" title="Verified Farmer">
-														<svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-													</span>
-												)}
-												{product.farmerTrust && (
-													<span className="ml-2 shrink-0">
-														<TrustBadge trust={product.farmerTrust} compact />
-													</span>
-												)}
+											<div className="flex items-center justify-between">
+												<div className="flex items-center">
+													<User className="h-4 w-4 mr-2 text-slate-400 shrink-0" />
+													<span className="truncate pr-2">{product.farmer.name}</span>
+													{product.farmer.verified && (
+														<span
+															className="text-emerald-500 bg-emerald-50 rounded-full p-0.5 flex shrink-0"
+															title="Verified Farmer">
+															<svg
+																className="w-3 h-3"
+																fill="none"
+																viewBox="0 0 24 24"
+																stroke="currentColor">
+																<path
+																	strokeLinecap="round"
+																	strokeLinejoin="round"
+																	strokeWidth={3}
+																	d="M5 13l4 4L19 7"
+																/>
+															</svg>
+														</span>
+													)}
+													{product.farmerTrust && (
+														<span className="ml-2 shrink-0">
+															<TrustBadge trust={product.farmerTrust} compact />
+														</span>
+													)}
+												</div>
 											</div>
-										</div>
 
-										{product.totalReviews > 0 && (
-											<div className="flex items-center bg-yellow-50/50 w-max px-2 py-1 rounded-md border border-yellow-100">
-												<Star className="h-3.5 w-3.5 text-yellow-500 fill-current" />
-												<span className="ml-1.5 font-bold text-yellow-700 text-xs">
-													{product.avgRating.toFixed(1)}
+											{product.totalReviews > 0 && (
+												<div className="flex items-center bg-yellow-50/50 w-max px-2 py-1 rounded-md border border-yellow-100">
+													<Star className="h-3.5 w-3.5 text-yellow-500 fill-current" />
+													<span className="ml-1.5 font-bold text-yellow-700 text-xs">
+														{product.avgRating.toFixed(1)}
+													</span>
+													<span className="text-yellow-600/50 text-[10px] uppercase font-bold ml-1">
+														({product.totalReviews})
+													</span>
+												</div>
+											)}
+
+											<div className="pt-2 border-t border-slate-200 mt-2 flex justify-between items-center">
+												<span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+													{t("available")}
 												</span>
-												<span className="text-yellow-600/50 text-[10px] uppercase font-bold ml-1">
-													({product.totalReviews})
+												<span className="text-sm font-black text-slate-700">
+													{product.quantity} {product.unit}
 												</span>
 											</div>
-										)}
-										
-										<div className="pt-2 border-t border-slate-200 mt-2 flex justify-between items-center">
-											<span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('available')}</span>
-											<span className="text-sm font-black text-slate-700">{product.quantity} {product.unit}</span>
 										</div>
-									</div>
 
-									{/* CTA Buttons */}
-									<div className="flex gap-3 mt-auto pt-2">
-										<Link
-											to={`/product/${product.id}`}
-											className="flex-1 text-center px-4 py-3 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all">
-											{t('view_details')}
-										</Link>
+										<div className="flex gap-3 mt-auto pt-2">
+											<Link
+												to={`/product/${product.id}`}
+												className="flex-1 text-center px-4 py-3 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all">
+												{t("view_details")}
+											</Link>
 
-										{user && user.role === "BUYER" && (
-											<button
-												onClick={() => handleQuickOrder(product.id)}
-												className="flex-1 px-4 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-lg hover:shadow-emerald-600/30 flex items-center justify-center group/btn">
-												<ShoppingCart className="h-4 w-4 mr-2 group-hover/btn:-translate-y-0.5 transition-transform" />
-												{t('order')}
-											</button>
-										)}
+											{user && user.role === "BUYER" && (
+												<button
+													onClick={() => handleQuickOrder(product.id)}
+													className="flex-1 px-4 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-lg hover:shadow-emerald-600/30 flex items-center justify-center group/btn">
+													<ShoppingCart className="h-4 w-4 mr-2 group-hover/btn:-translate-y-0.5 transition-transform" />
+													{t("order")}
+												</button>
+											)}
+										</div>
 									</div>
 								</div>
 							</div>
-								);
-							})()
-						))}
+							);
+						})}
 					</div>
 				)}
 

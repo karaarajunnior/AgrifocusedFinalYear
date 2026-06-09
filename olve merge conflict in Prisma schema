@@ -1,0 +1,56 @@
+[1mdiff --git a/prisma/schema.prisma b/prisma/schema.prisma[m
+[1mindex b46760a..157e10d 100644[m
+[1m--- a/prisma/schema.prisma[m
+[1m+++ b/prisma/schema.prisma[m
+[36m@@ -762,39 +762,8 @@[m [mmodel VerificationRule {[m
+ [m
+ model RegistrationRule {[m
+   id              String   @id @default(cuid())[m
+[31m-<<<<<<< HEAD[m
+[31m-  name            String   @db.VarChar(120)[m
+[31m-  ruleType        String   @db.VarChar(48)[m
+[31m-  appliesToRole   String?  @db.VarChar(32)[m
+[31m-  config          String   @db.Text[m
+[31m-  action          String   @default("APPROVE") @db.VarChar(16)[m
+[31m-  reason          String?  @db.Text[m
+[31m-  priority        Int      @default(0)[m
+[31m-  isActive        Boolean  @default(true)[m
+[31m-  createdByUserId String?[m
+[31m-  createdAt       DateTime @default(now())[m
+[31m-  updatedAt       DateTime @updatedAt[m
+[31m-[m
+[31m-  @@index([isActive, priority])[m
+[31m-  @@map("registration_rules")[m
+[31m-}[m
+[31m-[m
+[31m-model RegistrationDecision {[m
+[31m-  id            String   @id @default(cuid())[m
+[31m-  userId        String   @db.VarChar(64)[m
+[31m-  email         String   @db.VarChar(255)[m
+[31m-  role          String   @db.VarChar(32)[m
+[31m-  decision      String   @db.VarChar(16)[m
+[31m-  matchedRuleId String?  @db.VarChar(64)[m
+[31m-  reason        String?  @db.Text[m
+[31m-  payloadSnap   String?  @db.LongText[m
+[31m-  createdAt     DateTime @default(now())[m
+[31m-[m
+[31m-  @@index([userId])[m
+[31m-  @@index([decision, createdAt])[m
+[31m-  @@map("registration_decisions")[m
+[31m-=======[m
+   name            String   @db.VarChar(80)[m
+[32m+[m[32m}[m
+ model RegistrationAutomationRule {[m
+   id              String   @id @default(cuid())[m
+   targetRole      Role     @unique[m
+[36m@@ -805,9 +774,8 @@[m [mmodel RegistrationAutomationRule {[m
+   createdAt       DateTime @default(now())[m
+   updatedAt       DateTime @updatedAt[m
+ [m
+[31m-  @@map("registration_rules")[m
+[32m+[m[41m [m
+   @@map("registration_automation_rules")[m
+[31m->>>>>>> origin/master[m
+ }[m
+ [m
+ enum DocumentStatus {[m

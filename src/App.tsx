@@ -13,7 +13,6 @@ import { Toaster } from "react-hot-toast";
 import Navbar from "./components/Navbar";
 import LoadingSpinner from "./components/LoadingSpinner";
 import SplashScreen from "./components/SplashScreen";
-import VoiceAssistant from "./components/VoiceAssistant";
 
 // Pages
 import LandingPage from "./pages/LandingPage";
@@ -71,7 +70,6 @@ function AppContent() {
 	return (
 		<div className="min-h-screen bg-gray-50">
 			<Navbar />
-			<VoiceAssistant />
 			<main>
 				<Routes>
 					{/* Public routes */}

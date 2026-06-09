@@ -11,6 +11,9 @@ import {
 import { writeAuditLog } from "../services/auditLogService.js";
 import { notifyUser } from "../services/smsWhatsappService.js";
 import { evaluateRegistrationApproval } from "../services/registrationApprovalService.js";
+import { evaluateRegistrationApplication } from "../services/approvalRulesService.js";
+import { evaluateRegistrationSubmission } from "../services/ruleAutomationService.js";
+import { evaluateRegistrationSubmission } from "../services/registrationAutomationService.js";
 
 export async function register(req, res) {
 	try {
@@ -31,6 +34,49 @@ export async function register(req, res) {
 			if (existingAdmin) {
 				return res.status(400).json({ error: "An admin user already exists. Only one admin is allowed." });
 			}
+		}
+
+		let approvalDecision = { status: "APPROVED", approved: true, reason: "Admin account approved." };
+		if (role !== "ADMIN") {
+			approvalDecision = await evaluateRegistrationApplication({
+				name,
+				email,
+				role,
+				phone,
+				location,
+				address,
+				latitude,
+				longitude,
+			});
+
+			if (approvalDecision.status === "REJECTED") {
+				return res.status(400).json({
+					error: `Registration could not be approved. ${approvalDecision.reason}`,
+				});
+			}
+		const activeRules = role === "ADMIN"
+			? []
+			: await prisma.registrationRule.findMany({
+				where: { isActive: true },
+				select: { id: true, name: true, criteria: true },
+				orderBy: { createdAt: "asc" },
+			});
+		const decision = role === "ADMIN"
+			? { approved: true, reason: "Administrator account approved.", source: "system" }
+			: await evaluateRegistrationSubmission({
+				submission: { email, name, role, phone, location, address, latitude, longitude },
+				rules: activeRules,
+			});
+		const approvalDecision = await evaluateRegistrationSubmission({
+			role,
+			registrationData: req.body,
+		});
+
+		if (!approvalDecision.approved) {
+			return res.status(403).json({
+				error: approvalDecision.reason || "Registration did not meet the approval policy.",
+				missingFields: approvalDecision.missingFields || [],
+			});
 		}
 
 		const salt = await bcrypt.genSalt(12);
@@ -71,6 +117,15 @@ export async function register(req, res) {
 				accountStatus: isApproved ? "ACTIVE" : "DISABLED",
 				accountStatusReason: isApproved ? null : registrationDecision.reason,
 				accountStatusChangedAt: isApproved ? null : new Date(),
+				verified: role === "ADMIN" || approvalDecision.status === "APPROVED",
+				accountStatus: approvalDecision.status === "PENDING" ? "REVIEW_REQUESTED" : "ACTIVE",
+				accountStatusReason: approvalDecision.status === "PENDING" ? approvalDecision.reason : null,
+				accountStatusChangedAt: approvalDecision.status === "PENDING" ? new Date() : null,
+				verified: decision.approved,
+				accountStatus: decision.approved ? "ACTIVE" : "DISABLED",
+				accountStatusReason: decision.approved ? null : decision.reason,
+				accountStatusChangedAt: new Date(),
+				verified: true,
 				passwordChangedAt: new Date(),
 			},
 			select: {
@@ -101,7 +156,23 @@ export async function register(req, res) {
 				reason: registrationDecision.reason,
 				ruleId: registrationDecision.ruleId,
 			},
+				decision: decision.approved ? "approved" : "rejected",
+				decisionSource: decision.source,
+				ruleCount: activeRules.length,
+			},
+			metadata: { role: user.role, registrationApprovalReason: approvalDecision.reason },
 		});
+
+		if (!decision.approved) {
+			return res.status(201).json({
+				message: "Registration was not approved. Please review your details or contact support.",
+				approved: false,
+				user,
+			});
+		}
+
+		const token = issueAccessToken({ userId: user.id });
+		const refresh = await issueRefreshToken({ userId: user.id });
 
 		res.status(201).json({
 			message: isApproved
@@ -115,6 +186,16 @@ export async function register(req, res) {
 				status: isApproved ? "APPROVED" : "REJECTED",
 				reason: registrationDecision.reason,
 			},
+			message: user.verified
+				? "User registered and approved successfully"
+				: "User registered successfully and is pending review",
+			message: "User registered successfully",
+			approved: true,
+			user,
+			token,
+			refreshToken: refresh.token,
+			refreshTokenExpiresAt: refresh.expiresAt,
+			approvalReason: approvalDecision.reason,
 		});
 	} catch (error) {
 		console.error("Registration error:", error);

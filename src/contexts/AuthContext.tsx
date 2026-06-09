@@ -130,6 +130,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				localStorage.removeItem("token");
 				setUser(null);
 				toast.error(registrationDecision?.reason || message || "Registration was not approved");
+			const { user, token, approved, message } = response.data;
+
+			if (approved === false || !token) {
+				toast.error(message || "Registration was not approved.");
 				return false;
 			}
 

@@ -96,7 +96,7 @@ function buildImageQualityReport(file, product = null) {
 		signals: [
 			dimensions ? `${dimensions.width}x${dimensions.height} image captured` : "Image dimensions unavailable",
 			product ? `Compared against listing: ${product.name}` : "Standalone buyer sample",
-			"AI estimate uses photo metadata and listing context; confirm final grade physically.",
+			"Estimate uses photo metadata and listing context; confirm final grade physically.",
 		],
 		recommendations: recommendations.length
 			? recommendations
@@ -177,7 +177,12 @@ export async function getNearbyProducts(req, res) {
 			return res.status(400).json({ errors: errors.array() });
 		}
 
-		const { location, radius = 50, category, search } = req.query;
+		const { location, latitude, longitude, radius = 50, category, search } = req.query;
+		const hasLocation = typeof location === "string" && location.trim().length >= 2;
+		const hasCoordinates = latitude !== undefined && longitude !== undefined;
+		if (!hasLocation && !hasCoordinates) {
+			return res.status(400).json({ error: "Location or coordinates are required" });
+		}
 
 		const where = {
 			available: true,
@@ -216,7 +221,7 @@ export async function getNearbyProducts(req, res) {
 		});
 
 		const nearby = await locationService.getProductsWithinRadius(
-			location,
+			hasCoordinates ? { latitude, longitude } : location,
 			productsWithRatings,
 			parseInt(radius),
 		);

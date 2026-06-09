@@ -3,9 +3,23 @@ import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
-import OpenAI from "openai";
+import { PDFParse } from "pdf-parse";
+import mammoth from "mammoth";
+import { authenticateToken, requireRole } from "../middleware/auth.js";
+import prisma from "../db/prisma.js";
+import {
+	REGISTRATION_RULE_TYPE,
+	evaluateDocumentSubmission,
+	getActiveRule,
+	saveRule,
+} from "../services/approvalRulesService.js";
 import { authenticateToken } from "../middleware/auth.js";
 import prisma from "../db/prisma.js";
+import { evaluateDocumentUpload } from "../services/ruleAutomationService.js";
+import {
+	getDefaultRequiredFields,
+	upsertRegistrationAutomationRule,
+} from "../services/registrationAutomationService.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -30,31 +44,119 @@ const storage = multer.diskStorage({
 const upload = multer({
 	storage,
 	limits: { fileSize: 8 * 1024 * 1024 },
+	fileFilter: (req, file, cb) => {
+		const allowed = new Set([
+			"image/jpeg",
+			"image/png",
+			"image/webp",
+			"application/pdf",
+			"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+			"text/plain",
+		]);
+		if (!allowed.has(file.mimetype)) {
+			return cb(new Error("Only JPG, PNG, WEBP, PDF, DOCX, or TXT files are allowed"));
+		}
+		cb(null, true);
+	},
 });
 
-let openaiClient = null;
+async function extractText(filePath, mimeType) {
+	const buffer = await fs.readFile(filePath);
+	if (mimeType === "application/pdf") {
+		const data = await PDFParse(buffer);
+		return data.text || "";
+	}
+	if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+		const data = await mammoth.extractRawText({ buffer });
+		return data.value || "";
+/**
+ * POST /api/verification/upload
+ * Validates a single document using stored administrator rules.
+ */
+// Lazy-initialize OpenAI so it only runs after dotenv has loaded all env vars
+let _openai = null;
 function getOpenAI() {
 	if (!process.env.OPENAI_API_KEY) return null;
-	if (!openaiClient) {
-		openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+	if (!_openai) {
+		_openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 	}
-	return openaiClient;
+	if (mimeType.startsWith("text/")) {
+		return buffer.toString("utf-8");
+	}
+	return "";
 }
 
-function buildVerificationPrompt(criteria) {
-	return `You are a strict, objective document compliance reviewer.
-Analyze this uploaded document against the policy below.
+async function buildSubmissionInput(file) {
+	if (file.mimetype.startsWith("image/")) {
+		const base64Image = (await fs.readFile(file.path)).toString("base64");
+		return {
+			image: { dataUrl: `data:${file.mimetype};base64,${base64Image}` },
+			text: "",
+		};
+	}
 
-Policy criteria:
+	return {
+		image: null,
+		text: await extractText(file.path, file.mimetype),
+	};
+}
+
+/**
+ * POST /api/verification/upload
+ * Validates a single document using configured review rules.
+ */
+function buildVerificationPrompt(criteria) {
+	return `You are a strict, objective document verification assistant.
+Your task is to analyze the provided document or image against the hidden administrator policy.
+
+Rules to evaluate:
 ${criteria}
 
-Output strictly JSON:
+Output strictly in JSON format matching this schema:
 {
   "approved": boolean,
-  "reason": "short explanation for approval or rejection"
+  "reason": "String explaining why it was approved or rejected based exactly on the criteria"
 }`;
 }
 
+function parseVerificationResult(content) {
+	try {
+		const parsed = JSON.parse(content || "{}");
+		return {
+			approved: Boolean(parsed.approved),
+			reason:
+				typeof parsed.reason === "string" && parsed.reason.trim()
+					? parsed.reason.trim()
+					: "The automated review completed without a detailed reason.",
+		};
+	} catch {
+		return {
+			approved: false,
+			reason: "The automated review returned an unreadable response.",
+		};
+	}
+}
+
+async function saveDocumentRule({ adminUserId, documentType, criteria }) {
+	await prisma.$transaction([
+		prisma.verificationRule.updateMany({
+			where: { documentType, isActive: true },
+			data: { isActive: false },
+		}),
+		prisma.verificationRule.create({
+			data: {
+				documentType,
+				criteria,
+				createdByUserId: adminUserId,
+				isActive: true,
+			},
+		}),
+	]);
+}
+
+/**
+ * Utility to build OpenAI multimodal message
+ */
 async function buildOpenAIMessage(prompt, filePath, mimeType) {
 	const base64Image = (await fs.readFile(filePath)).toString("base64");
 	return [
@@ -65,11 +167,11 @@ async function buildOpenAIMessage(prompt, filePath, mimeType) {
 				{
 					type: "image_url",
 					image_url: {
-						url: `data:${mimeType};base64,${base64Image}`,
-					},
-				},
-			],
-		},
+						url: `data:${mimeType};base64,${base64Image}`
+					}
+				}
+			]
+		}
 	];
 }
 
@@ -77,164 +179,254 @@ router.post("/upload", authenticateToken, upload.single("document"), async (req,
 	try {
 		const { documentType } = req.body;
 		if (!req.file || !documentType) {
-			return res.status(400).json({ success: false, error: "Missing document file or document type" });
+			return res.status(400).json({ success: false, error: "Missing document file or documentType" });
 		}
 
+		const rule = await getActiveRule(documentType);
 		const rule = await prisma.verificationRule.findFirst({
-			where: { documentType: String(documentType), isActive: true },
-			orderBy: [{ updatedAt: "desc" }],
+			where: { documentType, isActive: true },
+			orderBy: { createdAt: "desc" },
+			orderBy: { updatedAt: "desc" },
 		});
+
 		if (!rule) {
-			return res.status(400).json({
-				success: false,
-				error: `No active document policy found for type: ${documentType}`,
-			});
+			return res.status(400).json({ success: false, error: `No active verification rules found for type: ${documentType}` });
 		}
 
+		const submission = await buildSubmissionInput(req.file);
+		const decision = await evaluateDocumentSubmission({
+			documentType,
+			criteria: rule.criteria,
+			text: submission.text,
+			image: submission.image,
+		});
+		const decision = await evaluateDocumentUpload({
+			criteria: rule.criteria,
+			filePath: req.file.path,
+			mimeType: req.file.mimetype,
+		});
+		const statusEnum = decision.approved ? "APPROVED" : "REJECTED";
 		const prompt = buildVerificationPrompt(rule.criteria);
 		const messages = await buildOpenAIMessage(prompt, req.file.path, req.file.mimetype);
 
-		let approved = false;
-		let reason = "Automated verification failed unexpectedly.";
+		let statusEnum = "PENDING";
+		let reviewReason = "The document was queued for review.";
 
 		try {
-			const client = getOpenAI();
-			if (!client) {
-				reason = "Automated verification is unavailable. Please contact support.";
+			const openaiClient = getOpenAI();
+			if (!openaiClient) {
+				reviewReason = "Automatic review is currently unavailable. The document has been queued for review.";
 			} else {
-				const response = await client.chat.completions.create({
+				const response = await openaiClient.chat.completions.create({
 					model: "gpt-4o",
-					messages,
+					messages: messages,
 					response_format: { type: "json_object" },
 				});
 
-				const parsed = JSON.parse(response.choices[0]?.message?.content || "{}");
-				approved = Boolean(parsed.approved);
-				reason =
-					typeof parsed.reason === "string" && parsed.reason.trim().length > 0
-						? parsed.reason.trim()
-						: approved
-							? "Document approved by policy."
-							: "Document rejected by policy.";
+				const result = parseVerificationResult(response.choices?.[0]?.message?.content);
+				statusEnum = result.approved ? "APPROVED" : "REJECTED";
+				reviewReason = result.reason;
 			}
-		} catch (error) {
-			console.error("Document verification automation error:", error);
-			reason = "Unable to automatically review this document format.";
+		} catch (aiError) {
+			console.error("OpenAI Verification Error:", aiError);
+			reviewReason = "Automatic review could not analyze this document. The submission has been queued for review.";
 		}
 
-		const status = approved ? "APPROVED" : "REJECTED";
-		const savedDoc = await prisma.document.create({
+		const newDoc = await prisma.document.create({
 			data: {
 				userId: req.user.id,
 				originalName: req.file.originalname,
 				mimeType: req.file.mimetype,
 				sizeBytes: req.file.size,
 				storagePath: `/uploads/verification/${path.basename(req.file.path)}`,
-				status,
-				verificationLog: reason,
+				extractedText: submission.text || null,
+				aiSummary: documentType,
+				status: decision.status,
+				aiSummary: documentType,
+				status: statusEnum,
+				verificationLog: decision.reason,
+			}
+				aiSummary: documentType,
+				verificationLog: reviewReason,
 			},
 		});
+
+		if (decision.status === "APPROVED") {
+			await prisma.user.update({
+				where: { id: req.user.id },
+				data: {
+					verified: true,
+					accountStatus: "ACTIVE",
+					accountStatusReason: null,
+					accountStatusChangedAt: new Date(),
+				},
+			});
+		} else if (decision.status === "REJECTED") {
+			await prisma.user.update({
+				where: { id: req.user.id },
+				data: {
+					accountStatus: "REVIEW_REQUESTED",
+					accountStatusReason: decision.reason,
+					accountStatusChangedAt: new Date(),
+				},
+			});
+		}
 
 		res.json({
 			success: true,
-			document: savedDoc,
-			reviewFeedback: { approved, reason },
+			document: newDoc,
+			decision,
+			aiFeedback: {
+				approved: decision.approved,
+				reason: decision.reason
+			feedback: {
+				approved: decision.approved,
+				reason: decision.reason,
+			},
+			aiFeedback: {
+				approved: decision.approved,
+				reason: decision.reason,
+			verificationFeedback: {
+				status: statusEnum,
+				reason: reviewReason,
+			},
 		});
+
 	} catch (error) {
 		console.error("Verification upload error:", error);
-		res.status(500).json({ success: false, error: "Internal server error during verification" });
+		res.status(500).json({ success: false, error: "Internal server error during verification review" });
 	}
 });
 
-router.get("/document-types", authenticateToken, async (req, res) => {
+// Lightweight public-ish list of acceptable document types only.
+// Criteria are intentionally never exposed: rules live in the DB and are
+// configured by admins through internal endpoints, not through any UI.
+router.get("/rules", authenticateToken, async (req, res) => {
 	try {
-		const documentTypes = await prisma.verificationRule.findMany({
+		const rules = await prisma.verificationRule.findMany({
 			where: { isActive: true },
-			select: {
-				id: true,
-				documentType: true,
-			},
-			orderBy: [{ updatedAt: "desc" }],
-		});
-		res.json({ success: true, documentTypes });
-	} catch (err) {
-		res.status(500).json({ error: err.message });
-	}
-});
+			select: { id: true, documentType: true },
+// Admin Route: Save registration review rule. Criteria remain server-side only.
+router.post("/registration-rule", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+	try {
+		const criteria = String(req.body.criteria || "").trim();
+		if (criteria.length < 10) {
+			return res.status(400).json({ error: "Registration rule must be at least 10 characters" });
+		}
 
-router.post("/rules/document", authenticateToken, async (req, res) => {
+		await saveRule({
+			documentType: REGISTRATION_RULE_TYPE,
+			criteria,
+			createdByUserId: req.user.id,
+		});
+		res.json({ success: true, message: "Registration rule saved" });
+// Admin route: store a private document verification rule.
+router.post("/rules", authenticateToken, async (req, res) => {
 	if (req.user.role !== "ADMIN") return res.status(403).json({ error: "Access denied" });
 	try {
 		const { documentType, criteria } = req.body;
 		if (!documentType || !criteria) {
+			return res.status(400).json({ error: "Document type and criteria are required" });
+		}
+		await prisma.verificationRule.updateMany({
+			where: { documentType, isActive: true },
+			data: { isActive: false },
+		});
+		const rule = await prisma.verificationRule.create({
+			data: {
+				documentType,
+				criteria,
+				createdByUserId: req.user.id
+			},
+			select: {
+				id: true,
+				documentType: true,
+				isActive: true,
+				createdAt: true,
+				updatedAt: true,
 			return res.status(400).json({ error: "documentType and criteria are required" });
 		}
 
-		await prisma.verificationRule.updateMany({
-			where: { documentType: String(documentType).trim(), isActive: true },
-			data: { isActive: false },
+		await saveDocumentRule({
+			adminUserId: req.user.id,
+			documentType: String(documentType).trim(),
+			criteria: String(criteria).trim(),
 		});
 
-		const savedRule = await prisma.verificationRule.create({
-			data: {
-				documentType: String(documentType).trim(),
-				criteria: String(criteria).trim(),
-				createdByUserId: req.user.id,
-			},
-		});
-
-		res.json({
-			success: true,
-			message: "Document policy saved successfully",
-			ruleId: savedRule.id,
-		});
+		res.json({ success: true, message: "Document policy saved to the database." });
 	} catch (err) {
 		res.status(500).json({ error: err.message });
 	}
 });
 
+// Admin Route: Create or replace a document verification rule. Criteria remain server-side only.
+router.post("/rules", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+	try {
+		const documentType = String(req.body.documentType || "").trim();
+		const criteria = String(req.body.criteria || "").trim();
+		if (documentType.length < 2 || criteria.length < 10) {
+			return res.status(400).json({ error: "Document type and review criteria are required" });
+		}
+		if (documentType === REGISTRATION_RULE_TYPE) {
+			return res.status(400).json({ error: "Use the registration rule endpoint for account rules" });
+		}
+
+		const rule = await saveRule({
+			documentType,
+			criteria,
+			createdByUserId: req.user.id,
+		});
+		res.json({
+			success: true,
+			rule: {
+				id: rule.id,
+				documentType: rule.documentType,
+				isActive: rule.isActive,
+				createdAt: rule.createdAt,
 router.post("/rules/registration", authenticateToken, async (req, res) => {
 	if (req.user.role !== "ADMIN") return res.status(403).json({ error: "Access denied" });
 	try {
-		const { criteria, requiredFields, name } = req.body;
-		const normalizedRequiredFields = Array.isArray(requiredFields)
-			? requiredFields.map((field) => String(field || "").trim()).filter(Boolean)
-			: [];
-
-		if (normalizedRequiredFields.length === 0 && !criteria) {
-			return res.status(400).json({
-				error: "Provide at least one required field or policy instruction",
-			});
+		const { targetRole, criteria, requiredFields } = req.body;
+		if (!targetRole || !criteria) {
+			return res.status(400).json({ error: "targetRole and criteria are required" });
 		}
 
-		await prisma.registrationApprovalRule.updateMany({
-			where: { isActive: true },
-			data: { isActive: false },
-		});
-
-		const savedRule = await prisma.registrationApprovalRule.create({
-			data: {
-				name:
-					typeof name === "string" && name.trim().length > 0
-						? name.trim()
-						: "Default registration rule",
-				criteria: typeof criteria === "string" ? criteria.trim() : null,
-				requiredFields: normalizedRequiredFields,
-				isActive: true,
-				createdByUserId: req.user.id,
-			},
+		const rule = await upsertRegistrationAutomationRule({
+			adminUserId: req.user.id,
+			targetRole: String(targetRole).trim().toUpperCase(),
+			requiredFields,
+			criteria,
 		});
 
 		res.json({
 			success: true,
-			message: "Registration policy saved successfully",
-			ruleId: savedRule.id,
+			message: "Registration policy saved to the database.",
+			policy: {
+				targetRole: rule.targetRole,
+				requiredFields: Array.isArray(rule.requiredFields)
+					? rule.requiredFields
+					: getDefaultRequiredFields(rule.targetRole),
+			},
 		});
 	} catch (err) {
 		res.status(500).json({ error: err.message });
 	}
 });
 
+// Get active document categories only. Rule criteria are never returned to the UI.
+router.get("/rules", authenticateToken, async (req, res) => {
+	try {
+		const rules = await prisma.verificationRule.findMany();
+		const safeRules = rules
+			.filter((rule) => rule.isActive && rule.documentType !== REGISTRATION_RULE_TYPE)
+			.map((rule) => ({
+				id: rule.id,
+				documentType: rule.documentType,
+				isActive: rule.isActive,
+				createdAt: rule.createdAt,
+			}));
+		res.json({ success: true, rules: safeRules });
+// Return rule metadata only. Criteria stays private in the database.
 router.get("/rules", authenticateToken, async (req, res) => {
 	try {
 		const rules = await prisma.verificationRule.findMany({
@@ -242,9 +434,13 @@ router.get("/rules", authenticateToken, async (req, res) => {
 			select: {
 				id: true,
 				documentType: true,
+				isActive: true,
 				createdAt: true,
+				updatedAt: true,
 			},
-			orderBy: [{ updatedAt: "desc" }],
+			orderBy: { createdAt: "desc" },
+			select: { id: true, documentType: true },
+			orderBy: { documentType: "asc" },
 		});
 		res.json({ success: true, rules });
 	} catch (err) {
@@ -252,13 +448,74 @@ router.get("/rules", authenticateToken, async (req, res) => {
 	}
 });
 
+router.get("/registration-rules", authenticateToken, async (req, res) => {
+	if (req.user.role !== "ADMIN") return res.status(403).json({ error: "Access denied" });
+	try {
+		const rules = await prisma.registrationRule.findMany({
+			where: { isActive: true },
+			select: {
+				id: true,
+				name: true,
+				isActive: true,
+				createdAt: true,
+				updatedAt: true,
+			},
+			orderBy: { createdAt: "desc" },
+		});
+		res.json({ success: true, rules });
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+	}
+});
+
+router.post("/registration-rules", authenticateToken, async (req, res) => {
+	if (req.user.role !== "ADMIN") return res.status(403).json({ error: "Access denied" });
+	try {
+		const { name = "Registration eligibility", criteria } = req.body;
+		if (!criteria) {
+			return res.status(400).json({ error: "Criteria are required" });
+		}
+		await prisma.registrationRule.updateMany({
+			where: { isActive: true },
+			data: { isActive: false },
+		});
+		const rule = await prisma.registrationRule.create({
+			data: {
+				name,
+				criteria,
+				createdByUserId: req.user.id,
+			},
+			select: {
+				id: true,
+				name: true,
+				isActive: true,
+				createdAt: true,
+				updatedAt: true,
+			},
+		});
+		res.json({ success: true, rule });
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+	}
+});
+
+// Get User's verified documents
 router.get("/my-documents", authenticateToken, async (req, res) => {
 	try {
-		const documents = await prisma.document.findMany({
+		const docs = await prisma.document.findMany({
 			where: { userId: req.user.id },
 			orderBy: { createdAt: "desc" },
 		});
-		res.json({ success: true, documents });
+		res.json({
+			success: true,
+			documents: docs.map((doc) => ({
+				id: doc.id,
+				type: doc.aiSummary || doc.originalName,
+				status: doc.status,
+				verificationLog: doc.verificationLog,
+				createdAt: doc.createdAt,
+			})),
+		});
 	} catch (err) {
 		res.status(500).json({ error: err.message });
 	}

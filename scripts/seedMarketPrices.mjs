@@ -8,7 +8,14 @@ async function main() {
     // Clear existing prices
     await prisma.marketPrice.deleteMany({});
 
-    const commodities = ['Arabic Coffee', 'Robusta Coffee'];
+    const commodities = [
+        { name: 'Arabica Coffee', local: 4500, regional: 6500, export: 9500 },
+        { name: 'Robusta Coffee', local: 3500, regional: 5000, export: 7500 },
+        { name: 'Maize', local: 900, regional: 1400, export: 2100 },
+        { name: 'Beans', local: 3200, regional: 4200, export: 5600 },
+        { name: 'Tomatoes', local: 800, regional: 1600, export: 2500 },
+        { name: 'Bananas', local: 1000, regional: 1800, export: 2800 },
+    ];
     const regions = ['Central', 'Western', 'Eastern', 'Nile'];
 
     const data = [];
@@ -17,28 +24,28 @@ async function main() {
         for (const region of regions) {
             // Local Middleman Price (Lowest)
             data.push({
-                commodity,
+                commodity: commodity.name,
                 region,
                 marketType: 'LOCAL',
-                pricePerKg: commodity === 'Arabic Coffee' ? 4500 + Math.random() * 500 : 3500 + Math.random() * 500,
+                pricePerKg: commodity.local + Math.random() * 300,
                 currency: 'UGX',
             });
 
             // DAFIS Direct Marketplace Price (Middle)
             data.push({
-                commodity,
+                commodity: commodity.name,
                 region,
                 marketType: 'REGIONAL',
-                pricePerKg: commodity === 'Arabic Coffee' ? 6500 + Math.random() * 500 : 5000 + Math.random() * 500,
+                pricePerKg: commodity.regional + Math.random() * 400,
                 currency: 'UGX',
             });
 
             // International Export Price (Highest)
             data.push({
-                commodity,
+                commodity: commodity.name,
                 region,
                 marketType: 'EXPORT',
-                pricePerKg: commodity === 'Arabic Coffee' ? 9500 + Math.random() * 1000 : 7500 + Math.random() * 1000,
+                pricePerKg: commodity.export + Math.random() * 600,
                 currency: 'UGX',
             });
         }
