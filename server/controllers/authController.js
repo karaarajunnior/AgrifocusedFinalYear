@@ -10,6 +10,7 @@ import {
 } from "../services/tokenService.js";
 import { writeAuditLog } from "../services/auditLogService.js";
 import { notifyUser } from "../services/smsWhatsappService.js";
+import { evaluateRegistrationApproval } from "../services/registrationApprovalService.js";
 import { evaluateRegistrationApplication } from "../services/approvalRulesService.js";
 import { evaluateRegistrationSubmission } from "../services/ruleAutomationService.js";
 import { evaluateRegistrationSubmission } from "../services/registrationAutomationService.js";
@@ -118,6 +119,26 @@ export async function register(req, res) {
 
 		const salt = await bcrypt.genSalt(12);
 		const hashedPassword = await bcrypt.hash(password, salt);
+		const registrationDecision =
+			role === "ADMIN"
+				? {
+						approved: true,
+						reason: "Administrator account approved automatically.",
+						ruleId: null,
+				  }
+				: await evaluateRegistrationApproval({
+						email,
+						password,
+						name,
+						role,
+						phone,
+						location,
+						address,
+						latitude,
+						longitude,
+				  });
+
+		const isApproved = role === "ADMIN" ? true : registrationDecision.approved;
 
 		const willAutoApprove =
 			role === "ADMIN" || decision.decision === "APPROVE";
@@ -134,6 +155,19 @@ export async function register(req, res) {
 				latitude,
 				longitude,
 				verified: role === "ADMIN" ? true : false,
+				verified: isApproved,
+				accountStatus: isApproved ? "ACTIVE" : "DISABLED",
+				accountStatusReason: isApproved ? null : registrationDecision.reason,
+				accountStatusChangedAt: isApproved ? null : new Date(),
+				verified: role === "ADMIN" || approvalDecision.status === "APPROVED",
+				accountStatus: approvalDecision.status === "PENDING" ? "REVIEW_REQUESTED" : "ACTIVE",
+				accountStatusReason: approvalDecision.status === "PENDING" ? approvalDecision.reason : null,
+				accountStatusChangedAt: approvalDecision.status === "PENDING" ? new Date() : null,
+				verified: decision.approved,
+				accountStatus: decision.approved ? "ACTIVE" : "DISABLED",
+				accountStatusReason: decision.approved ? null : decision.reason,
+				accountStatusChangedAt: new Date(),
+				verified: true,
 				passwordChangedAt: new Date(),
 			},
 			select: {
@@ -150,6 +184,8 @@ export async function register(req, res) {
 
 		const token = issueAccessToken({ userId: user.id });
 		const refresh = await issueRefreshToken({ userId: user.id });
+		const token = isApproved ? issueAccessToken({ userId: user.id }) : null;
+		const refresh = isApproved ? await issueRefreshToken({ userId: user.id }) : null;
 
 		await writeAuditLog({
 			actorUserId: user.id,
@@ -159,6 +195,17 @@ export async function register(req, res) {
 			ip: req.ip,
 			userAgent: req.get("User-Agent"),
 			metadata: { role: user.role },
+			metadata: {
+				role: user.role,
+				autoDecision: isApproved ? "APPROVED" : "REJECTED",
+				reason: registrationDecision.reason,
+				ruleId: registrationDecision.ruleId,
+			},
+				decision: decision.approved ? "approved" : "rejected",
+				decisionSource: decision.source,
+				ruleCount: activeRules.length,
+			},
+			metadata: { role: user.role, registrationApprovalReason: approvalDecision.reason },
 		});
 
 		if (!decision.approved) {
@@ -173,6 +220,17 @@ export async function register(req, res) {
 		const refresh = await issueRefreshToken({ userId: user.id });
 
 		res.status(201).json({
+			message: isApproved
+				? "Registration completed successfully"
+				: "Registration was rejected by the automated policy",
+			user,
+			token,
+			refreshToken: refresh?.token ?? null,
+			refreshTokenExpiresAt: refresh?.expiresAt ?? null,
+			registrationDecision: {
+				status: isApproved ? "APPROVED" : "REJECTED",
+				reason: registrationDecision.reason,
+			},
 			message: user.verified
 				? "User registered and approved successfully"
 				: "User registered successfully and is pending review",

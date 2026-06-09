@@ -48,6 +48,8 @@ import { saveToCache, getFromCache } from "../utils/offlineCache";
 import { useOfflineSync } from "../hooks/useOfflineSync";
 import OfflineBadge from "../components/OfflineBadge";
 import { getOfflineProductCount } from "../utils/offlineProductQueue";
+import DocumentCompliance from "../components/DocumentCompliance";
+import { AIAdvisor, MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
 import DocumentVerification from "../components/DocumentVerification";
 import { MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
 import { getCurrentPosition } from "../utils/geolocation";
@@ -712,7 +714,7 @@ function FarmerDashboard() {
 
 						{showVerification && (
 							<div className="mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
-								<DocumentVerification />
+								<DocumentCompliance />
 							</div>
 						)}
 
