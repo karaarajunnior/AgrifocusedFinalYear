@@ -10,9 +10,6 @@ import {
 } from "../services/tokenService.js";
 import { writeAuditLog } from "../services/auditLogService.js";
 import { notifyUser } from "../services/smsWhatsappService.js";
-import { evaluateRegistrationApproval } from "../services/registrationApprovalService.js";
-import { evaluateRegistrationApplication } from "../services/approvalRulesService.js";
-import { evaluateRegistrationSubmission } from "../services/ruleAutomationService.js";
 import { evaluateRegistrationSubmission } from "../services/registrationAutomationService.js";
 
 export async function register(req, res) {
@@ -36,112 +33,24 @@ export async function register(req, res) {
 			}
 		}
 
-		// Automatic registration review against admin-configured rules.
-		// Rules live in the database and are never exposed in any UI; they
-		// run silently here to approve / reject / flag the new account.
-		let decision = { decision: "APPROVE", reason: null, matchedRuleId: null };
-		if (role !== "ADMIN") {
-			try {
-				decision = await evaluateRegistration({
-					email,
-					password,
-					name,
-					role,
-					phone,
-					location,
-					address,
-					latitude,
-					longitude,
-				});
-			} catch (err) {
-				console.warn(
-					"Registration rule evaluation failed:",
-					err?.message || err,
-				);
-				decision = {
-					decision: "REVIEW",
-					reason: "Rule engine unavailable; queued for admin review",
-					matchedRuleId: null,
-				};
-			}
-		}
-
-		if (decision.decision === "REJECT") {
-			return res.status(403).json({
-				error:
-					decision.reason ||
-					"Registration could not be completed at this time.",
-			});
-		}
-
-		let approvalDecision = { status: "APPROVED", approved: true, reason: "Admin account approved." };
-		if (role !== "ADMIN") {
-			approvalDecision = await evaluateRegistrationApplication({
-				name,
-				email,
-				role,
-				phone,
-				location,
-				address,
-				latitude,
-				longitude,
-			});
-
-			if (approvalDecision.status === "REJECTED") {
-				return res.status(400).json({
-					error: `Registration could not be approved. ${approvalDecision.reason}`,
-				});
-			}
-		const activeRules = role === "ADMIN"
-			? []
-			: await prisma.registrationRule.findMany({
-				where: { isActive: true },
-				select: { id: true, name: true, criteria: true },
-				orderBy: { createdAt: "asc" },
-			});
+		// Evaluate registration against admin-configured rules (stored in DB, never exposed in UI).
+		// Admin accounts are always approved automatically.
 		const decision = role === "ADMIN"
-			? { approved: true, reason: "Administrator account approved.", source: "system" }
+			? { approved: true, reason: "Administrator account approved automatically.", missingFields: [] }
 			: await evaluateRegistrationSubmission({
-				submission: { email, name, role, phone, location, address, latitude, longitude },
-				rules: activeRules,
+				role,
+				registrationData: req.body,
 			});
-		const approvalDecision = await evaluateRegistrationSubmission({
-			role,
-			registrationData: req.body,
-		});
 
-		if (!approvalDecision.approved) {
+		if (!decision.approved) {
 			return res.status(403).json({
-				error: approvalDecision.reason || "Registration did not meet the approval policy.",
-				missingFields: approvalDecision.missingFields || [],
+				error: decision.reason || "Registration did not meet the approval policy.",
+				missingFields: decision.missingFields || [],
 			});
 		}
 
 		const salt = await bcrypt.genSalt(12);
 		const hashedPassword = await bcrypt.hash(password, salt);
-		const registrationDecision =
-			role === "ADMIN"
-				? {
-						approved: true,
-						reason: "Administrator account approved automatically.",
-						ruleId: null,
-				  }
-				: await evaluateRegistrationApproval({
-						email,
-						password,
-						name,
-						role,
-						phone,
-						location,
-						address,
-						latitude,
-						longitude,
-				  });
-
-		const isApproved = role === "ADMIN" ? true : registrationDecision.approved;
-
-		const willAutoApprove =
-			role === "ADMIN" || decision.decision === "APPROVE";
 
 		const user = await prisma.user.create({
 			data: {
@@ -154,20 +63,10 @@ export async function register(req, res) {
 				address,
 				latitude,
 				longitude,
-				verified: role === "ADMIN" ? true : false,
-				verified: isApproved,
-				accountStatus: isApproved ? "ACTIVE" : "DISABLED",
-				accountStatusReason: isApproved ? null : registrationDecision.reason,
-				accountStatusChangedAt: isApproved ? null : new Date(),
-				verified: role === "ADMIN" || approvalDecision.status === "APPROVED",
-				accountStatus: approvalDecision.status === "PENDING" ? "REVIEW_REQUESTED" : "ACTIVE",
-				accountStatusReason: approvalDecision.status === "PENDING" ? approvalDecision.reason : null,
-				accountStatusChangedAt: approvalDecision.status === "PENDING" ? new Date() : null,
 				verified: decision.approved,
 				accountStatus: decision.approved ? "ACTIVE" : "DISABLED",
 				accountStatusReason: decision.approved ? null : decision.reason,
 				accountStatusChangedAt: new Date(),
-				verified: true,
 				passwordChangedAt: new Date(),
 			},
 			select: {
@@ -184,8 +83,6 @@ export async function register(req, res) {
 
 		const token = issueAccessToken({ userId: user.id });
 		const refresh = await issueRefreshToken({ userId: user.id });
-		const token = isApproved ? issueAccessToken({ userId: user.id }) : null;
-		const refresh = isApproved ? await issueRefreshToken({ userId: user.id }) : null;
 
 		await writeAuditLog({
 			actorUserId: user.id,
@@ -194,53 +91,21 @@ export async function register(req, res) {
 			targetId: user.id,
 			ip: req.ip,
 			userAgent: req.get("User-Agent"),
-			metadata: { role: user.role },
 			metadata: {
 				role: user.role,
-				autoDecision: isApproved ? "APPROVED" : "REJECTED",
-				reason: registrationDecision.reason,
-				ruleId: registrationDecision.ruleId,
-			},
 				decision: decision.approved ? "approved" : "rejected",
-				decisionSource: decision.source,
-				ruleCount: activeRules.length,
+				reason: decision.reason,
 			},
-			metadata: { role: user.role, registrationApprovalReason: approvalDecision.reason },
 		});
 
-		if (!decision.approved) {
-			return res.status(201).json({
-				message: "Registration was not approved. Please review your details or contact support.",
-				approved: false,
-				user,
-			});
-		}
-
-		const token = issueAccessToken({ userId: user.id });
-		const refresh = await issueRefreshToken({ userId: user.id });
-
 		res.status(201).json({
-			message: isApproved
-				? "Registration completed successfully"
-				: "Registration was rejected by the automated policy",
-			user,
-			token,
-			refreshToken: refresh?.token ?? null,
-			refreshTokenExpiresAt: refresh?.expiresAt ?? null,
-			registrationDecision: {
-				status: isApproved ? "APPROVED" : "REJECTED",
-				reason: registrationDecision.reason,
-			},
-			message: user.verified
-				? "User registered and approved successfully"
-				: "User registered successfully and is pending review",
 			message: "User registered successfully",
 			approved: true,
 			user,
 			token,
 			refreshToken: refresh.token,
 			refreshTokenExpiresAt: refresh.expiresAt,
-			approvalReason: approvalDecision.reason,
+			approvalReason: decision.reason,
 		});
 	} catch (error) {
 		console.error("Registration error:", error);
@@ -272,23 +137,19 @@ export async function login(req, res) {
 
 		if (user.mfaEnabled) {
 			if (!mfaCode) {
-				return res.status(401).json({
-					error: "MFA code required",
-					mfaRequired: true,
-				});
+				return res.status(401).json({ error: "MFA code required", mfaRequired: true });
 			}
 
 			let ok = false;
 			// 1. Try SMS OTP first
 			if (user.mfaOtp && user.mfaOtp === mfaCode && user.mfaOtpExpires && user.mfaOtpExpires > new Date()) {
 				ok = true;
-				// clear it to prevent reuse
 				await prisma.user.update({
 					where: { id: user.id },
-					data: { mfaOtp: null, mfaOtpExpires: null }
+					data: { mfaOtp: null, mfaOtpExpires: null },
 				});
 			} else {
-				// 2. Fallback to Authenticator app
+				// 2. Fallback to Authenticator app TOTP
 				ok = verifyTotp({ secretBase32: user.mfaSecret, token: mfaCode });
 			}
 
@@ -299,10 +160,7 @@ export async function login(req, res) {
 			data: {
 				userId: user.id,
 				event: "login",
-				metadata: JSON.stringify({
-					ip: req.ip,
-					userAgent: req.get("User-Agent"),
-				}),
+				metadata: JSON.stringify({ ip: req.ip, userAgent: req.get("User-Agent") }),
 			},
 		});
 
@@ -462,29 +320,25 @@ export async function mfaSendOtp(req, res) {
 
 		const { email } = req.body;
 		const user = await prisma.user.findUnique({ where: { email } });
-		
-		// ALWAYS return generic success message to prevent email enumeration,
-		// but internally skip sending if not MFA enabled.
+
+		// Always return a generic message to prevent email enumeration.
 		if (!user || (!user.mfaEnabled && user.role !== "ADMIN")) {
 			return res.json({ message: "If the account exists and MFA is enabled, a code has been sent." });
 		}
 
-		// Generate 6-digit code
 		const code = Math.floor(100000 + Math.random() * 900000).toString();
-		const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+		const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-		// Save it
 		await prisma.user.update({
 			where: { id: user.id },
-			data: { mfaOtp: code, mfaOtpExpires: expires }
+			data: { mfaOtp: code, mfaOtpExpires: expires },
 		});
 
-		// Dispatch via existing centralized notification service
 		await notifyUser({
 			userId: user.id,
 			type: "auth",
 			smsBody: `Your AgriConnect login code is ${code}. It expires in 10 minutes.`,
-			whatsappBody: `Your AgriConnect login code is *${code}*. It expires in 10 minutes.`
+			whatsappBody: `Your AgriConnect login code is *${code}*. It expires in 10 minutes.`,
 		});
 
 		res.json({ message: "If the account exists and MFA is enabled, a code has been sent.", debugCode: code });
@@ -504,14 +358,14 @@ export async function mfaSendSetupOtp(req, res) {
 
 		await prisma.user.update({
 			where: { id: user.id },
-			data: { mfaOtp: code, mfaOtpExpires: expires }
+			data: { mfaOtp: code, mfaOtpExpires: expires },
 		});
 
 		await notifyUser({
 			userId: user.id,
 			type: "auth",
 			smsBody: `Your AgriConnect verification code is ${code}. It expires in 10 minutes.`,
-			whatsappBody: `Your AgriConnect verification code is *${code}*. It expires in 10 minutes.`
+			whatsappBody: `Your AgriConnect verification code is *${code}*. It expires in 10 minutes.`,
 		});
 
 		res.json({ message: "Verification code sent via SMS/WhatsApp", debugCode: code });
@@ -557,4 +411,3 @@ export async function me(req, res) {
 		res.status(500).json({ error: "Failed to fetch user data" });
 	}
 }
-
