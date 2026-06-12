@@ -73,7 +73,7 @@ const defaultAllowedOrigins = [
 	"http://127.0.0.1:5173",
 	"http://localhost:4173",
 	"http://127.0.0.1:4173",
-	"http://localhost:3000",
+	"http://localhost:3002",
 	"http://127.0.0.1:3000",
 	// Common hybrid-mobile/webview origins
 	"capacitor://localhost",
@@ -87,32 +87,60 @@ const envAllowedOrigins = (process.env.CORS_ORIGINS || "")
 
 const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...envAllowedOrigins])];
 
+// app.use(
+// 	cors({
+// 		origin: (origin, callback) => {
+// 			// Non-browser clients (curl, server-to-server, mobile native) may not send Origin
+// 			if (!origin) {
+// 				return callback(null, true);
+// 			}
+
+// 			// In development, allow any origin to avoid front/back iteration friction.
+// 			if ((process.env.NODE_ENV || "development") !== "production") {
+// 				return callback(null, true);
+// 			}
+
+// 			if (allowedOrigins.includes(origin)) {
+// 				callback(null, true);
+// 			} else {
+// 				console.warn("Blocked by CORS:", origin);
+// 				callback(new Error("Not allowed by CORS"));
+// 			}
+// 		},
+// 		credentials: true,
+// 		methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+// 		allowedHeaders: ["*", "Authorization"]
+// 		//"Content-Type"
+// 	}),
+// );
+
 app.use(
-	cors({
-		origin: (origin, callback) => {
-			// Non-browser clients (curl, server-to-server, mobile native) may not send Origin
-			if (!origin) {
-				return callback(null, true);
-			}
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
 
-			// In development, allow any origin to avoid front/back iteration friction.
-			if ((process.env.NODE_ENV || "development") !== "production") {
-				return callback(null, true);
-			}
+      if ((process.env.NODE_ENV || "development") !== "production") {
+        return callback(null, true);
+      }
 
-			if (allowedOrigins.includes(origin)) {
-				callback(null, true);
-			} else {
-				console.warn("Blocked by CORS:", origin);
-				callback(new Error("Not allowed by CORS"));
-			}
-		},
-		credentials: true,
-		methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-		allowedHeaders: ["*", "Authorization"]
-		//"Content-Type"
-	}),
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.warn("Blocked by CORS:", origin);
+      return callback(new Error("Not allowed by CORS"));
+    },
+
+    credentials: true,
+
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+
+    allowedHeaders: ["Content-Type", "Authorization"]
+  })
 );
+
+// 🔥 CRITICAL for Render / preflight
+app.options("*", cors());
 
 // Rate limiting
 const limiter = rateLimit({
