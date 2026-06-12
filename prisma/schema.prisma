@@ -682,18 +682,7 @@ model RegistrationDecision {
   @@map("registration_decisions")
 }
 
-model RegistrationAutomationRule {
-  id              String   @id @default(cuid())
-  targetRole      Role     @unique
-  requiredFields  Json?
-  criteria        String   @db.Text
-  isActive        Boolean  @default(true)
-  createdByUserId String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
 
-  @@map("registration_automation_rules")
-}
 enum CreditStatus {
   PENDING
   APPROVED
@@ -816,14 +805,6 @@ model RegistrationApprovalRule {
   @@map("registration_approval_rules")
 }
 
-model RegistrationRule {
-  id        String   @id @default(cuid())
-  name      String   @db.VarChar(80)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("registration_rules")
-}
 
 model RegistrationAutomationRule {
   id              String   @id @default(cuid())
