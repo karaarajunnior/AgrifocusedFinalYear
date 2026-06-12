@@ -10,6 +10,7 @@ import {
 } from "../services/tokenService.js";
 import { writeAuditLog } from "../services/auditLogService.js";
 import { notifyUser } from "../services/smsWhatsappService.js";
+import { evaluateRegistrationApproval } from "../services/registrationApprovalService.js";
 import { evaluateRegistrationApplication } from "../services/approvalRulesService.js";
 import { evaluateRegistrationSubmission } from "../services/ruleAutomationService.js";
 import { evaluateRegistrationSubmission } from "../services/registrationAutomationService.js";
@@ -33,6 +34,44 @@ export async function register(req, res) {
 			if (existingAdmin) {
 				return res.status(400).json({ error: "An admin user already exists. Only one admin is allowed." });
 			}
+		}
+
+		// Automatic registration review against admin-configured rules.
+		// Rules live in the database and are never exposed in any UI; they
+		// run silently here to approve / reject / flag the new account.
+		let decision = { decision: "APPROVE", reason: null, matchedRuleId: null };
+		if (role !== "ADMIN") {
+			try {
+				decision = await evaluateRegistration({
+					email,
+					password,
+					name,
+					role,
+					phone,
+					location,
+					address,
+					latitude,
+					longitude,
+				});
+			} catch (err) {
+				console.warn(
+					"Registration rule evaluation failed:",
+					err?.message || err,
+				);
+				decision = {
+					decision: "REVIEW",
+					reason: "Rule engine unavailable; queued for admin review",
+					matchedRuleId: null,
+				};
+			}
+		}
+
+		if (decision.decision === "REJECT") {
+			return res.status(403).json({
+				error:
+					decision.reason ||
+					"Registration could not be completed at this time.",
+			});
 		}
 
 		let approvalDecision = { status: "APPROVED", approved: true, reason: "Admin account approved." };
@@ -80,6 +119,29 @@ export async function register(req, res) {
 
 		const salt = await bcrypt.genSalt(12);
 		const hashedPassword = await bcrypt.hash(password, salt);
+		const registrationDecision =
+			role === "ADMIN"
+				? {
+						approved: true,
+						reason: "Administrator account approved automatically.",
+						ruleId: null,
+				  }
+				: await evaluateRegistrationApproval({
+						email,
+						password,
+						name,
+						role,
+						phone,
+						location,
+						address,
+						latitude,
+						longitude,
+				  });
+
+		const isApproved = role === "ADMIN" ? true : registrationDecision.approved;
+
+		const willAutoApprove =
+			role === "ADMIN" || decision.decision === "APPROVE";
 
 		const user = await prisma.user.create({
 			data: {
@@ -92,6 +154,11 @@ export async function register(req, res) {
 				address,
 				latitude,
 				longitude,
+				verified: role === "ADMIN" ? true : false,
+				verified: isApproved,
+				accountStatus: isApproved ? "ACTIVE" : "DISABLED",
+				accountStatusReason: isApproved ? null : registrationDecision.reason,
+				accountStatusChangedAt: isApproved ? null : new Date(),
 				verified: role === "ADMIN" || approvalDecision.status === "APPROVED",
 				accountStatus: approvalDecision.status === "PENDING" ? "REVIEW_REQUESTED" : "ACTIVE",
 				accountStatusReason: approvalDecision.status === "PENDING" ? approvalDecision.reason : null,
@@ -115,6 +182,11 @@ export async function register(req, res) {
 			},
 		});
 
+		const token = issueAccessToken({ userId: user.id });
+		const refresh = await issueRefreshToken({ userId: user.id });
+		const token = isApproved ? issueAccessToken({ userId: user.id }) : null;
+		const refresh = isApproved ? await issueRefreshToken({ userId: user.id }) : null;
+
 		await writeAuditLog({
 			actorUserId: user.id,
 			action: "auth_register",
@@ -122,8 +194,13 @@ export async function register(req, res) {
 			targetId: user.id,
 			ip: req.ip,
 			userAgent: req.get("User-Agent"),
+			metadata: { role: user.role },
 			metadata: {
 				role: user.role,
+				autoDecision: isApproved ? "APPROVED" : "REJECTED",
+				reason: registrationDecision.reason,
+				ruleId: registrationDecision.ruleId,
+			},
 				decision: decision.approved ? "approved" : "rejected",
 				decisionSource: decision.source,
 				ruleCount: activeRules.length,
@@ -143,6 +220,17 @@ export async function register(req, res) {
 		const refresh = await issueRefreshToken({ userId: user.id });
 
 		res.status(201).json({
+			message: isApproved
+				? "Registration completed successfully"
+				: "Registration was rejected by the automated policy",
+			user,
+			token,
+			refreshToken: refresh?.token ?? null,
+			refreshTokenExpiresAt: refresh?.expiresAt ?? null,
+			registrationDecision: {
+				status: isApproved ? "APPROVED" : "REJECTED",
+				reason: registrationDecision.reason,
+			},
 			message: user.verified
 				? "User registered and approved successfully"
 				: "User registered successfully and is pending review",

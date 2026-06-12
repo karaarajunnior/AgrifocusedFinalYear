@@ -26,6 +26,8 @@ import { saveToCache, getFromCache } from "../utils/offlineCache";
 import { useOfflineSync } from "../hooks/useOfflineSync";
 import OfflineBadge from "../components/OfflineBadge";
 import { enqueueOfflineOrderDraft, getOfflineOrderCount } from "../utils/offlineOrderQueue";
+import DocumentCompliance from "../components/DocumentCompliance";
+import { AIAdvisor, MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
 import DocumentVerification from "../components/DocumentVerification";
 import { MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
 import { t } from "../utils/translation";
@@ -111,7 +113,6 @@ function BuyerDashboard() {
 			: null,
 	);
 	const [searchRadius, setSearchRadius] = useState(25);
-	const [showVerification, setShowVerification] = useState(false);
 	const [cacheTime, setCacheTime] = useState<string | undefined>();
 	const locationLabel = userLocation || (userCoordinates
 		? `${userCoordinates.latitude.toFixed(4)}, ${userCoordinates.longitude.toFixed(4)}`
@@ -536,7 +537,7 @@ function BuyerDashboard() {
 
 				{showVerification && (
 					<div className="mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
-						<DocumentVerification />
+						<DocumentCompliance />
 					</div>
 				)}
 

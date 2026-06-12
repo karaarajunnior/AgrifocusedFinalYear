@@ -650,7 +650,50 @@ model GradingRequest {
   @@index([userId], map: "grading_requests_userId_fkey")
   @@map("grading_requests")
 }
+model RegistrationRule {
+  id              String   @id @default(cuid())
+  name            String   @db.VarChar(120)
+  ruleType        String   @db.VarChar(48)
+  appliesToRole   String?  @db.VarChar(32)
+  config          String   @db.Text
+  action          String   @default("APPROVE") @db.VarChar(16)
+  isActive        Boolean  @default(true)
+  priority        Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
+  @@index([isActive, priority])
+  @@map("registration_rules")
+}
+
+model RegistrationDecision {
+  id            String   @id @default(cuid())
+  userId        String   @db.VarChar(64)
+  email         String   @db.VarChar(255)
+  role          String   @db.VarChar(32)
+  decision      String   @db.VarChar(16)
+  matchedRuleId String?  @db.VarChar(64)
+  reason        String?  @db.Text
+  payloadSnap   String?  @db.LongText
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([decision, createdAt])
+  @@map("registration_decisions")
+}
+
+model RegistrationAutomationRule {
+  id              String   @id @default(cuid())
+  targetRole      Role     @unique
+  requiredFields  Json?
+  criteria        String   @db.Text
+  isActive        Boolean  @default(true)
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("registration_automation_rules")
+}
 enum CreditStatus {
   PENDING
   APPROVED
@@ -761,6 +804,40 @@ model VerificationRule {
 }
 
 
+model RegistrationApprovalRule {
+  id              String   @id @default(cuid())
+  name            String   @default("Default registration rule") @db.VarChar(120)
+  requiredFields  Json?
+  criteria        String?  @db.Text
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("registration_approval_rules")
+}
+
+model RegistrationRule {
+  id        String   @id @default(cuid())
+  name      String   @db.VarChar(80)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("registration_rules")
+}
+
+model RegistrationAutomationRule {
+  id              String   @id @default(cuid())
+  targetRole      Role     @unique
+  requiredFields  Json?
+  criteria        String   @db.Text
+  isActive        Boolean  @default(true)
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive, updatedAt])
+  @@map("registration_automation_rules")
+}
 enum DocumentStatus {
   PENDING
   APPROVED

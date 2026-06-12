@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FileCheck, Save, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { FileCheck, Save, Shield, UserCheck } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 
@@ -18,10 +18,7 @@ const AdminVerificationRules: React.FC = () => {
 			setRegistrationCriteria('');
 		} catch (error) {
 			toast.error('Failed to save registration rule');
-import React, { useState, useEffect } from 'react';
-import { FileCheck, Save, Shield, UserCheck } from 'lucide-react';
-import api from '../services/api';
-import { toast } from 'react-hot-toast';
+
 
 interface DocumentRule {
 	id: string;

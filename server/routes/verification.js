@@ -10,11 +10,10 @@ import prisma from "../db/prisma.js";
 import {
 	REGISTRATION_RULE_TYPE,
 	evaluateDocumentSubmission,
-	getActiveRule,
+getActiveRule,
 	saveRule,
 } from "../services/approvalRulesService.js";
-import { authenticateToken } from "../middleware/auth.js";
-import prisma from "../db/prisma.js";
+
 import { evaluateDocumentUpload } from "../services/ruleAutomationService.js";
 import {
 	getDefaultRequiredFields,
@@ -298,6 +297,14 @@ router.post("/upload", authenticateToken, upload.single("document"), async (req,
 	}
 });
 
+// Lightweight public-ish list of acceptable document types only.
+// Criteria are intentionally never exposed: rules live in the DB and are
+// configured by admins through internal endpoints, not through any UI.
+router.get("/rules", authenticateToken, async (req, res) => {
+	try {
+		const rules = await prisma.verificationRule.findMany({
+			where: { isActive: true },
+			select: { id: true, documentType: true },
 // Admin Route: Save registration review rule. Criteria remain server-side only.
 router.post("/registration-rule", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
 	try {
@@ -433,6 +440,7 @@ router.get("/rules", authenticateToken, async (req, res) => {
 			orderBy: { createdAt: "desc" },
 			select: { id: true, documentType: true },
 			orderBy: { documentType: "asc" },
+
 		});
 		res.json({ success: true, rules });
 	} catch (err) {

@@ -23,7 +23,7 @@ import axios from 'axios';
 import { saveToCache, getFromCache } from '../utils/offlineCache';
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import OfflineBadge from '../components/OfflineBadge';
-import AdminVerificationRules from '../components/AdminVerificationRules';
+import AdminVerificationPolicies from '../components/AdminVerificationPolicies';
 
 interface DashboardData {
   overview: {
@@ -514,6 +514,7 @@ function AdminDashboard() {
                 { id: 'products', name: 'Products', icon: Package },
                 { id: 'activity', name: 'Activity', icon: Activity },
                 { id: 'blockchain', name: 'Blockchain', icon: Link2 },
+                { id: 'agro', name: 'Agro-Inputs', icon: ShoppingBag }
                 { id: 'agro', name: 'Agro-Inputs', icon: ShoppingBag },
                 { id: 'verification', name: 'Private Rules', icon: Shield }
                 { id: 'verification', name: 'Verification Settings', icon: Shield }
@@ -690,6 +691,7 @@ function AdminDashboard() {
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">Account review alerts</h3>
                       <p className="text-sm text-gray-600">
+                        Automated checks flag accounts for review. Admins decide whether to keep active or disable.
                         System checks flag accounts for review. Admins decide whether to keep active or disable.
                         Automated checks flag accounts that need a final administrator decision.
                         The system recommends review only. Administrators decide whether to keep the account active or disable it.
@@ -738,6 +740,7 @@ function AdminDashboard() {
                             </div>
                             <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
                               <button
+                                onClick={() => updateAccountStatus(review.id, 'ACTIVE', 'Admin cleared review alert')}
                                 onClick={() => updateAccountStatus(review.id, 'ACTIVE', 'Admin cleared account review alert')}
                                 onClick={() => updateAccountStatus(review.id, 'ACTIVE', 'Admin cleared automated review alert')}
                                 onClick={() => updateAccountStatus(review.id, 'ACTIVE', 'Administrator cleared the review alert')}
@@ -1179,7 +1182,7 @@ function AdminDashboard() {
               </div>
             )}
             {activeTab === 'verification' && (
-              <AdminVerificationRules />
+              <AdminVerificationPolicies />
             )}
           </div>
         </div>

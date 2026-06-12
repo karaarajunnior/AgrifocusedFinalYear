@@ -124,6 +124,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const register = async (data: RegisterData): Promise<boolean> => {
 		try {
 			const response = await api.post("/auth/register", data);
+			const { user, token, registrationDecision, message } = response.data;
+
+			if (!token) {
+				localStorage.removeItem("token");
+				setUser(null);
+				toast.error(registrationDecision?.reason || message || "Registration was not approved");
 			const { user, token, approved, message } = response.data;
 
 			if (approved === false || !token) {
@@ -134,6 +140,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			localStorage.setItem("token", token);
 			setUser(user);
 
+			if (user?.verified) {
+				toast.success("Account approved. Welcome aboard!");
+			} else {
+				toast.success(
+					"Account created. It will become fully active once review is complete.",
+				);
+			}
+
+			toast.success(message || "Registration completed");
 			return true;
 		} catch (error: any) {
 			const message = error.response?.data?.error || "Registration failed";
