@@ -334,36 +334,29 @@ router.post("/registration-rule", authenticateToken, requireRole(["ADMIN"]), asy
  * POST /api/verification/rules/registration
  * Admin: Upsert a registration automation rule with required fields.
  */
+
 router.post("/rules/registration", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
-	try {
-		const { targetRole, criteria, requiredFields } = req.body;
+  try {
+    const { criteria, requiredFields } = req.body;
+    if (!criteria) {
+      return res.status(400).json({ error: "criteria is required" });
+    }
 
-		if (!targetRole) {
-    return res.status(400).json({ error: "targetRole is required" });
-}
-if (criteria === undefined || criteria === null) {
-    return res.status(400).json({ error: "criteria is required" });
-}
+    const roles = ["FARMER", "BUYER", "SUPERMARKET", "AGRO_SHOP", "ADMIN"];
 
-		const rule = await upsertRegistrationAutomationRule({
-			adminUserId: req.user.id,
-			targetRole: String(targetRole).trim().toUpperCase(),
-			requiredFields,
-			criteria,
-		});
-		res.json({
-			success: true,
-			message: "Registration policy saved to the database.",
-			policy: {
-				targetRole: rule.targetRole,
-				requiredFields: Array.isArray(rule.requiredFields)
-					? rule.requiredFields
-					: getDefaultRequiredFields(rule.targetRole),
-			},
-		});
-	} catch (err) {
-		res.status(500).json({ error: err.message });
-	}
+    for (const targetRole of roles) {
+      await upsertRegistrationAutomationRule({
+        adminUserId: req.user.id,
+        targetRole,
+        requiredFields,
+        criteria,
+      });
+    }
+
+    res.json({ success: true, message: "Registration policy applied to all roles." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 /**
