@@ -196,3 +196,25 @@ export async function evaluateRegistrationSubmission({ role, registrationData })
 		};
 	}
 }
+export async function ensureDefaultRegistrationRules() {
+  const roles = Object.keys(DEFAULT_REQUIRED_FIELDS_BY_ROLE);
+
+  for (const role of roles) {
+    const existing = await prisma.registrationAutomationRule.findFirst({
+      where: { targetRole: role },
+    });
+
+    if (!existing) {
+      await prisma.registrationAutomationRule.create({
+        data: {
+          targetRole: role,
+          requiredFields: DEFAULT_REQUIRED_FIELDS_BY_ROLE[role],
+          criteria: "",
+          isActive: true,
+          createdByUserId: null,
+        },
+      });
+      console.log(`Seeded default registration rule for role: ${role}`);
+    }
+  }
+}
