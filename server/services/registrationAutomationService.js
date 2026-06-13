@@ -196,6 +196,7 @@ export async function evaluateRegistrationSubmission({ role, registrationData })
 		};
 	}
 }
+
 export async function ensureDefaultRegistrationRules() {
   const roles = Object.keys(DEFAULT_REQUIRED_FIELDS_BY_ROLE);
 
@@ -205,14 +206,12 @@ export async function ensureDefaultRegistrationRules() {
     });
 
     if (!existing) {
-      await prisma.registrationAutomationRule.create({
-        data: {
-          targetRole: role,
-          requiredFields: DEFAULT_REQUIRED_FIELDS_BY_ROLE[role],
-          criteria: "",
-          isActive: true,
-          createdByUserId: null,
-        },
+      await upsertRegistrationAutomationRule({
+        adminUserId: "system",  // use a non-null placeholder
+        targetRole: role,
+        requiredFields: DEFAULT_REQUIRED_FIELDS_BY_ROLE[role],
+        criteria: "",
+        isActive: true,
       });
       console.log(`Seeded default registration rule for role: ${role}`);
     }
