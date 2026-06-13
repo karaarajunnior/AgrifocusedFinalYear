@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import prisma from "../db/prisma.js";
 
+
 const OPENAI_MODEL = process.env.REGISTRATION_AUTOMATION_MODEL || "gpt-4o";
 const ALLOWED_REQUIRED_FIELDS = [
 	"name",
@@ -22,9 +23,9 @@ const DEFAULT_REQUIRED_FIELDS_BY_ROLE = {
 let openaiClient = null;
 
 function getOpenAI() {
-	if (!process.env.OPENAI_API_KEY) return null;
+	if (!process.env.openAI_apI_key) return null;
 	if (!openaiClient) {
-		openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+		openaiClient = new OpenAI({ apiKey: process.env.openAI_apI_key });
 	}
 	return openaiClient;
 }

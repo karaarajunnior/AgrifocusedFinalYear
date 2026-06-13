@@ -41,6 +41,7 @@ import intelligenceRoutes from "./routes/intelligence.js";
 import locationRoutes from "./routes/location.js";
 import translationRoutes from "./routes/translation.js";
 import { runAccountReview } from "./services/accountReviewService.js";
+import { ensureDefaultRegistrationRules } from "./services/registrationAutomationService.js";
 import cron from "node-cron";
 import { initSocket } from "./socket.js";
 import path from "path";
@@ -68,16 +69,16 @@ app.use(
 		referrerPolicy: { policy: "no-referrer" },
 	}),
 );
+
 const defaultAllowedOrigins = [
 	"https://agrifocused-final-year-karaaras-projects.vercel.app",
-  "http://localhost:3000",
+	"http://localhost:3000",
 	"http://localhost:5173",
 	"http://127.0.0.1:5173",
 	"http://localhost:4173",
 	"http://127.0.0.1:4173",
 	"http://localhost:3002",
 	"http://127.0.0.1:3000",
-	// Common hybrid-mobile/webview origins
 	"capacitor://localhost",
 	"ionic://localhost",
 ];
@@ -89,74 +90,41 @@ const envAllowedOrigins = (process.env.CORS_ORIGINS || "")
 
 const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...envAllowedOrigins])];
 
-// app.use(
-// 	cors({
-// 		origin: (origin, callback) => {
-// 			// Non-browser clients (curl, server-to-server, mobile native) may not send Origin
-// 			if (!origin) {
-// 				return callback(null, true);
-// 			}
-
-// 			// In development, allow any origin to avoid front/back iteration friction.
-// 			if ((process.env.NODE_ENV || "development") !== "production") {
-// 				return callback(null, true);
-// 			}
-
-// 			if (allowedOrigins.includes(origin)) {
-// 				callback(null, true);
-// 			} else {
-// 				console.warn("Blocked by CORS:", origin);
-// 				callback(new Error("Not allowed by CORS"));
-// 			}
-// 		},
-// 		credentials: true,
-// 		methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-// 		allowedHeaders: ["*", "Authorization"]
-// 		//"Content-Type"
-// 	}),
-// );
-
 app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-
-      if ((process.env.NODE_ENV || "development") !== "production") {
-        return callback(null, true);
-      }
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      console.warn("Blocked by CORS:", origin);
-      return callback(new Error("Not allowed by CORS"));
-    },
-
-    credentials: true,
-
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-
-    allowedHeaders: ["Content-Type", "Authorization"]
-  })
+	cors({
+		origin: (origin, callback) => {
+			if (!origin) return callback(null, true);
+			if ((process.env.NODE_ENV || "development") !== "production") {
+				return callback(null, true);
+			}
+			if (allowedOrigins.includes(origin)) {
+				return callback(null, true);
+			}
+			console.warn("Blocked by CORS:", origin);
+			return callback(new Error("Not allowed by CORS"));
+		},
+		credentials: true,
+		methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+		allowedHeaders: ["Content-Type", "Authorization"],
+	}),
 );
 
-// 🔥 CRITICAL for Render / preflight
+// Handle preflight requests for all routes
 app.options("*", cors());
 
 // Rate limiting
 const limiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // 15 minutes
-	max: 500, // limit each IP to 500 requests per windowMs
+	windowMs: 15 * 60 * 1000,
+	max: 500,
 	standardHeaders: true,
 	legacyHeaders: false,
 });
 app.use(limiter);
 
-// HTTP Parameter Pollution protection (?a=1&a=2)
+// HTTP Parameter Pollution protection
 app.use(hpp());
 
-// Body parsing middleware
+// Body parsing
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
@@ -196,13 +164,11 @@ app.use("/api/intelligence", intelligenceRoutes);
 app.use("/api/location", locationRoutes);
 app.use("/api/translate", translationRoutes);
 
-// Optional scheduled refresh of web market data
+// Optional scheduled market data refresh
 if (String(process.env.MARKET_DATA_CRON_ENABLED || "false").toLowerCase() === "true") {
-	// Default: every 6 hours
 	const schedule = process.env.MARKET_DATA_CRON_SCHEDULE || "0 */6 * * *";
 	cron.schedule(schedule, async () => {
 		try {
-			// Lazy import to avoid unnecessary overhead if unused
 			const { refreshMarketWebPrices } = await import("./services/webMarketDataService.js");
 			await refreshMarketWebPrices();
 		} catch (e) {
@@ -211,6 +177,7 @@ if (String(process.env.MARKET_DATA_CRON_ENABLED || "false").toLowerCase() === "t
 	});
 }
 
+// Daily account review
 if (String(process.env.ACCOUNT_REVIEW_CRON_ENABLED || "true").toLowerCase() === "true") {
 	const schedule = process.env.ACCOUNT_REVIEW_CRON_SCHEDULE || "0 7 * * *";
 	cron.schedule(schedule, async () => {
@@ -234,7 +201,7 @@ app.use(
 	}),
 );
 
-// Prometheus scrape endpoint (protect in production behind auth/proxy)
+// Prometheus scrape endpoint
 app.get("/api/metrics", metricsHandler);
 
 app.get("/api/health", (req, res) => {
@@ -250,10 +217,7 @@ app.use((err, req, res, next) => {
 	console.error(err.stack);
 	res.status(500).json({
 		error: "Something went wrong!",
-		message:
-			process.env.NODE_ENV === "development"
-				? err.message
-				: "Internal server error",
+		message: process.env.NODE_ENV === "development" ? err.message : "Internal server error",
 	});
 });
 
@@ -268,9 +232,8 @@ initSocket(server);
 server.listen(PORT, "0.0.0.0", () => {
 	console.log(`Server running on port ${PORT}`);
 	console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
-	// Seed default registration rules in the background. These rules are stored
-	// in the database and never displayed in any UI; they govern automatic
-	// approval / rejection of new sign-ups.
+	// Seed default registration rules in the background.
+	// Rules are stored in the DB and never exposed in any UI.
 	ensureDefaultRegistrationRules().catch((e) =>
 		console.warn("Default registration rules seed skipped:", e?.message || e),
 	);
