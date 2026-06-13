@@ -723,10 +723,6 @@ const AdminVerificationRules: React.FC = () => {
 						/>
 					</div>
 
-					<div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-						Saved policies stay in the database and are only used by the automated review flow.
-					</div>
-
 					<div className="flex justify-end">
 						<button
 							type="submit"
@@ -743,9 +739,7 @@ const AdminVerificationRules: React.FC = () => {
 				<div className="mb-2 flex items-center font-bold text-slate-800">
 					<Shield className="mr-2 h-4 w-4" /> Privacy notice
 				</div>
-				<p>
-					Saved criteria are kept in the database for automated decisions and are not returned in dashboard or user-facing responses.
-				</p>
+				
 			</div>
 		</div>
 	);
