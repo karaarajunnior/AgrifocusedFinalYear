@@ -354,4 +354,25 @@ router.get("/market-prices", authenticateToken, async (req, res) => {
 	}
 });
 
+// In your analytics router (e.g. routes/analytics.ts)
+router.get('/buyer', authenticate, requireRole('BUYER'), async (req, res) => {
+  const userId = req.user.id;
+  const [orders, totalSpent] = await Promise.all([
+    prisma.order.findMany({
+      where: { buyerId: userId },
+      include: { product: { select: { name: true, category: true, images: true } }, farmer: { select: { name: true, location: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    }),
+    prisma.order.aggregate({ where: { buyerId: userId }, _sum: { totalPrice: true }, _count: true }),
+  ]);
+  res.json({
+    overview: {
+      totalOrders: totalSpent._count,
+      totalSpent: totalSpent._sum.totalPrice || 0,
+      averageOrderValue: totalSpent._count > 0 ? (totalSpent._sum.totalPrice || 0) / totalSpent._count : 0,
+    },
+    recentOrders: orders,
+  });
+});
 export default router;

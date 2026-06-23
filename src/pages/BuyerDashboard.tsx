@@ -28,8 +28,6 @@ import OfflineBadge from "../components/OfflineBadge";
 import { enqueueOfflineOrderDraft, getOfflineOrderCount } from "../utils/offlineOrderQueue";
 import DocumentCompliance from "../components/DocumentCompliance";
 import { AIAdvisor, MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
-import DocumentVerification from "../components/DocumentVerification";
-import { MarketIntelligence, ProactiveLeads } from "../components/AIIntelligence";
 import { t } from "../utils/translation";
 import LocationLink from "../components/LocationLink";
 import { getCurrentPosition } from "../utils/geolocation";
@@ -93,6 +91,7 @@ function BuyerDashboard() {
 	const [loading, setLoading] = useState(true);
 	const [locationLoading, setLocationLoading] = useState(true);
 	const [currency, setCurrency] = useState<'UGX' | 'USD'>('UGX');
+	const [showVerification, setShowVerification] = useState(false);
 	const EXCHANGE_RATE = 3800;
 
 	const convertPrice = (price: number) => {
