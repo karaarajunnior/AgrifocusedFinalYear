@@ -355,7 +355,7 @@ router.get("/market-prices", authenticateToken, async (req, res) => {
 });
 
 // In your analytics router (e.g. routes/analytics.ts)
-router.get('/buyer', authenticate, requireRole('BUYER'), async (req, res) => {
+router.get('/buyer', authenticateToken, requireRole('BUYER'), async (req, res) => {
   const userId = req.user.id;
   const [orders, totalSpent] = await Promise.all([
     prisma.order.findMany({
