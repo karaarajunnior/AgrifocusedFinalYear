@@ -81,6 +81,8 @@ const defaultAllowedOrigins = [
 	"http://127.0.0.1:3000",
 	"capacitor://localhost",
 	"ionic://localhost",
+	"http://localhost",
+	"https://localhost",
 ];
 
 const envAllowedOrigins = (process.env.CORS_ORIGINS || "")

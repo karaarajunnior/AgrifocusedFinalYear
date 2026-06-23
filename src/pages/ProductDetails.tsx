@@ -172,8 +172,8 @@ function ProductDetails() {
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<QualityAnalysis | null>(null);
   const [analysisPreview, setAnalysisPreview] = useState<string | null>(null);
-  const [previewFailed, setPreviewFailed] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [productImageFailed, setProductImageFailed] = useState(false);
 
   useEffect(() => () => {
     if (analysisPreview) URL.revokeObjectURL(analysisPreview);

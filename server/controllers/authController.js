@@ -368,7 +368,7 @@ export async function mfaSendSetupOtp(req, res) {
 			whatsappBody: `Your AgriConnect verification code is *${code}*. It expires in 10 minutes.`,
 		});
 
-		res.json({ message: "Verification code sent via SMS/WhatsApp", debugCode: code });
+		res.json({ message: "Verification code sent via email", debugCode: code });
 	} catch (error) {
 		console.error("MFA Send Setup OTP error:", error);
 		res.status(500).json({ error: "Failed to send verification code" });

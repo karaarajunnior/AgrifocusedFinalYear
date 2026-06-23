@@ -1,12 +1,26 @@
 export function parseProductImages(images?: string[] | string | null): string[] {
 	if (!images) return [];
-	if (Array.isArray(images)) return images.filter(Boolean);
-	try {
-		const parsed = JSON.parse(images);
-		return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
-	} catch {
-		return [];
+	let list: string[] = [];
+	if (Array.isArray(images)) {
+		list = images.filter(Boolean);
+	} else if (typeof images === "string") {
+		try {
+			const parsed = JSON.parse(images);
+			list = Array.isArray(parsed) ? parsed.filter(Boolean) : [parsed].filter(Boolean);
+		} catch {
+			list = [images];
+		}
+	} else {
+		list = [];
 	}
+	const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+	const baseUrl = import.meta.env.VITE_API_BASE_URL || apiUrl.replace(/\/api\/?$/, "");
+	return list.map((img) => {
+		if (typeof img === "string" && img.startsWith("/uploads/")) {
+			return `${baseUrl}${img}`;
+		}
+		return img;
+	});
 }
 
 export const getProductImageUrls = parseProductImages;

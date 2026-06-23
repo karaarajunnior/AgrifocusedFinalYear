@@ -15,6 +15,19 @@ import twilio from "twilio";
  */
 
 function getTransporter() {
+	const sendgridKey = process.env.SENDGRID_API_KEY;
+	if (sendgridKey) {
+		return nodemailer.createTransport({
+			host: "smtp.sendgrid.net",
+			port: 587,
+			secure: false, // 587 uses STARTTLS
+			auth: {
+				user: "apikey",
+				pass: sendgridKey,
+			},
+		});
+	}
+
 	const host = process.env.SMTP_HOST;
 	if (!host) return null;
 	return nodemailer.createTransport({
@@ -72,8 +85,9 @@ async function sendEmail({ userId, email, type, body }) {
 	if (!body || !email) return { ok: false, skipped: true };
 
 	const transporter = getTransporter();
-	if (!transporter) return { ok: false, error: "smtp_not_configured" };
+	if (!transporter) return { ok: false, error: "email_not_configured" };
 
+	const isSendgrid = Boolean(process.env.SENDGRID_API_KEY);
 	const log = await prisma.notificationLog.create({
 		data: {
 			userId,
@@ -81,13 +95,13 @@ async function sendEmail({ userId, email, type, body }) {
 			channel: "email",
 			to: email,
 			body,
-			provider: "nodemailer",
+			provider: isSendgrid ? "sendgrid" : "nodemailer",
 			status: "queued",
 		},
 	});
 
 	try {
-		const fromAddr = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@dafis.ug";
+		const fromAddr = process.env.SENDGRID_FROM || process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@dafis.ug";
 		await transporter.sendMail({
 			from: `DAFIS <${fromAddr}>`,
 			to: email,
@@ -140,33 +154,9 @@ export async function notifyUser({ userId, type, smsBody, whatsappBody }) {
 	// 1. Always send in-app notification
 	const inAppResult = await sendInApp({ userId, type, body: messageBody });
 
-	// 3. Log simulated external notifications (for developers/users to see it worked)
-	if (user.notifySms || user.notifyWhatsapp) {
-		console.log(`\n--- TWILIO EXTERNAL NOTIFICATION ---`);
-		console.log(`To: ${user.phone || 'N/A'}`);
-		console.log(`Channels: ${[user.notifySms ? 'SMS' : null, user.notifyWhatsapp ? 'WhatsApp' : null].filter(Boolean).join(', ')}`);
-		console.log(`Message: ${messageBody}`);
-		console.log(`----------------------------------------\n`);
-
-		// Actually send the SMS if Twilio is configured and the user has a phone number
-		if (user.phone && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-			try {
-				const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-				await client.messages.create({
-					body: messageBody,
-					from: process.env.TWILIO_SMS_FROM,
-					to: user.phone.startsWith('+') ? user.phone : `+${user.phone}` // Twilio requires E.164
-				});
-				console.log("-> Real Twilio SMS dispatched successfully!");
-			} catch (err) {
-				console.error("-> Failed to send Real Twilio SMS:", err?.message || err);
-			}
-		}
-	}
-
-	// 2. Try email as fallback (if user has email and SMTP is configured)
+	// 2. Strictly send via email (using Nodemailer + SendGrid)
 	if (user.email) {
-		await sendEmail({ userId, email: user.email, type, body: smsBody || whatsappBody });
+		await sendEmail({ userId, email: user.email, type, body: messageBody });
 	}
 
 	return inAppResult;

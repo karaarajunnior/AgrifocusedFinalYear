@@ -3,6 +3,16 @@ import prisma from "../db/prisma.js";
 import locationService from "../utils/locationService.js";
 import { writeAuditLog } from "../services/auditLogService.js";
 import path from "path";
+import OpenAI from "openai";
+
+let _openai = null;
+function getOpenAI() {
+	if (!process.env.OPENAI_API_KEY) return null;
+	if (!_openai) {
+		_openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+	}
+	return _openai;
+}
 
 function readUInt24BE(buffer, offset) {
 	return (buffer[offset] << 16) + (buffer[offset + 1] << 8) + buffer[offset + 2];
@@ -155,18 +165,109 @@ export async function analyzeProductImage(req, res) {
 		const file = req.file;
 		if (!file) return res.status(400).json({ error: "No image uploaded" });
 
-		let product = null;
+		let productName = req.body?.productName || "Uploaded sample";
+		let category = req.body?.category || "Unknown";
+
 		if (req.body?.productId) {
-			product = await prisma.product.findUnique({
+			const product = await prisma.product.findUnique({
 				where: { id: String(req.body.productId) },
-				select: { id: true, name: true, category: true, price: true, quantity: true, unit: true, images: true },
+				select: { name: true, category: true },
 			});
+			if (product) {
+				productName = product.name;
+				category = product.category;
+			}
 		}
 
-		res.json({ analysis: buildImageQualityReport(file, product) });
+		// Read image specifications locally
+		const dimensions = getImageDimensions(file.buffer, file.mimetype);
+		const megapixels = dimensions ? Number(((dimensions.width * dimensions.height) / 1_000_000).toFixed(2)) : null;
+
+		const openaiClient = getOpenAI();
+		if (!openaiClient) {
+			console.warn("OpenAI API key not set. Falling back to mock heuristic quality check.");
+			return res.json({ analysis: buildImageQualityReport(file, { name: productName, category }) });
+		}
+
+		const base64Image = file.buffer.toString("base64");
+		const prompt = `You are a strict and objective agricultural product quality inspector.
+Analyze this uploaded crop/harvest image against the following listing details:
+- Stated Product Name: "${productName}"
+- Stated Product Category: "${category}"
+
+Evaluate:
+1. "isMatch": Is the image actually a picture of the stated product or crop category?
+   If the image is completely unrelated (e.g., shoes, clothes, electronics, vehicles, documents, people, or another crop that is clearly not matching the description), set "isMatch" to false.
+2. "score": A numeric quality score from 0 to 100 based on clarity, lighting, detail, and presentation of the harvest. If "isMatch" is false, the score must be exactly 0.
+3. "grade": A quality label:
+   - "Export-ready" (score 85-100): Exceptional clarity, lighting, detail, looks high grade.
+   - "Market-ready" (score 70-84): Good clarity, standard local market look.
+   - "Needs clearer photo" (score 0-69): Blurry, low detail, poor lighting, or if "isMatch" is false.
+4. "signals": Array of 2-3 specific visual features observed in the photo (e.g., "Deep green leaves visible", "Clean dried beans in pile"). If "isMatch" is false, list mismatch signals (e.g., "Detected footwear instead of crop").
+5. "recommendations": Array of 1-3 visual improvement tips or feedback (e.g., "Improve lighting to show color better"). If "isMatch" is false, specify "Upload a photo matching the listed product".
+
+Output strictly in JSON format matching this schema:
+{
+  "isMatch": boolean,
+  "score": number,
+  "grade": "Export-ready" | "Market-ready" | "Needs clearer photo",
+  "signals": string[],
+  "recommendations": string[]
+}`;
+
+		const response = await openaiClient.chat.completions.create({
+			model: "gpt-4o-mini",
+			messages: [
+				{
+					role: "user",
+					content: [
+						{ type: "text", text: prompt },
+						{
+							type: "image_url",
+							image_url: { url: `data:${file.mimetype};base64,${base64Image}` },
+						},
+					],
+				},
+			],
+			response_format: { type: "json_object" },
+		});
+
+		const resultText = response.choices?.[0]?.message?.content;
+		const parsed = JSON.parse(resultText || "{}");
+
+		const finalScore = typeof parsed.score === "number" ? Math.max(0, Math.min(100, parsed.score)) : 0;
+		const finalGrade = parsed.grade || "Needs clearer photo";
+		const finalRecommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations : ["Please upload a clearer image of your crop."];
+		const finalSignals = Array.isArray(parsed.signals) ? parsed.signals : [];
+
+		res.json({
+			analysis: {
+				score: finalScore,
+				grade: finalGrade,
+				specifications: {
+					productName,
+					category,
+					format: file.mimetype.replace("image/", "").toUpperCase(),
+					fileSizeKb: Math.round(file.size / 1024),
+					width: dimensions?.width || null,
+					height: dimensions?.height || null,
+					megapixels,
+				},
+				signals: [
+					...(dimensions ? [`${dimensions.width}x${dimensions.height} image captured`] : []),
+					...finalSignals
+				],
+				recommendations: finalRecommendations
+			}
+		});
 	} catch (error) {
 		console.error("Analyze product image error:", error);
-		res.status(500).json({ error: "Failed to analyze image" });
+		// Safe fallback
+		try {
+			res.json({ analysis: buildImageQualityReport(req.file, { name: req.body?.productName, category: req.body?.category }) });
+		} catch (fallbackError) {
+			res.status(500).json({ error: "Failed to analyze image" });
+		}
 	}
 }
 
