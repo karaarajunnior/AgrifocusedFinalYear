@@ -11,8 +11,7 @@ import {
 import { writeAuditLog } from "../services/auditLogService.js";
 import { notifyUser } from "../services/smsWhatsappService.js";
 import { evaluateRegistrationSubmission } from "../services/registrationAutomationService.js";
-	import sgMail from "@sendgrid/mail";
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+	
 
 export async function register(req, res) {
 	try {
