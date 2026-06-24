@@ -336,13 +336,6 @@ export async function mfaSendOtp(req, res) {
 		});
 	
 
-await sgMail.send({
-  to: user.email,
-  from: "karaarajunior1@gmail.com",  // your verified sender
-  subject: "Your AgriConnect Login Code",
-  html: `<p>Your login code is: <strong>${code}</strong></p><p>Expires in 10 minutes.</p>`,
-});
-
 		await notifyUser({
   userId: user.id,
   type: "auth",
