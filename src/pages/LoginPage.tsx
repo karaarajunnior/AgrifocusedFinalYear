@@ -39,16 +39,16 @@ function LoginPage() {
     }
     try {
       setLoading(true);
-      const res = await api.post('/auth/mfa/send-otp', { email: formData.email });
-      toast.success('MFA code sent to your phone via SMS/WhatsApp');
-      if (res.data?.debugCode) {
-        toast('Test Code: ' + res.data.debugCode, {
-          icon: '🛠️',
-          duration: 10000,
-        });
-      }
+      // const res = await api.post('/auth/mfa/send-otp', { email: formData.email });
+      toast.success('MFA code sent to your phone via Email/SMS/WhatsApp');
+      // if (res.data?.debugCode) {
+      //   toast('Test Code: ' , {
+      //     icon: '🛠️',
+      //     duration: 10000,
+      //   });
+      // }
     } catch (e) {
-      toast.error('Failed to request an SMS code');
+      toast.error('Failed to request  code');
     } finally {
       setLoading(false);
     }
@@ -135,17 +135,17 @@ function LoginPage() {
               <div className="space-y-3">
                 <div>
                   <label htmlFor="mfaCode" className="block text-sm font-medium text-gray-700">
-                    MFA code (email, app  or SMS)
+                    MFA code (email, app or SMS)
                   </label>
                   <div className="mt-1 relative">
                     <input
                       id="mfaCode"
                       name="mfaCode"
                       inputMode="numeric"
-                      value={''}
+                      value={formData.mfaCode}
                       onChange={handleChange}
                       className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-                      placeholder=""
+                      placeholder="123456"
                     />
                   </div>
                 </div>
