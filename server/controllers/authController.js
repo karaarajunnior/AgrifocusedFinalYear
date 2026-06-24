@@ -11,6 +11,8 @@ import {
 import { writeAuditLog } from "../services/auditLogService.js";
 import { notifyUser } from "../services/smsWhatsappService.js";
 import { evaluateRegistrationSubmission } from "../services/registrationAutomationService.js";
+	import sgMail from "@sendgrid/mail";
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 export async function register(req, res) {
 	try {
@@ -333,13 +335,23 @@ export async function mfaSendOtp(req, res) {
 			where: { id: user.id },
 			data: { mfaOtp: code, mfaOtpExpires: expires },
 		});
+	
+
+await sgMail.send({
+  to: user.email,
+  from: "karaarajunior1@gmail.com",  // your verified sender
+  subject: "Your AgriConnect Login Code",
+  html: `<p>Your login code is: <strong>${code}</strong></p><p>Expires in 10 minutes.</p>`,
+});
 
 		await notifyUser({
-			userId: user.id,
-			type: "auth",
-			smsBody: `Your AgriConnect login code is ${code}. It expires in 10 minutes.`,
-			whatsappBody: `Your AgriConnect login code is *${code}*. It expires in 10 minutes.`,
-		});
+  userId: user.id,
+  type: "auth",
+  smsBody: `Your AgriConnect login code is ${code}. It expires in 10 minutes.`,
+  whatsappBody: `Your AgriConnect login code is *${code}*. It expires in 10 minutes.`,
+  emailSubject: "Your AgriConnect Login Code",                          // ← add
+  emailBody: `<p>Your login verification code is:</p><h1 style="letter-spacing:4px;color:#2d7a3a;">${code}</h1><p>This code expires in <strong>10 minutes</strong>.</p>`, // ← add
+});
 
 		res.json({ message: "If the account exists and MFA is enabled, a code has been sent.", debugCode: code });
 	} catch (error) {
@@ -362,11 +374,13 @@ export async function mfaSendSetupOtp(req, res) {
 		});
 
 		await notifyUser({
-			userId: user.id,
-			type: "auth",
-			smsBody: `Your AgriConnect verification code is ${code}. It expires in 10 minutes.`,
-			whatsappBody: `Your AgriConnect verification code is *${code}*. It expires in 10 minutes.`,
-		});
+  userId: user.id,
+  type: "auth",
+  smsBody: `Your AgriConnect verification code is ${code}. It expires in 10 minutes.`,
+  whatsappBody: `Your AgriConnect verification code is *${code}*. It expires in 10 minutes.`,
+  emailSubject: "Your AgriConnect Verification Code",
+  emailBody: `<p>Your setup verification code is:</p><h1 style="letter-spacing:4px;color:#2d7a3a;">${code}</h1><p>This code expires in <strong>10 minutes</strong>.</p>`,
+});
 
 		res.json({ message: "Verification code sent via email", debugCode: code });
 	} catch (error) {
