@@ -73,7 +73,7 @@ function Navbar() {
 								? "text-green-600"
 								: "text-gray-600 hover:text-gray-900"
 								}`}>
-							Marketplace
+							{t('marketplace')}
 						</Link>
 
 						{user ? (
@@ -118,7 +118,7 @@ function Navbar() {
 											: "text-gray-600 hover:text-gray-900"
 											}`}>
 										<Users className="h-4 w-4" />
-										<span>Co-ops</span>
+										<span>{t('coops')}</span>
 									</Link>
 								)}
 
@@ -131,7 +131,7 @@ function Navbar() {
 												: "text-gray-600 hover:text-gray-900"
 												}`}>
 											<ShieldCheck className="h-4 w-4" />
-											<span>Export</span>
+											<span>{t('export')}</span>
 										</Link>
 
 										<Link
@@ -141,7 +141,7 @@ function Navbar() {
 												: "text-gray-600 hover:text-gray-900"
 												}`}>
 											<ShoppingBag className="h-4 w-4" />
-											<span>Inputs</span>
+											<span>{t('inputs')}</span>
 										</Link>
 
 										<Link
@@ -151,7 +151,7 @@ function Navbar() {
 												: "text-gray-600 hover:text-gray-900"
 												}`}>
 											<FileSignature className="h-4 w-4" />
-											<span>Contracts</span>
+											<span>{t('contracts')}</span>
 										</Link>
 									</>
 								)}
@@ -165,7 +165,7 @@ function Navbar() {
 											: "text-gray-600 hover:text-gray-900"
 											}`}>
 										<SlidersHorizontal className="h-4 w-4" />
-										<span>Forms</span>
+										<span>{t('forms')}</span>
 									</Link>
 								)}
 
@@ -184,13 +184,13 @@ function Navbar() {
 									<Link
 										to="/profile"
 										className="flex items-center space-x-2 text-sm font-bold text-slate-600 hover:text-emerald-600 transition-colors uppercase tracking-widest">
-										<span>Account</span>
+										<span>{t('account')}</span>
 									</Link>
 
 									<button
 										onClick={handleLogout}
 										className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all">
-										Logout
+										{t('logout')}
 									</button>
 								</div>
 							</>
@@ -199,12 +199,12 @@ function Navbar() {
 								<Link
 									to="/login"
 									className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-									Login
+									{t('login')}
 								</Link>
 								<Link
 									to="/register"
 									className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors">
-									Get Started
+									{t('get_started')}
 								</Link>
 							</div>
 						)}
@@ -248,7 +248,7 @@ function Navbar() {
 								to="/marketplace"
 								className="block text-gray-600 hover:text-gray-900 font-medium"
 								onClick={() => setIsMenuOpen(false)}>
-								Marketplace
+								{t('marketplace')}
 							</Link>
 
 							{user ? (
@@ -257,14 +257,14 @@ function Navbar() {
 										to="/dashboard"
 										className="block text-gray-600 hover:text-gray-900 font-medium"
 										onClick={() => setIsMenuOpen(false)}>
-										Dashboard
+										{t('dashboard')}
 									</Link>
 
 									<Link
 										to="/orders"
 										className="block text-gray-600 hover:text-gray-900 font-medium"
 										onClick={() => setIsMenuOpen(false)}>
-										Orders
+										{t('orders')}
 									</Link>
 
 									{(user.role === "FARMER" || user.role === "BUYER") && (
@@ -272,7 +272,7 @@ function Navbar() {
 											to="/logistics"
 											className="block text-gray-600 hover:text-gray-900 font-medium"
 											onClick={() => setIsMenuOpen(false)}>
-											Logistics
+											{t('logistics')}
 										</Link>
 									)}
 
@@ -281,7 +281,7 @@ function Navbar() {
 											to="/coops"
 											className="block text-gray-600 hover:text-gray-900 font-medium"
 											onClick={() => setIsMenuOpen(false)}>
-											Co-ops
+											{t('coops')}
 										</Link>
 									)}
 
@@ -290,7 +290,7 @@ function Navbar() {
 											to="/export-verification"
 											className="block text-gray-600 hover:text-gray-900 font-medium"
 											onClick={() => setIsMenuOpen(false)}>
-											Export Verification
+											{t('verify_for_export')}
 										</Link>
 									)}
 
@@ -300,13 +300,13 @@ function Navbar() {
 												to="/agro-store"
 												className="block text-gray-600 hover:text-gray-900 font-medium"
 												onClick={() => setIsMenuOpen(false)}>
-												Agro-Input Store
+												{t('inputs')}
 											</Link>
 											<Link
 												to="/contracts"
 												className="block text-gray-600 hover:text-gray-900 font-medium"
 												onClick={() => setIsMenuOpen(false)}>
-												Forward Contracts
+												{t('contracts')}
 											</Link>
 										</>
 									)}
@@ -317,7 +317,7 @@ function Navbar() {
 											to="/form-builder"
 											className="block text-gray-600 hover:text-gray-900 font-medium"
 											onClick={() => setIsMenuOpen(false)}>
-											Forms
+											{t('forms')}
 										</Link>
 									)}
 
@@ -326,20 +326,20 @@ function Navbar() {
 										to="/chat"
 										className="block text-gray-600 hover:text-gray-900 font-medium"
 										onClick={() => setIsMenuOpen(false)}>
-										Chat
+										{t('chat')}
 									</Link>
 
 									<Link
 										to="/profile"
 										className="block text-gray-600 hover:text-gray-900 font-medium"
 										onClick={() => setIsMenuOpen(false)}>
-										Profile
+										{t('profile')}
 									</Link>
 
 									<button
 										onClick={handleLogout}
 										className="block w-full text-left text-red-600 hover:text-red-700 font-medium">
-										Logout
+										{t('logout')}
 									</button>
 								</>
 							) : (
@@ -348,13 +348,13 @@ function Navbar() {
 										to="/login"
 										className="block text-gray-600 hover:text-gray-900 font-medium"
 										onClick={() => setIsMenuOpen(false)}>
-										Login
+										{t('login')}
 									</Link>
 									<Link
 										to="/register"
 										className="block bg-green-600 text-white px-4 py-2 rounded-md font-medium hover:bg-green-700 text-center"
 										onClick={() => setIsMenuOpen(false)}>
-										Get Started
+										{t('get_started')}
 									</Link>
 								</>
 							)}

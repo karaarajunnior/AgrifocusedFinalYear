@@ -101,7 +101,7 @@ const TraceabilityJourney: React.FC<{
             <div className="absolute top-0 right-0 p-8 opacity-5">
                 <Navigation className="h-24 w-24" />
             </div>
-            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-8">Product Journey Map</h3>
+            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-8">{t('product_journey_map')}</h3>
             <div className="relative flex justify-between items-center px-4">
                 {/* Connecting Line */}
                 <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 -translate-y-1/2 z-0">
@@ -136,7 +136,7 @@ const TraceabilityJourney: React.FC<{
                         <Package className="h-6 w-6" />
                     </div>
                     <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('processing')}</p>
-                    <p className="text-xs font-bold text-slate-900">Quality check recorded</p>
+                    <p className="text-xs font-bold text-slate-900">{t('quality_check_recorded')}</p>
                 </div>
 
                 <div className="relative z-10 flex flex-col items-center group">
@@ -353,10 +353,10 @@ const [previewFailed, setPreviewFailed] = useState(false);
           <div className="bg-white rounded-lg shadow p-6 border border-emerald-100">
             <div className="flex items-center gap-3 mb-4">
               <Sparkles className="h-5 w-5 text-emerald-600" />
-                  <h3 className="text-lg font-bold text-gray-900">Product quality check</h3>
+                  <h3 className="text-lg font-bold text-gray-900">{t('product_quality_check')}</h3>
             </div>
             <p className="text-sm text-gray-500 mb-4">
-              Buyers can drag a farmer photo or upload a fresh image to estimate visible quality, defects, and listing specifications.
+              {t('quality_check_desc')}
             </p>
             <div
               onDragOver={(e) => e.preventDefault()}
@@ -382,10 +382,10 @@ const [previewFailed, setPreviewFailed] = useState(false);
                   <ImageIcon className="h-10 w-10 text-emerald-500" />
                 </div>
               )}
-              <p className="text-sm font-semibold text-gray-700">Drag and drop an image here</p>
+              <p className="text-sm font-semibold text-gray-700">{t('drag_drop_image')}</p>
               <label className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-emerald-700">
                 <UploadCloud className="h-4 w-4" />
-                Upload image
+                {t('upload_image')}
                 <input
                   type="file"
                   accept="image/*"
@@ -394,27 +394,27 @@ const [previewFailed, setPreviewFailed] = useState(false);
                 />
               </label>
             </div>
-            {analyzing && <p className="mt-4 text-sm font-bold text-emerald-700">Analyzing visible quality...</p>}
+            {analyzing && <p className="mt-4 text-sm font-bold text-emerald-700">{t('analyzing_quality')}</p>}
             {analysis && (
               <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 <div className="p-4 rounded-xl bg-slate-50">
-                  <p className="text-xs uppercase font-black text-slate-400">Score</p>
+                  <p className="text-xs uppercase font-black text-slate-400">{t('score')}</p>
                   <p className="text-2xl font-black text-emerald-700">{analysis.score}/100 · {analysis.grade}</p>
                 </div>
                 <div className="p-4 rounded-xl bg-slate-50">
-                  <p className="text-xs uppercase font-black text-slate-400">Freshness</p>
+                  <p className="text-xs uppercase font-black text-slate-400">{t('freshness')}</p>
                   <p className="font-bold">{analysis.freshness}</p>
                 </div>
                 <div className="p-4 rounded-xl bg-slate-50">
-                  <p className="text-xs uppercase font-black text-slate-400">Uniformity</p>
+                  <p className="text-xs uppercase font-black text-slate-400">{t('uniformity')}</p>
                   <p className="font-bold">{analysis.sizeUniformity}</p>
                 </div>
                 <div className="p-4 rounded-xl bg-slate-50">
-                  <p className="text-xs uppercase font-black text-slate-400">Visible defects</p>
+                  <p className="text-xs uppercase font-black text-slate-400">{t('visible_defects')}</p>
                   <p className="font-bold">{analysis.visibleDefects}</p>
                 </div>
                 <div className="sm:col-span-2 p-4 rounded-xl bg-amber-50 border border-amber-100">
-                  <p className="text-xs uppercase font-black text-amber-700 mb-2">Recommendations</p>
+                  <p className="text-xs uppercase font-black text-amber-700 mb-2">{t('recommendations')}</p>
                   
                   <ul className="list-disc list-inside text-amber-900 space-y-1">
                     {analysis.recommendations.map((item) => <li key={item}>{item}</li>)}
@@ -448,14 +448,14 @@ const [previewFailed, setPreviewFailed] = useState(false);
             {/* Description */}
             {product.description && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('description')}</h3>
                 <p className="text-gray-700 leading-relaxed">{product.description}</p>
               </div>
             )}
 
             {/* Product Details */}
             <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Product Details</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">{t('product_details')}</h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="flex items-center">
                   <Package className="h-4 w-4 text-gray-400 mr-2" />
@@ -507,7 +507,7 @@ const [previewFailed, setPreviewFailed] = useState(false);
             {/* Traceability */}
             {trace?.batches?.length ? (
               <div className="bg-white rounded-lg shadow p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Traceability timeline</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('traceability_timeline')}</h3>
                 <div className="space-y-4">
                   {trace.batches.slice(0, 2).map((b) => (
                     <div key={b.id} className="border border-gray-200 rounded-lg p-3">
@@ -520,7 +520,7 @@ const [previewFailed, setPreviewFailed] = useState(false);
                           }}
                           className="text-[10px] bg-green-600 text-white px-2 py-1 rounded font-bold uppercase tracking-wider hover:bg-green-700 transition-colors"
                         >
-                          Generate QR
+                          {t('generate_qr')}
                         </button>
                         <div className="text-xs text-gray-500">
                           {b.harvestedAt ? new Date(b.harvestedAt).toLocaleDateString() : "—"}
@@ -545,14 +545,14 @@ const [previewFailed, setPreviewFailed] = useState(false);
             {/* Farmer Info */}
             <div className="bg-white rounded-lg shadow p-4">
               <div className="flex justify-between items-center mb-3">
-                <h3 className="text-lg font-semibold text-gray-900">Farmer Information</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{t('farmer_information')}</h3>
                 {user && user.id !== product.farmer.id && (
                   <button
                     onClick={() => navigate(`/chat?userId=${product.farmer.id}`)}
                     className="text-sm bg-green-50 text-green-700 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100 transition-colors flex items-center"
                   >
                     <MessageSquare className="h-4 w-4 mr-1.5" />
-                    Message Farmer
+                    {t('message_farmer')}
                   </button>
                 )}
               </div>
@@ -582,7 +582,7 @@ const [previewFailed, setPreviewFailed] = useState(false);
                     </p>
                   )}
                   <p className="text-xs text-gray-500 mt-2">
-                    Farming since {new Date(product.farmer.createdAt).getFullYear()}
+                    {t('farming_since')} {new Date(product.farmer.createdAt).getFullYear()}
                   </p>
                 </div>
               </div>
@@ -591,11 +591,11 @@ const [previewFailed, setPreviewFailed] = useState(false);
             {/* Order Section */}
             {user && user.role === 'BUYER' && product.quantity > 0 && (
               <div className="bg-white rounded-lg shadow p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Place Order</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">{t('place_order')}</h3>
                 <div className="flex items-center space-x-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Quantity ({product.unit})
+                      {t('quantity')} ({product.unit})
                     </label>
                     <input
                       type="number"
@@ -607,7 +607,7 @@ const [previewFailed, setPreviewFailed] = useState(false);
                     />
                   </div>
                   <div className="flex-1">
-                    <div className="text-sm text-gray-600 mb-1">Total Price</div>
+                    <div className="text-sm text-gray-600 mb-1">{t('total_price')}</div>
                     <div className="text-xl font-bold text-green-600">
                       UGX {(product.price * orderQuantity).toLocaleString()}
                     </div>
@@ -618,7 +618,7 @@ const [previewFailed, setPreviewFailed] = useState(false);
                   className="w-full mt-4 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
                 >
                   <ShoppingCart className="h-5 w-5 mr-2" />
-                  Place Order
+                  {t('place_order')}
                 </button>
               </div>
             )}
@@ -626,7 +626,7 @@ const [previewFailed, setPreviewFailed] = useState(false);
             {/* Out of Stock */}
             {product.quantity === 0 && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-800 font-medium">This product is currently out of stock.</p>
+                <p className="text-red-800 font-medium">{t('out_of_stock')}</p>
               </div>
             )}
           </div>
@@ -636,7 +636,7 @@ const [previewFailed, setPreviewFailed] = useState(false);
         {product.reviews.length > 0 && (
           <div className="mt-12 bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Customer Reviews</h2>
+              <h2 className="text-xl font-semibold text-gray-900">{t('customer_reviews')}</h2>
             </div>
             <div className="p-6">
               <div className="space-y-6">
@@ -683,7 +683,7 @@ const [previewFailed, setPreviewFailed] = useState(false);
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                 <TrendingUp className="h-5 w-5 mr-2" />
-                Price History
+                {t('price_history')}
               </h2>
             </div>
             <div className="p-6">
@@ -707,7 +707,7 @@ const [previewFailed, setPreviewFailed] = useState(false);
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Confirm Order</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('confirm_order')}</h2>
               
               <div className="space-y-4">
                 <div className="bg-gray-50 rounded-lg p-4">
@@ -719,14 +719,14 @@ const [previewFailed, setPreviewFailed] = useState(false);
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Order Notes (Optional)
+                    {t('order_notes')}
                   </label>
                   <textarea
                     rows={3}
                     value={orderNotes}
                     onChange={(e) => setOrderNotes(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="Any special instructions or requirements..."
+                    placeholder={t('order_notes_placeholder')}
                   />
                 </div>
               </div>
@@ -758,8 +758,8 @@ const [previewFailed, setPreviewFailed] = useState(false);
               <div className="h-12 w-12 bg-green-100 rounded-2xl flex items-center justify-center text-green-600 mx-auto mb-4">
                 <Shield className="h-6 w-6" />
               </div>
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight lowercase">traceability qr</h2>
-              <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mt-1">Scan to verify origin</p>
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight lowercase">{t('traceability_qr')}</h2>
+              <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mt-1">{t('scan_to_verify')}</p>
             </div>
             
             <div className="bg-gray-50 p-6 rounded-[24px] mb-6 flex items-center justify-center border-2 border-dashed border-gray-200">

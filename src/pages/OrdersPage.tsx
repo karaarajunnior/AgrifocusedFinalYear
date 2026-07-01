@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
+import { t } from '../utils/translation';
 import {
   Package,
   Clock,
@@ -153,6 +154,24 @@ function OrdersPage() {
       fetchOrders();
     } catch (error: unknown) {
       let message = 'Failed to initiate payment';
+      if (axios.isAxiosError(error)) {
+        const data = error.response?.data;
+        if (data && typeof data === 'object') {
+          const maybe = data as Record<string, unknown>;
+          if (typeof maybe.error === 'string') message = maybe.error;
+        }
+      }
+      toast.error(message);
+    }
+  };
+
+  const releaseEscrow = async (orderId: string) => {
+    try {
+      await api.post(`/orders/${orderId}/release-escrow`, {});
+      toast.success('Escrow funds released to farmer successfully');
+      fetchOrders();
+    } catch (error: unknown) {
+      let message = 'Failed to release escrow funds';
       if (axios.isAxiosError(error)) {
         const data = error.response?.data;
         if (data && typeof data === 'object') {
@@ -560,28 +579,52 @@ function OrdersPage() {
                     )}
 
                     {order.transaction && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => setSelectedOrder(order)}
-                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center"
+                          className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs flex items-center"
                         >
-                          <Eye className="h-4 w-4 mr-1" />
+                          <Eye className="h-3.5 w-3.5 mr-1" />
                           View Transaction
                         </button>
-                        {order.transaction.provider === 'airtel_ug' && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">
-                            Payment: {order.transaction.status}
+                        {order.transaction.status === 'ESCROW_LOCKED' && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200 font-medium">
+                            🔒 {t('held_in_escrow')}
+                          </span>
+                        )}
+                        {order.transaction.status === 'COMPLETED' && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 border border-green-200 font-medium">
+                            ✓ {t('released_from_escrow')}
+                          </span>
+                        )}
+                        {order.transaction.status === 'PENDING' && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200 font-medium">
+                            ⌛ {t('escrow_pending')}
+                          </span>
+                        )}
+                        {order.transaction.status === 'FAILED' && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-800 border border-red-200 font-medium">
+                            ✗ {t('escrow_failed')}
                           </span>
                         )}
                       </div>
                     )}
 
-                    {user?.role === 'BUYER' && order.status === 'CONFIRMED' && (
+                    {user?.role === 'BUYER' && order.status === 'CONFIRMED' && (!order.transaction || order.transaction.status === 'FAILED') && (
                       <button
                         onClick={() => payWithAirtel(order.id)}
                         className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
                       >
                         Pay with Airtel Money
+                      </button>
+                    )}
+
+                    {user?.role === 'BUYER' && order.transaction?.status === 'ESCROW_LOCKED' && order.status !== 'DELIVERED' && (
+                      <button
+                        onClick={() => releaseEscrow(order.id)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                      >
+                        {t('confirm_and_release')}
                       </button>
                     )}
                   </div>

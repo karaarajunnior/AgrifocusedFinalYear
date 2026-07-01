@@ -208,9 +208,9 @@ function MarketplacePage() {
 					</p>
 					<div className="mt-7 grid grid-cols-3 gap-2 md:gap-3 max-w-3xl md:mx-auto text-left">
 						{[
-							{ icon: Search, text: "1. Search crop name" },
-							{ icon: MapPin, text: "2. Choose nearby or outside Uganda" },
-							{ icon: ShoppingCart, text: "3. Tap Order or View" },
+							{ icon: Search, text: t('search_crop_hint') },
+							{ icon: MapPin, text: t('choose_origin_hint') },
+							{ icon: ShoppingCart, text: t('order_view_hint') },
 						].map(({ icon: Icon, text }) => (
 							<div key={text} className="flex flex-col md:flex-row md:items-center gap-2 bg-white/10 border border-white/15 rounded-2xl px-3 py-3">
 								<Icon className="h-5 w-5 text-emerald-200 shrink-0" />
@@ -244,9 +244,9 @@ function MarketplacePage() {
 							<div className="lg:w-72">
 								<div className="grid grid-cols-3 gap-2 bg-slate-50 rounded-xl p-1 border-2 border-transparent">
 									{[
-										{ value: "", label: "All", icon: Globe2 },
-										{ value: "LOCAL", label: "Near", icon: Home },
-										{ value: "INTERNATIONAL", label: "World", icon: Globe2 },
+										{ value: "", label: t('all'), icon: Globe2 },
+										{ value: "LOCAL", label: t('near'), icon: Home },
+										{ value: "INTERNATIONAL", label: t('world'), icon: Globe2 },
 									].map(({ value, label, icon: Icon }) => (
 										<button
 											key={value || "all"}
@@ -315,14 +315,14 @@ function MarketplacePage() {
 
 									<div>
 										<label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">
-											Location
+											{t('location')}
 										</label>
 										<input
 											type="text"
 											value={locationTerm}
 											onChange={(e) => setLocationTerm(e.target.value)}
 											className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/50 font-medium"
-											placeholder="District, city, country"
+											placeholder={t('location_placeholder')}
 										/>
 									</div>
 
@@ -460,7 +460,7 @@ function MarketplacePage() {
 										<div className="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between rounded-2xl bg-white/90 px-4 py-3 shadow-lg backdrop-blur-md">
 											<div>
 												<p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-													Fresh stock
+													{t('fresh_stock')}
 												</p>
 												<p className="text-sm font-black text-slate-900">
 													{product.quantity} {product.unit}
@@ -486,7 +486,7 @@ function MarketplacePage() {
 													? "text-indigo-700 bg-indigo-50"
 													: "text-slate-600 bg-slate-100"
 												}`}>
-												{product.origin === "INTERNATIONAL" ? "World market" : "Local"}
+												{product.origin === "INTERNATIONAL" ? t('world_market') : t('local')}
 											</span>
 										</div>
 

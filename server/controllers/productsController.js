@@ -3,6 +3,7 @@ import prisma from "../db/prisma.js";
 import locationService from "../utils/locationService.js";
 import { writeAuditLog } from "../services/auditLogService.js";
 import path from "path";
+import fs from "fs/promises";
 import OpenAI from "openai";
 
 let _openai = null;
@@ -114,12 +115,70 @@ function buildImageQualityReport(file, product = null) {
 	};
 }
 
+async function verifyImageIsAgriculturalProduce(file, productName, category) {
+	const openaiClient = getOpenAI();
+	if (!openaiClient) {
+		console.warn("OpenAI API key not set. Skipping image verification.");
+		return { isMatch: true, reason: "OpenAI API key not configured for validation." };
+	}
+
+	try {
+		let fileBuffer = file.buffer;
+		if (!fileBuffer && file.path) {
+			fileBuffer = await fs.readFile(file.path);
+		}
+
+		if (!fileBuffer) {
+			return { isMatch: false, reason: "Empty or invalid image file." };
+		}
+
+		const base64String = fileBuffer.toString("base64");
+		const prompt = `You are a strict agricultural AI validator.
+Evaluate if this uploaded image represents the agricultural produce: "${productName}" (category: "${category}").
+If the image is completely unrelated to agricultural produce, or is a mismatch (e.g. shows shoes, clothes, vehicles, people, pets, buildings, electronics, documents, or unrelated items), set "isMatch" to false.
+Otherwise, set "isMatch" to true.
+
+Output strictly in JSON format matching this schema:
+{
+  "isMatch": boolean,
+  "reason": string
+}`;
+
+		const response = await openaiClient.chat.completions.create({
+			model: "gpt-4o-mini",
+			messages: [
+				{
+					role: "user",
+					content: [
+						{ type: "text", text: prompt },
+						{
+							type: "image_url",
+							image_url: { url: `data:${file.mimetype};base64,${base64String}` },
+						},
+					],
+				},
+			],
+			response_format: { type: "json_object" },
+		});
+
+		const resultText = response.choices?.[0]?.message?.content;
+		const parsed = JSON.parse(resultText || "{}");
+		return {
+			isMatch: parsed.isMatch !== false,
+			reason: parsed.reason || "The image does not appear to match the listed crop."
+		};
+	} catch (e) {
+		console.error("Error during image verification:", e);
+		return { isMatch: true, reason: "Error during validation fallback." };
+	}
+}
+
 export async function uploadProductImages(req, res) {
 	try {
 		const { id } = req.params;
 		const product = await prisma.product.findUnique({
 			where: { id },
-			select: { farmerId: true, images: true },
+			select: { farmerId: true, images: true, name: true, category: true },
 		});
 		if (!product) return res.status(404).json({ error: "Product not found" });
 		if (product.farmerId !== req.user.id) {
@@ -129,6 +188,26 @@ export async function uploadProductImages(req, res) {
 		const files = req.files || [];
 		if (!Array.isArray(files) || files.length === 0) {
 			return res.status(400).json({ error: "No images uploaded" });
+		}
+
+		// Verify each uploaded image
+		for (const file of files) {
+			const verification = await verifyImageIsAgriculturalProduce(file, product.name, product.category);
+			if (!verification.isMatch) {
+				// Clean up all newly uploaded files from disk
+				for (const f of files) {
+					if (f.path) {
+						try {
+							await fs.unlink(f.path);
+						} catch (unlinkError) {
+							console.error("Failed to delete invalid file:", f.path, unlinkError);
+						}
+					}
+				}
+				return res.status(400).json({
+					error: `Image verification failed: ${verification.reason}`
+				});
+			}
 		}
 
 		let existing = [];

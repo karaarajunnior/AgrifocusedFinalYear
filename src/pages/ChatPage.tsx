@@ -226,7 +226,15 @@ function ChatPage() {
 
 		const rec = new WebSpeech();
 		recognitionRef.current = rec;
-		rec.lang = "en-US";
+		const recognitionLangs: Record<string, string> = {
+			en: 'en-US',
+			ug: 'lg-UG',
+			ach: 'en-UG',
+			teo: 'en-UG',
+			lgg: 'en-UG',
+			nyn: 'en-UG',
+		};
+		rec.lang = recognitionLangs[language] || 'en-US';
 		rec.interimResults = false;
 		rec.maxAlternatives = 1;
 

@@ -288,5 +288,27 @@ router.post(
 	}
 );
 
+router.post(
+	"/tts",
+	authenticateToken,
+	[
+		body("text").isString().notEmpty(),
+		body("messageId").isString().notEmpty(),
+	],
+	async (req, res) => {
+		try {
+			const errors = validationResult(req);
+			if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+			const { text, messageId } = req.body;
+			const url = await synthesizeToFile({ messageId, text });
+			res.json({ url });
+		} catch (error) {
+			console.error("TTS endpoint error:", error);
+			res.status(500).json({ error: "TTS generation failed" });
+		}
+	}
+);
+
 export default router;
 

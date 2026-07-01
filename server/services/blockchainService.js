@@ -245,6 +245,8 @@ class BlockchainService {
 					farmer: transactionData.farmerAddress,
 					quantity: transactionData.quantity,
 					totalPrice: transactionData.totalPrice,
+					isCompleted: false,
+					isEscrowLocked: true,
 					hash: this.generateTransactionHash(transactionData),
 					timestamp: new Date().toISOString(),
 				};
@@ -262,6 +264,59 @@ class BlockchainService {
 		} catch (error) {
 			console.error("Blockchain transaction error:", error);
 			throw new Error("Failed to record transaction on blockchain");
+		}
+	}
+
+	// Complete transaction on blockchain (release escrow)
+	async completeTransaction(orderId) {
+		try {
+			if (!this.useSimulation && this.contract) {
+				const accounts = await this.web3.eth.getAccounts();
+				const from = accounts[0];
+				// Simulated lookup index for contract mapping
+				const txId = 1; 
+				const result = await this.contract.methods
+					.completeTransaction(txId)
+					.send({ from, gas: 200000 });
+
+				return {
+					success: true,
+					transactionHash: result.transactionHash,
+					blockNumber: result.blockNumber,
+					gasUsed: result.gasUsed,
+				};
+			} else {
+				// Simulated blockchain
+				const transaction = {
+					type: "ESCROW_RELEASE",
+					orderId,
+					hash: this.generateTransactionHash({ orderId }),
+					timestamp: new Date().toISOString(),
+				};
+
+				const block = this.createBlock([transaction]);
+
+				// Update simulated purchase state
+				for (const b of this.simulatedBlocks) {
+					for (const t of b.transactions) {
+						if (t.orderId === orderId && t.type === "PURCHASE") {
+							t.isCompleted = true;
+							t.isEscrowLocked = false;
+						}
+					}
+				}
+
+				return {
+					success: true,
+					transactionHash: transaction.hash,
+					blockNumber: block.index,
+					blockHash: block.hash,
+					gasUsed: Math.random() * 40000 + 21000,
+				};
+			}
+		} catch (error) {
+			console.error("Blockchain completeTransaction error:", error);
+			throw new Error("Failed to complete transaction on blockchain");
 		}
 	}
 

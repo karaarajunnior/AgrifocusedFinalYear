@@ -5,6 +5,7 @@ import blockchainService from "../services/blockchainService.js";
 import { requireVerified } from "../middleware/verified.js";
 import { initiateCollection, normalizeUgMsisdn } from "../services/payments/mobileMoneySimService.js";
 import prisma from "../db/prisma.js";
+import { releaseEscrowForOrder } from "../services/escrowService.js";
 
 const router = express.Router();
 
@@ -391,6 +392,10 @@ router.patch(
 				}
 			}
 
+			if (status === "DELIVERED") {
+				await releaseEscrowForOrder(id);
+			}
+
 			res.json({
 				message: "Order status updated successfully",
 				order: await prisma.order.findUnique({
@@ -485,6 +490,46 @@ router.post(
 			res.status(500).json({ error: "Failed to add review" });
 		}
 	},
+);
+
+// Manually release escrow (buyers only)
+router.post(
+	"/:id/release-escrow",
+	authenticateToken,
+	requireRole(["BUYER"]),
+	requireVerified,
+	async (req, res) => {
+		try {
+			const { id } = req.params;
+			const order = await prisma.order.findUnique({
+				where: { id },
+				select: { buyerId: true, status: true }
+			});
+			if (!order) return res.status(404).json({ error: "Order not found" });
+			if (order.buyerId !== req.user.id) {
+				return res.status(403).json({ error: "Not authorized" });
+			}
+
+			// Release the escrow
+			const result = await releaseEscrowForOrder(id);
+			if (!result.success) {
+				return res.status(400).json({ error: result.reason || "Failed to release escrow" });
+			}
+
+			// Update order status to DELIVERED if it isn't already
+			if (order.status !== "DELIVERED") {
+				await prisma.order.update({
+					where: { id },
+					data: { status: "DELIVERED" }
+				});
+			}
+
+			res.json({ message: "Escrow funds released successfully" });
+		} catch (error) {
+			console.error("Release escrow error:", error);
+			res.status(500).json({ error: "Failed to release escrow" });
+		}
+	}
 );
 
 export default router;

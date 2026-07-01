@@ -21,6 +21,7 @@ contract AgriMarketplace {
         uint256 totalPrice;
         uint256 timestamp;
         bool isCompleted;
+        bool isEscrowLocked;
     }
 
     // Off-chain payment proof (Airtel / bank transfer / etc.) for non-repudiation.
@@ -165,7 +166,8 @@ contract AgriMarketplace {
             quantity: _quantity,
             totalPrice: product.price * _quantity,
             timestamp: block.timestamp,
-            isCompleted: false
+            isCompleted: false,
+            isEscrowLocked: true
         });
         
         product.quantity -= _quantity;
@@ -175,13 +177,6 @@ contract AgriMarketplace {
         
         buyerTransactions[msg.sender].push(transactionCounter);
         
-        // Transfer payment to farmer (minus platform fee)
-        uint256 platformFee = (msg.value * 2) / 100; // 2% platform fee
-        uint256 farmerPayment = msg.value - platformFee;
-        
-        payable(product.farmer).transfer(farmerPayment);
-        payable(owner).transfer(platformFee);
-        
         emit ProductPurchased(transactionCounter, _productId, msg.sender, _quantity);
     }
     
@@ -189,11 +184,20 @@ contract AgriMarketplace {
         Transaction storage transaction = transactions[_transactionId];
         
         require(
-            msg.sender == transaction.buyer || msg.sender == transaction.farmer,
-            "Only buyer or farmer can complete transaction"
+            msg.sender == transaction.buyer || msg.sender == transaction.farmer || msg.sender == owner,
+            "Only buyer, farmer, or owner can complete transaction"
         );
+        require(!transaction.isCompleted, "Transaction already completed");
+        require(transaction.isEscrowLocked, "Funds not in escrow");
         
         transaction.isCompleted = true;
+        transaction.isEscrowLocked = false;
+        
+        uint256 platformFee = (transaction.totalPrice * 2) / 100; // 2% platform fee
+        uint256 farmerPayment = transaction.totalPrice - platformFee;
+        
+        payable(transaction.farmer).transfer(farmerPayment);
+        payable(owner).transfer(platformFee);
         
         emit TransactionCompleted(_transactionId);
     }

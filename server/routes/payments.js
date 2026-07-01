@@ -25,8 +25,8 @@ registerWebhookHandler(async (payload) => {
 		const providerReference =
 			payload?.transaction?.id || payload?.reference || null;
 		const status = (payload?.transaction?.status || "").toUpperCase();
-		const mapped = status.includes("SUCCESS") || status === "COMPLETED"
-			? "COMPLETED"
+		const mapped = status.includes("SUCCESS") || status === "COMPLETED" || status === "ESCROW_LOCKED"
+			? "ESCROW_LOCKED"
 			: status.includes("FAIL") || status.includes("REJECT")
 				? "FAILED"
 				: "PENDING";
@@ -108,7 +108,7 @@ registerWebhookHandler(async (payload) => {
 			data: [
 				{
 					userId: tx.order.buyerId,
-					event: mapped === "COMPLETED" ? "payment_completed" : mapped === "FAILED" ? "payment_failed" : "payment_pending",
+					event: mapped === "ESCROW_LOCKED" ? "payment_completed" : mapped === "FAILED" ? "payment_failed" : "payment_pending",
 					metadata: JSON.stringify({
 						orderId: tx.orderId,
 						provider: "mobile_money",
@@ -118,7 +118,7 @@ registerWebhookHandler(async (payload) => {
 				},
 				{
 					userId: tx.order.farmerId,
-					event: mapped === "COMPLETED" ? "payment_completed" : mapped === "FAILED" ? "payment_failed" : "payment_pending",
+					event: mapped === "ESCROW_LOCKED" ? "payment_completed" : mapped === "FAILED" ? "payment_failed" : "payment_pending",
 					metadata: JSON.stringify({
 						orderId: tx.orderId,
 						provider: "mobile_money",
@@ -130,7 +130,7 @@ registerWebhookHandler(async (payload) => {
 		});
 
 		// Ledger posting for completed payment
-		if (mapped === "COMPLETED") {
+		if (mapped === "ESCROW_LOCKED") {
 			try {
 				// PHASE 3: Automated Input-Debt Settlement
 				// Find any active input credits for this farmer
@@ -167,7 +167,7 @@ registerWebhookHandler(async (payload) => {
 		}
 
 		// Blockchain finalization
-		if (mapped === "COMPLETED" && !updated.blockHash) {
+		if (mapped === "ESCROW_LOCKED" && !updated.blockHash) {
 			try {
 				const order = await prisma.order.findUnique({
 					where: { id: tx.orderId },
@@ -386,10 +386,10 @@ router.post(
 			});
 			if (!tx) return res.status(404).json({ error: "No pending payment found for this order" });
 
-			// Update status directly
+			// Update status directly to escrow locked
 			await prisma.transaction.update({
 				where: { id: tx.id },
-				data: { status: "COMPLETED" },
+				data: { status: "ESCROW_LOCKED" },
 			});
 
 			// Trigger ledger + blockchain via the registered handler

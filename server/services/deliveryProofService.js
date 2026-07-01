@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import prisma from "../db/prisma.js";
 import blockchainService from "./blockchainService.js";
+import { releaseEscrowForOrder } from "./escrowService.js";
 
 function sha256Hex(s) {
 	return crypto.createHash("sha256").update(String(s)).digest("hex");
@@ -85,6 +86,9 @@ export async function verifyDeliveryProof({ orderId, codeOrToken, confirmedByUse
 		where: { id: orderId },
 		data: { status: "DELIVERED" },
 	});
+
+	// Release locked escrow funds
+	await releaseEscrowForOrder(orderId);
 
 	// Optional: record a hash on the chain (simulation-safe)
 	try {

@@ -407,9 +407,9 @@ function FarmerDashboard() {
 				<div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
 					<div>
 						<h1 className="text-4xl font-black text-slate-900 tracking-tight uppercase">
-							Farmer Overview
+							{t('farmer_overview')}
 						</h1>
-						<p className="text-slate-500 mt-2 font-medium">Agricultural analytics and market performance tracking.</p>
+						<p className="text-slate-500 mt-2 font-medium">{t('farmer_overview_subtitle')}</p>
 					</div>
 					<div className="flex gap-4">
 						<button
@@ -417,7 +417,7 @@ function FarmerDashboard() {
 							className="premium-btn grad-emerald text-white px-8 py-4 rounded-2xl font-bold hover:shadow-2xl hover:shadow-emerald-500/30 transition-all flex items-center gap-2 uppercase tracking-widest text-xs"
 						>
 							<Plus className="h-5 w-5" />
-							List New Harvest
+							{t('list_new_harvest')}
 						</button>
 						{!user?.isExportVerified && (
 							<Link
@@ -425,26 +425,25 @@ function FarmerDashboard() {
 								className="premium-btn bg-white border-2 border-emerald-600 text-emerald-700 px-8 py-4 rounded-2xl font-bold hover:bg-emerald-50 transition-all flex items-center gap-2 uppercase tracking-widest text-xs"
 							>
 								<Globe className="h-5 w-5" />
-								Verify Export
+								{t('verify_for_export')}
 							</Link>
 						)}
 					</div>
 				</div>
 
-				{/* Quick Stats Grid */}
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
 					<div className="glass-card p-8 group hover:translate-y-[-4px] transition-all">
 						<div className="p-4 bg-emerald-50 w-fit rounded-2xl mb-6 text-emerald-600 group-hover:scale-110 transition-transform">
 							<Package className="h-6 w-6" />
 						</div>
-						<p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Total Listings</p>
+						<p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{t('total_listings')}</p>
 						<h3 className="text-4xl font-black text-slate-900 tracking-tight">{analytics?.overview.totalProducts || 0}</h3>
 					</div>
 					<div className="glass-card p-8 group hover:translate-y-[-4px] transition-all">
 						<div className="p-4 bg-blue-50 w-fit rounded-2xl mb-6 text-blue-600 group-hover:scale-110 transition-transform">
 							<DollarSign className="h-6 w-6" />
 						</div>
-						<p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Verified Revenue</p>
+						<p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{t('verified_revenue')}</p>
 						<h3 className="text-4xl font-black text-slate-900 tracking-tight">
 							<span className="text-lg font-bold mr-1 opacity-30">UGX</span>
 							{(analytics?.overview.totalRevenue || 0).toLocaleString()}
@@ -454,14 +453,14 @@ function FarmerDashboard() {
 						<div className="p-4 bg-amber-50 w-fit rounded-2xl mb-6 text-amber-600 group-hover:scale-110 transition-transform">
 							<TrendingUp className="h-6 w-6" />
 						</div>
-						<p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Completed Sales</p>
+						<p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{t('completed_sales')}</p>
 						<h3 className="text-4xl font-black text-slate-900 tracking-tight">{analytics?.overview.totalSales || 0}</h3>
 					</div>
 					<div className="glass-card p-8 group hover:translate-y-[-4px] transition-all">
 						<div className="p-4 bg-purple-50 w-fit rounded-2xl mb-6 text-purple-600 group-hover:scale-110 transition-transform">
 							<Star className="h-6 w-6" />
 						</div>
-						<p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Network Rating</p>
+						<p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{t('network_rating')}</p>
 						<h3 className="text-4xl font-black text-slate-900 tracking-tight">{analytics?.overview.averageRating.toFixed(1) || '0.0'}</h3>
 					</div>
 				</div>
@@ -495,18 +494,18 @@ function FarmerDashboard() {
 						<div className="max-w-xl text-center md:text-left">
 							<div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-[9px] font-black uppercase tracking-widest mb-6">
 								<div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-								Automated Speech Handling
+								{t('automated_speech_handling')}
 							</div>
-							<h3 className="text-3xl font-black uppercase tracking-tight mb-4">Voice Assistant Dashboard</h3>
+							<h3 className="text-3xl font-black uppercase tracking-tight mb-4">{t('voice_assistant_dashboard')}</h3>
 							<p className="text-slate-400 font-medium leading-relaxed">
-								"List 50kg Bag of Coffee" — Your speech is automatically translated and listed on the global marketplace. Luganda & English supported.
+								{t('voice_entry_hint')}
 							</p>
 						</div>
 						<button 
-							onClick={() => toast.success("Listening for Luganda/English commands...")}
+							onClick={() => window.dispatchEvent(new CustomEvent("activate-voice-assistant"))}
 							className="px-10 py-5 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-500 transition-all flex items-center gap-3 shadow-xl shadow-emerald-900/40 whitespace-nowrap"
 						>
-							<Mic className="h-4 w-4" /> Start Voice Entry
+							<Mic className="h-4 w-4" /> {t('start_voice_entry')}
 						</button>
 					</div>
 				</div>
@@ -527,26 +526,26 @@ function FarmerDashboard() {
 											<div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-600/20">
 												<CreditCard className="h-5 w-5" />
 											</div>
-											<h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase">verified financial identity</h3>
+											<h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase">{t('verified_financial_identity')}</h3>
 										</div>
-										<p className="text-slate-500 text-sm mb-10 font-medium">Secure credit assessment based on DAFIS ledger activity.</p>
+										<p className="text-slate-500 text-sm mb-10 font-medium">{t('credit_assessment_hint')}</p>
 										
 										<div className="grid grid-cols-2 gap-4">
 											<div className="bg-gray-50 p-4 rounded-2xl">
-												<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Credit Score</p>
+												<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{t('credit_score')}</p>
 												<h4 className="text-2xl font-black text-blue-600">{credit.score}</h4>
 												<p className="text-xs font-bold text-gray-500">{credit.rating} Rating</p>
 											</div>
 											<div className="bg-gray-50 p-4 rounded-2xl">
-												<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Verified Income</p>
+												<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{t('verified_income')}</p>
 												<h4 className="text-2xl font-black text-green-600">UGX {Math.floor(credit.totalIncome / 1000).toLocaleString()}k</h4>
-												<p className="text-xs font-bold text-gray-500">Trailing 12mo</p>
+												<p className="text-xs font-bold text-gray-500">{t('trailing_12mo')}</p>
 											</div>
 										</div>
 									</div>
 
 									<div className="w-full md:w-64 space-y-3">
-										<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Score Analysis</p>
+										<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t('score_analysis')}</p>
 										{credit.reasons.map((r, i) => (
 											<div key={i} className="flex items-center gap-2 text-xs font-bold text-gray-600">
 												<div className="h-1 w-1 rounded-full bg-green-500" />
@@ -557,7 +556,7 @@ function FarmerDashboard() {
 											onClick={handleDownloadReport}
 											className="w-full mt-4 py-3 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
 										>
-											Download Bank Report
+											{t('download_bank_report')}
 										</button>
 									</div>
 								</div>
@@ -570,7 +569,7 @@ function FarmerDashboard() {
 								<Globe className="h-48 w-48" />
 							</div>
 							<div className="relative z-10">
-								<h3 className="text-xl font-black uppercase tracking-tight mb-8">Global Sales & Prospecting Hub</h3>
+								<h3 className="text-xl font-black uppercase tracking-tight mb-8">{t('global_sales_hub')}</h3>
 								
 								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
 									<div className="p-6 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-all cursor-pointer group"
@@ -579,16 +578,16 @@ function FarmerDashboard() {
 										<div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20 group-hover:rotate-12 transition-transform">
 											<Share2 className="h-6 w-6 text-white" />
 										</div>
-										<h4 className="font-bold text-lg mb-2">Heritage Card</h4>
-										<p className="text-[9px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">Social Share Link</p>
+										<h4 className="font-bold text-lg mb-2">{t('heritage_card')}</h4>
+										<p className="text-[9px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">{t('social_share_link')}</p>
 									</div>
 
 									<div className="p-6 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-all cursor-pointer group">
 										<div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/20 group-hover:rotate-12 transition-transform">
 											<Users className="h-6 w-6 text-white" />
 										</div>
-										<h4 className="font-bold text-lg mb-2">Digital Coop</h4>
-										<p className="text-[9px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">Bundle for Export</p>
+										<h4 className="font-bold text-lg mb-2">{t('digital_coop')}</h4>
+										<p className="text-[9px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">{t('bundle_for_export')}</p>
 									</div>
 
 									<div className="p-6 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-all cursor-pointer group"
@@ -597,8 +596,8 @@ function FarmerDashboard() {
 										<div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-amber-500/20 group-hover:rotate-12 transition-transform">
 											<Download className="h-6 w-6 text-white" />
 										</div>
-										<h4 className="font-bold text-lg mb-2">Export Brochure</h4>
-										<p className="text-[9px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">USD/English PDF Link</p>
+										<h4 className="font-bold text-lg mb-2">{t('export_brochure')}</h4>
+										<p className="text-[9px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">{t('pdf_link_hint')}</p>
 									</div>
 
 									<div className="p-6 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-all cursor-pointer group"
@@ -607,15 +606,15 @@ function FarmerDashboard() {
 										<div className="w-12 h-12 bg-purple-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-purple-500/20 group-hover:rotate-12 transition-transform">
 											<UserPlus className="h-6 w-6 text-white" />
 										</div>
-										<h4 className="font-bold text-lg mb-2">Invite Neighbor</h4>
-										<p className="text-[9px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">Earn Trade Pioneer Badge</p>
+										<h4 className="font-bold text-lg mb-2">{t('invite_neighbor')}</h4>
+										<p className="text-[9px] text-slate-400 leading-relaxed uppercase tracking-widest font-black">{t('invite_neighbor_hint')}</p>
 									</div>
 								</div>
 
 								<div className="mt-8 pt-8 border-t border-white/10">
 									<div className="flex justify-between items-center mb-6">
-										<h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Global Importer Prospector</h4>
-										<span className="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-[9px] font-black uppercase">Vetted Leads</span>
+										<h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{t('global_importer_prospector')}</h4>
+										<span className="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-[9px] font-black uppercase">{t('vetted_leads')}</span>
 									</div>
 									<div className="space-y-4">
 										{[
@@ -699,7 +698,7 @@ function FarmerDashboard() {
 								}`}
 							>
 								<ShieldCheck className="h-4 w-4" />
-								<span>{t("Verification")}</span>
+								<span>{t("verification")}</span>
 							</button>
 						</div>
 
@@ -767,16 +766,16 @@ function FarmerDashboard() {
 									<div className="p-2 bg-white/20 rounded-lg">
 										<ShieldCheck className="h-6 w-6" />
 									</div>
-									<h4 className="font-bold text-lg">Export Status: Not Verified</h4>
+									<h4 className="font-bold text-lg">{t('export_status_not_verified')}</h4>
 								</div>
 								<p className="text-green-100 text-sm leading-relaxed mb-6">
-									You are currently restricted to local sales. Verified exporters earn 2x more per kg on international contracts.
+									{t('export_restriction_hint')}
 								</p>
 								<Link
 									to="/export-verification"
 									className="block w-full text-center py-3 bg-white text-green-700 rounded-xl font-bold hover:bg-green-50 transition translate-y-0 active:translate-y-1"
 								>
-									Verify for Export
+									{t('verify_for_export')}
 								</Link>
 							</div>
 						)}
@@ -793,7 +792,7 @@ function FarmerDashboard() {
 							<div className="flex justify-between items-center mb-6">
 								<h4 className="font-black text-slate-900 flex items-center gap-2 uppercase tracking-widest text-xs">
 									<TrendingUp className="h-4 w-4 text-emerald-500" />
-									24/7 price board
+									{t('price_board_title')}
 								</h4>
 								<span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
 									Live
@@ -829,7 +828,7 @@ function FarmerDashboard() {
 							<div className="flex justify-between items-center mb-6">
 								<h4 className="font-black text-slate-900 flex items-center gap-2 uppercase tracking-widest text-xs">
 									<FileText className="h-4 w-4 text-blue-500" />
-									Financial Record
+									{t('financial_record')}
 								</h4>
 								<button 
 									onClick={() => window.print()} 
@@ -841,21 +840,21 @@ function FarmerDashboard() {
 							
 							<div className="space-y-4 text-sm">
 								<div className="flex justify-between pb-3 border-b border-slate-50">
-									<span className="text-slate-500 font-medium">Gross Sales Portfolio</span>
+									<span className="text-slate-500 font-medium">{t('gross_sales_portfolio')}</span>
 									<span className="font-black text-slate-900">UGX {(analytics?.overview.totalRevenue || 0).toLocaleString()}</span>
 								</div>
 								<div className="flex justify-between pb-3 border-b border-slate-100">
-									<span className="text-slate-500 font-medium">Verification Fees (2.5%)</span>
+									<span className="text-slate-500 font-medium">{t('verification_fees')}</span>
 									<span className="font-black text-red-500">- UGX {((analytics?.overview.totalRevenue || 0) * 0.025).toLocaleString()}</span>
 								</div>
 								<div className="flex justify-between pt-2">
-									<span className="font-black text-slate-900 uppercase text-xs tracking-tight">Net Estimated Payout</span>
+									<span className="font-black text-slate-900 uppercase text-xs tracking-tight">{t('net_estimated_payout')}</span>
 									<span className="font-black text-emerald-600 text-lg">UGX {((analytics?.overview.totalRevenue || 0) * 0.975).toLocaleString()}</span>
 								</div>
 							</div>
 							
 							<div className="mt-8 p-4 bg-slate-50 rounded-2xl text-[10px] font-bold text-slate-400 text-center uppercase tracking-widest">
-								verified ledger extract · {new Date().toLocaleDateString()}
+								{t('verified_ledger_extract')} · {new Date().toLocaleDateString()}
 							</div>
 						</div>
 					</div>
@@ -868,7 +867,7 @@ function FarmerDashboard() {
 							<div className="p-8 border-b bg-gray-50/50">
 								<div className="flex justify-between items-center">
 									<div>
-										<h2 className="text-2xl font-bold text-gray-900">List Your Harvest</h2>
+										<h2 className="text-2xl font-bold text-gray-900">{t('list_your_harvest')}</h2>
 										<p className="text-sm text-gray-500 mt-1">Step {addStep + 1} of {simpleMode ? 4 : 5}</p>
 									</div>
 									<button
@@ -883,7 +882,7 @@ function FarmerDashboard() {
 							<form onSubmit={handleAddProduct} className="p-8 space-y-6">
 								{addStep === 0 && (
 									<div className="space-y-4">
-										<label className="block text-sm font-bold text-gray-700 uppercase tracking-wider">Product Name</label>
+										<label className="block text-sm font-bold text-gray-700 uppercase tracking-wider">{t('product_name')}</label>
 										<input
 											autoFocus
 											className="w-full border-2 border-gray-100 p-4 rounded-2xl text-lg font-medium focus:border-green-500 focus:bg-white transition-all outline-none bg-gray-50"
@@ -921,7 +920,7 @@ function FarmerDashboard() {
 
 								{addStep === 1 && (
 									<div className="space-y-4">
-										<label className="block text-sm font-bold text-gray-700 uppercase tracking-wider">Price per KG (UGX)</label>
+										<label className="block text-sm font-bold text-gray-700 uppercase tracking-wider">{t('price_per_kg')}</label>
 										<div className="relative">
 											<input
 												autoFocus
@@ -940,21 +939,21 @@ function FarmerDashboard() {
 
 								{addStep === 2 && (
 									<div className="space-y-4">
-										<label className="block text-sm font-bold text-gray-700 uppercase tracking-wider">Product Origin</label>
+										<label className="block text-sm font-bold text-gray-700 uppercase tracking-wider">{t('product_origin')}</label>
 										<div className="flex gap-4">
 											<button
 												type="button"
 												onClick={() => setNewProduct({ ...newProduct, origin: "LOCAL" })}
 												className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border-2 transition ${newProduct.origin === "LOCAL" ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-gray-100 text-gray-500 hover:bg-gray-50'}`}
 											>
-												Local Market
+												{t('local_market')}
 											</button>
 											<button
 												type="button"
 												onClick={() => setNewProduct({ ...newProduct, origin: "INTERNATIONAL" })}
 												className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border-2 transition ${newProduct.origin === "INTERNATIONAL" ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 text-gray-500 hover:bg-gray-50'}`}
 											>
-												International
+												{t('international')}
 											</button>
 										</div>
 									</div>
@@ -962,7 +961,7 @@ function FarmerDashboard() {
 
 								{addStep === 3 && (
 									<div className="space-y-4">
-										<label className="block text-sm font-bold text-gray-700 uppercase tracking-wider">Estimated Quantity</label>
+										<label className="block text-sm font-bold text-gray-700 uppercase tracking-wider">{t('estimated_quantity')}</label>
 										<div className="relative">
 											<input
 												autoFocus
@@ -990,13 +989,13 @@ function FarmerDashboard() {
 											<div className="flex items-center gap-3 mb-3">
 												<Camera className="h-5 w-5 text-emerald-600" />
 												<div>
-													<p className="text-sm font-black text-slate-800 uppercase">Product photos</p>
-													<p className="text-xs text-slate-500">Take or upload harvest photos so buyers see them on the dashboard.</p>
+													<p className="text-sm font-black text-slate-800 uppercase">{t('product_photos')}</p>
+													<p className="text-xs text-slate-500">{t('photos_upload_hint')}</p>
 												</div>
 											</div>
 											<label className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-emerald-50">
 												<Upload className="h-4 w-4" />
-												Take / choose photos
+												{t('take_choose_photos')}
 												<input
 													type="file"
 													accept="image/*"
@@ -1020,10 +1019,10 @@ function FarmerDashboard() {
 								{!simpleMode && addStep === 4 && (
 									<div className="space-y-6">
 										<div>
-											<label className="block text-sm font-bold text-gray-700 uppercase tracking-wider mb-2">Description</label>
+											<label className="block text-sm font-bold text-gray-700 uppercase tracking-wider mb-2">{t('description')}</label>
 											<textarea
 												className="w-full border-2 border-gray-100 p-4 rounded-2xl min-h-[120px] focus:border-green-500 focus:bg-white transition-all outline-none bg-gray-50"
-												placeholder="Describe the quality, grade, or moisture level..."
+												placeholder={t('description_placeholder')}
 												value={newProduct.description}
 												onChange={(e) =>
 													setNewProduct({
@@ -1046,19 +1045,19 @@ function FarmerDashboard() {
 									<button
 										type="button"
 										onClick={() => {
-											if (addStep > 0) setAddStep(s => s - 1);
+											if (addStep > 0) setAddStep(simpleMode ? 3 : addStep - 1);
 											else resetAddProductModal();
 										}}
 										className="flex-1 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition"
 									>
-										{addStep === 0 ? 'Cancel' : 'Back'}
+										{addStep === 0 ? t('cancel') : t('back')}
 									</button>
 									<button
 										type="submit"
 										disabled={submitting}
 										className="flex-[2] py-4 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-700 transition shadow-lg shadow-green-600/30 flex items-center justify-center gap-2"
 									>
-										{submitting ? <RefreshCw className="animate-spin h-5 w-5" /> : (isLastStep() ? "Finalize & List" : "Continue")}
+										{submitting ? <RefreshCw className="animate-spin h-5 w-5" /> : (isLastStep() ? t('finalize_list') : t('continue'))}
 									</button>
 								</div>
 							</form>

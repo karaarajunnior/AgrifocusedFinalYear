@@ -300,10 +300,10 @@ function BuyerDashboard() {
 				<div className="mb-8">
 					<OfflineBadge isOffline={!isOnline} timestamp={cacheTime} />
 					<h1 className="text-3xl font-bold text-gray-900">
-						Welcome back, {user?.name}! 🛒
+						{t('welcome_buyer')}, {user?.name}! 🛒
 					</h1>
 					<p className="text-gray-600 mt-2">
-						Discover fresh produce directly from farmers and supermarkets
+						{t('welcome_buyer_subtitle')}
 					</p>
 				</div>
 
@@ -313,19 +313,19 @@ function BuyerDashboard() {
 						onClick={() => setSelectedOrigin("")}
 						className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${!selectedOrigin ? "bg-slate-800 text-white shadow-sm" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"}`}
 					>
-						All Assets
+						{t('all_assets')}
 					</button>
 					<button
 						onClick={() => setSelectedOrigin("LOCAL")}
 						className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${selectedOrigin === "LOCAL" ? "bg-emerald-600 text-white shadow-sm" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"}`}
 					>
-						Local Markets
+						{t('local_markets')}
 					</button>
 					<button
 						onClick={() => setSelectedOrigin("INTERNATIONAL")}
 						className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${selectedOrigin === "INTERNATIONAL" ? "bg-blue-600 text-white shadow-sm" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"}`}
 					>
-						International
+						{t('international')}
 					</button>
 				</div>
 
@@ -354,7 +354,7 @@ function BuyerDashboard() {
 						{/* Currency Toggle */}
 						<div className="bg-white border border-slate-200 p-4 rounded-2xl flex gap-4 items-center shadow-sm">
 							<DollarSign className="h-5 w-5 text-slate-400" />
-							<p className="text-sm font-semibold text-slate-600">Currency:</p>
+							<p className="text-sm font-semibold text-slate-600">{t('currency')}</p>
 							<div className="flex gap-2">
 								<button 
 									onClick={() => setCurrency('UGX')}
@@ -377,23 +377,23 @@ function BuyerDashboard() {
 								<TrendingUp className="h-6 w-6 text-emerald-600" />
 								<span className="text-[10px] font-black text-emerald-700 bg-white px-2 py-0.5 rounded-full uppercase">Top Category</span>
 							</div>
-							<h4 className="font-bold text-slate-900 mb-1">Local Commodities</h4>
-							<p className="text-xs text-slate-500 font-medium">95% Trade Efficiency</p>
+							<h4 className="font-bold text-slate-900 mb-1">{t('local_commodities')}</h4>
+							<p className="text-xs text-slate-500 font-medium">{t('trade_efficiency_hint')}</p>
 						</div>
 						{/* Invite an Importer Widget */}
 						<div className="rounded-2xl p-6 bg-blue-900 text-white overflow-hidden relative mt-6 shadow-sm">
 							<div className="absolute top-0 right-0 p-6 opacity-10">
 								<UserPlus className="h-20 w-20" />
 							</div>
-							<h3 className="text-lg font-bold mb-4">Trade Network</h3>
+							<h3 className="text-lg font-bold mb-4">{t('trade_network')}</h3>
 							<p className="text-sm text-blue-100 mb-6 leading-relaxed">
-								Invite an international roaster or bulk buyer to earn <span className="text-amber-400 font-semibold">Trade Pioneer</span> status and exclusive logistics discounts.
+								{t('invite_importer_hint')}
 							</p>
 							<button 
 								onClick={() => toast.success("Buyer referral link copied!")}
 								className="w-full py-3 bg-blue-500 hover:bg-blue-400 text-white rounded-xl font-semibold text-sm transition-colors shadow-sm"
 							>
-								Invite an Importer
+								{t('invite_importer_btn')}
 							</button>
 						</div>
 					</div>
@@ -409,7 +409,7 @@ function BuyerDashboard() {
 								</div>
 								<div>
 									<h2 className="text-xl font-bold text-slate-800">
-										Regional Inventory
+										{t('regional_inventory')}
 									</h2>
 									<p className="text-sm text-slate-500 mt-1">
 										{locationLoading
@@ -434,7 +434,7 @@ function BuyerDashboard() {
 									onClick={detectUserLocation}
 									className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm">
 									<Target className="h-4 w-4 mr-2" />
-									Update
+									{t('update')}
 								</button>
 							</div>
 						</div>
@@ -499,7 +499,7 @@ function BuyerDashboard() {
 							<div className="text-center py-8">
 								<MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
 								<h3 className="text-lg font-medium text-gray-900 mb-2">
-									No nearby products found
+									{t('no_nearby_products')}
 								</h3>
 								<p className="text-gray-600 mb-4">
 									Try increasing your search radius or check back later for new
@@ -508,7 +508,7 @@ function BuyerDashboard() {
 								<button
 									onClick={() => setSearchRadius(searchRadius + 25)}
 									className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-									Expand Search to {searchRadius + 25}km
+									{t('expand_search')} {searchRadius + 25}km
 								</button>
 							</div>
 						)}
@@ -558,7 +558,7 @@ function BuyerDashboard() {
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
 						<div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm">
 							<div className="flex justify-between items-center mb-4">
-								<p className="text-sm font-semibold text-slate-500">Total Procurement</p>
+								<p className="text-sm font-semibold text-slate-500">{t('total_procurement')}</p>
 								<Package className="h-5 w-5 text-blue-500" />
 							</div>
 							<p className="text-3xl font-bold text-slate-900">{analytics.overview.totalOrders}</p>
@@ -566,7 +566,7 @@ function BuyerDashboard() {
 
 						<div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm">
 							<div className="flex justify-between items-center mb-4">
-								<p className="text-sm font-semibold text-slate-500">Capital Expenditure</p>
+								<p className="text-sm font-semibold text-slate-500">{t('capital_expenditure')}</p>
 								<DollarSign className="h-5 w-5 text-emerald-500" />
 							</div>
 							<p className="text-3xl font-bold text-slate-900">
@@ -577,7 +577,7 @@ function BuyerDashboard() {
 
 						<div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm">
 							<div className="flex justify-between items-center mb-4">
-								<p className="text-sm font-semibold text-slate-500">Average Order Value</p>
+								<p className="text-sm font-semibold text-slate-500">{t('average_order_value')}</p>
 								<TrendingUp className="h-5 w-5 text-purple-500" />
 							</div>
 							<p className="text-3xl font-bold text-slate-900">
@@ -609,7 +609,7 @@ function BuyerDashboard() {
 								onClick={() => setShowFilters(!showFilters)}
 								className="inline-flex items-center justify-center px-6 py-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all font-semibold text-sm text-slate-700">
 								<Filter className="h-4 w-4 mr-2" />
-								Filters
+								{t('filters')}
 							</button>
 						</div>
 
@@ -672,10 +672,10 @@ function BuyerDashboard() {
 				<div className="mb-12">
 					<div className="flex items-center justify-between mb-6">
 						<h2 className="text-xl font-bold text-slate-800">
-							Market Inventory
+							{t('market_inventory')}
 						</h2>
 						<div className="text-sm font-semibold text-slate-500">
-							{products.length} Items Listed
+							{products.length} {t('items_listed')}
 						</div>
 					</div>
 
@@ -683,7 +683,7 @@ function BuyerDashboard() {
 						<div className="bg-white border border-slate-100 rounded-2xl p-16 text-center">
 							<Package className="h-12 w-12 text-slate-300 mx-auto mb-4" />
 							<h3 className="text-lg font-semibold text-slate-800 mb-2">
-								No Products Found
+									{t('no_products_found')}
 							</h3>
 							<p className="text-slate-500">
 								Try adjusting your search or filters to see more results.
@@ -770,7 +770,7 @@ function BuyerDashboard() {
 										<button
 											onClick={() => handleOrder(product.id)}
 											className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm">
-											Order Now
+											{t('order_now')}
 										</button>
 									</div>
 								</div>
@@ -784,10 +784,10 @@ function BuyerDashboard() {
 					<div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-12 shadow-sm">
 						<div className="px-8 py-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
 							<h2 className="text-xl font-bold text-slate-800">
-								Recent Orders
+								{t('recent_orders')}
 							</h2>
 							<div className="text-sm font-semibold text-slate-500">
-								Latest Transactions
+								{t('latest_transactions')}
 							</div>
 						</div>
 						<div className="divide-y divide-slate-100">

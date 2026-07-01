@@ -13,7 +13,7 @@ export function parseProductImages(images?: string[] | string | null): string[] 
 	} else {
 		list = [];
 	}
-	const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+	const apiUrl = import.meta.env.VITE_API_URL || "https://agrifocused-api.onrender.com/api";
 	const baseUrl = import.meta.env.VITE_API_BASE_URL || apiUrl.replace(/\/api\/?$/, "");
 	return list.map((img) => {
 		if (typeof img === "string" && img.startsWith("/uploads/")) {

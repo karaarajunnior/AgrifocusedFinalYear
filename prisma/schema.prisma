@@ -748,6 +748,7 @@ enum OrderStatus {
 
 enum TransactionStatus {
   PENDING
+  ESCROW_LOCKED
   COMPLETED
   FAILED
 }
